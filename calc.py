@@ -107,33 +107,35 @@ class Interpreter:
         self.current_token = self.get_next_token()
 
         # we expect the current token to be an integer
-        left = self.current_token
+        result = self.current_token
         self.eat(INTEGER)
 
 
-        # we expect the current token to be either a '+' or '-'
-        op = self.current_token
-        if op.type == PLUS:
-            self.eat(PLUS)
-        else:
-            self.eat(MINUS)
+        while self.current_token.type is not EOF:
+            # we expect the current token to be either a '+' or '-'
+            op = self.current_token
+            if op.type == PLUS:
+                self.eat(PLUS)
+            else:
+                self.eat(MINUS)
 
-        # we expect the current token to be an integer
-        right = self.current_token
-        self.eat(INTEGER)
-        # after the above call the self.current_token is set to
-        # EOF token
+            # we expect the current token to be an integer
+            right = self.current_token
+            self.eat(INTEGER)
+            # after the above call the self.current_token is set to
+            # EOF token
 
-        # at this point either the INTEGER PLUS INTEGER or
-        # the INTEGER MINUS INTEGER sequence of tokens
-        # has been successfully found and the method can just
-        # return the result of adding or subtracting two integers,
-        # thus effectively interpreting client input
-        if op.type == PLUS:
-            result = left.value + right.value
-        else:
-            result = left.value - right.value
-        return result
+            # at this point either the INTEGER PLUS INTEGER or
+            # the INTEGER MINUS INTEGER sequence of tokens
+            # has been successfully found and the method can just
+            # return the result of adding or subtracting two integers,
+            # thus effectively interpreting client input
+            if op.type == PLUS:
+                result.value += right.value
+            else:
+                result.value -= right.value
+
+        return result.value
 
 
 def main():
