@@ -1,8 +1,10 @@
+import sys
+
 # Token types
 #
 # EOF (end-of-file) token is used to indicate that
 # there is no more input left for lexical analysis
-INTEGER = 'INTEGER'
+INT = 'INT'
 ADD = 'ADD'
 SUB = 'SUB'
 MUL = 'MUL'
@@ -18,7 +20,7 @@ OP_TO_TYPE = {
 
 class Token:
     def __init__(self, type, value):
-        # token type: INTEGER, MUL, DIV, or EOF
+        # token type: INT, MUL, DIV, or EOF
         self.type = type
         # token value: non-negative integer value, '*', '/', or None
         self.value = value
@@ -27,7 +29,7 @@ class Token:
         """String representation of the class instance.
 
         Examples:
-            Token(INTEGER, 3)
+            Token(INT, 3)
             Token(MUL, '*')
         """
         return 'Token({type}, {value})'.format(
@@ -37,6 +39,12 @@ class Token:
 
     def __repr__(self):
         return self.__str__()
+
+    def __eq__(self, other):
+        return self.type == other.type and self.value == other.value
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
 
 class Lexer:
@@ -84,7 +92,7 @@ class Lexer:
                 continue
 
             if self.current_char.isdigit():
-                return Token(INTEGER, self.integer())
+                return Token(INT, self.integer())
 
             if self.current_char not in OP_TO_TYPE:
                 self.error()
@@ -119,34 +127,76 @@ class Interpreter:
         # otherwise raise an exception.
         self.eat_any([token_type])
 
-    def factor(self):
-        """Return an INTEGER token value.
+    def assert_any_tok_type(self, tok, token_types):
+        if not any([tok.type == ty for ty in token_types]):
+            self.error(f"expected one of {token_types}, got {tok.type}")
 
-        factor : INTEGER
+    def assert_tok_type(self, tok, token_type):
+        self.assert_any_tok_type(tok, [token_type]) 
+
+    def factor(self):
+        """Return an INT token value.
+
+        factor : INT
         """
         token = self.current_token
-        self.eat(INTEGER)
+        self.eat(INT)
         return token.value
+
+    def token_strm(self):
+        yield self.current_token
+        while self.current_token.type != EOF:
+            self.current_token = self.lexer.get_next_token()
+            yield self.current_token
+
+    def mindex(self, toks, search_toks):
+        tok_indices = []
+        for tok in search_toks:
+            try:
+                tok_indices.append(toks.index(tok))
+            except ValueError:
+                continue
+        return min(tok_indices) 
+
+    def squash_muldiv(self, toks):
+        multok = Token(MUL, '*')
+        divtok = Token(DIV, '/')
+        toks = list(toks)
+
+        while multok in toks or divtok in toks:
+            idx = self.mindex(toks, [multok, divtok])
+            operator = toks[idx]
+
+            try:
+                left = toks[idx - 1]
+                right = toks[idx + 1]
+            except IndexError:
+                self.error(f"expected INT")
+
+            self.assert_tok_type(left, INT)
+            self.assert_tok_type(right, INT)
+            self.assert_any_tok_type(operator, [MUL, DIV])
+
+            toks[idx - 1: idx + 2] = \
+                [Token(INT, int(eval(f"{left.value}{operator.value}{right.value}")))]
+            text = "".join([str(tok.value) for tok in toks if tok.type is not EOF])
+
+            self.lexer = Lexer(text)
+            self.current_token = self.lexer.get_next_token() 
 
     def expr(self):
         """Arithmetic expression parser / interpreter.
 
         expr   : factor ((MUL | DIV) factor)*
-        factor : INTEGER
+        factor : INT
         """
-        op_to_expr = {
-            ADD: lambda acc: acc + self.factor(),
-            SUB: lambda acc: acc - self.factor(),
-            MUL: lambda acc: acc * self.factor(),
-            DIV: lambda acc: acc / self.factor()
-        }
+        tokens = self.squash_muldiv(self.token_strm())
 
         result = self.factor()
-
         while self.current_token.type != EOF:
-            token = self.current_token
+            operator = self.current_token
             self.eat_any(OP_TO_TYPE.values())
-            result = op_to_expr[token.type](result)
+            result = int(eval(f"{result}{operator.value}{self.factor()}"))
 
         return result
 
