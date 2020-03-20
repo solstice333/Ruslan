@@ -2,7 +2,7 @@
 #
 # EOF (end-of-file) token is used to indicate that
 # there is no more input left for lexical analysis
-INTEGER, PLUS, MINUS, MUL, DIV, OPEN_PAR, CLOSE_PAR, EOF = (
+INTEGER, PLUS, MINUS, MUL, DIV, LPAR, RPAR, EOF = (
     'INTEGER', 'PLUS', 'MINUS', 'MUL', 'DIV', '(', ')', 'EOF'
 )
 
@@ -95,11 +95,11 @@ class Lexer(object):
 
             if self.current_char == '(':
                 self.advance()
-                return Token(OPEN_PAR, '(')
+                return Token(LPAR, '(')
 
             if self.current_char == ')':
                 self.advance()
-                return Token(CLOSE_PAR, ')')
+                return Token(RPAR, ')')
 
             self.error()
 
@@ -126,15 +126,15 @@ class Interpreter(object):
             self.error()
 
     def factor(self):
-        """factor : (INTEGER | '(' expr ')')"""
+        """factor : INTEGER | LPAR expr RPAR"""
         if self.current_token.type == INTEGER:
             val = self.current_token.value
             self.eat(INTEGER)
             return val
-        elif self.current_token.type == OPEN_PAR:
-            self.eat(OPEN_PAR)
+        elif self.current_token.type == LPAR:
+            self.eat(LPAR)
             val = self.expr()
-            self.eat(CLOSE_PAR)
+            self.eat(RPAR)
             return val
 
         self.error()
