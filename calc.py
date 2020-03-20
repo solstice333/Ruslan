@@ -1,35 +1,25 @@
-import sys
-
 # Token types
 #
 # EOF (end-of-file) token is used to indicate that
 # there is no more input left for lexical analysis
-INT = 'INT'
-ADD = 'ADD'
-SUB = 'SUB'
-MUL = 'MUL'
-DIV = 'DIV'
-EOF = 'EOF'
+INTEGER, PLUS, MINUS, MUL, DIV, EOF = (
+    'INTEGER', 'PLUS', 'MINUS', 'MUL', 'DIV', 'EOF'
+)
 
-OP_TO_TYPE = {
-    '*': MUL,
-    '/': DIV,
-    '+': ADD,
-    '-': SUB
-}
 
-class Token:
+class Token(object):
     def __init__(self, type, value):
-        # token type: INT, MUL, DIV, or EOF
+        # token type: INTEGER, PLUS, MINUS, MUL, DIV, or EOF
         self.type = type
-        # token value: non-negative integer value, '*', '/', or None
+        # token value: non-negative integer value, '+', '-', '*', '/', or None
         self.value = value
 
     def __str__(self):
         """String representation of the class instance.
 
         Examples:
-            Token(INT, 3)
+            Token(INTEGER, 3)
+            Token(PLUS, '+')
             Token(MUL, '*')
         """
         return 'Token({type}, {value})'.format(
@@ -40,14 +30,8 @@ class Token:
     def __repr__(self):
         return self.__str__()
 
-    def __eq__(self, other):
-        return self.type == other.type and self.value == other.value
 
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-
-class Lexer:
+class Lexer(object):
     def __init__(self, text):
         # client string input, e.g. "3 * 5", "12 / 3 * 4", etc
         self.text = text
@@ -84,7 +68,6 @@ class Lexer:
         This method is responsible for breaking a sentence
         apart into tokens. One token at a time.
         """
-
         while self.current_char is not None:
 
             if self.current_char.isspace():
@@ -92,111 +75,89 @@ class Lexer:
                 continue
 
             if self.current_char.isdigit():
-                return Token(INT, self.integer())
+                return Token(INTEGER, self.integer())
 
-            if self.current_char not in OP_TO_TYPE:
-                self.error()
+            if self.current_char == '+':
+                self.advance()
+                return Token(PLUS, '+')
 
-            tok = Token(OP_TO_TYPE[self.current_char], self.current_char)
-            self.advance()
-            return tok
+            if self.current_char == '-':
+                self.advance()
+                return Token(MINUS, '-')
+
+            if self.current_char == '*':
+                self.advance()
+                return Token(MUL, '*')
+
+            if self.current_char == '/':
+                self.advance()
+                return Token(DIV, '/')
+
+            self.error()
 
         return Token(EOF, None)
 
 
-class Interpreter:
+class Interpreter(object):
     def __init__(self, lexer):
         self.lexer = lexer
         # set current token to the first token taken from the input
         self.current_token = self.lexer.get_next_token()
 
-    def error(self, msg=None):
-        raise Exception("Invalid syntax" + (f": {msg}" if msg else ""))
-
-    def eat_any(self, token_types):
-        if self.current_token.type in token_types:
-            self.current_token = self.lexer.get_next_token()
-        else:
-            self.error(
-                f"expected one of {token_types}, got {self.current_token.type}")
+    def error(self):
+        raise Exception('Invalid syntax')
 
     def eat(self, token_type):
         # compare the current token type with the passed token
         # type and if they match then "eat" the current token
         # and assign the next token to the self.current_token,
         # otherwise raise an exception.
-        self.eat_any([token_type])
-
-    def assert_any_tok_type(self, tok, token_types):
-        if not any([tok.type == ty for ty in token_types]):
-            self.error(f"expected one of {token_types}, got {tok.type}")
-
-    def assert_tok_type(self, tok, token_type):
-        self.assert_any_tok_type(tok, [token_type]) 
+        if self.current_token.type == token_type:
+            self.current_token = self.lexer.get_next_token()
+        else:
+            self.error()
 
     def factor(self):
-        """Return an INT token value.
-
-        factor : INT
-        """
+        """factor : INTEGER"""
         token = self.current_token
-        self.eat(INT)
+        self.eat(INTEGER)
         return token.value
 
-    def token_strm(self):
-        yield self.current_token
-        while self.current_token.type != EOF:
-            self.current_token = self.lexer.get_next_token()
-            yield self.current_token
+    def term(self):
+        """term : factor ((MUL | DIV) factor)*"""
+        result = self.factor()
 
-    def mindex(self, toks, search_toks):
-        tok_indices = []
-        for tok in search_toks:
-            try:
-                tok_indices.append(toks.index(tok))
-            except ValueError:
-                continue
-        return min(tok_indices) 
+        while self.current_token.type in (MUL, DIV):
+            token = self.current_token
+            if token.type == MUL:
+                self.eat(MUL)
+                result = result * self.factor()
+            elif token.type == DIV:
+                self.eat(DIV)
+                result = result / self.factor()
 
-    def squash_muldiv(self, toks):
-        multok = Token(MUL, '*')
-        divtok = Token(DIV, '/')
-        toks = list(toks)
-
-        while multok in toks or divtok in toks:
-            idx = self.mindex(toks, [multok, divtok])
-            operator = toks[idx]
-
-            try:
-                left = toks[idx - 1]
-                right = toks[idx + 1]
-            except IndexError:
-                self.error(f"expected INT")
-
-            self.assert_tok_type(left, INT)
-            self.assert_tok_type(right, INT)
-            self.assert_any_tok_type(operator, [MUL, DIV])
-
-            toks[idx - 1: idx + 2] = \
-                [Token(INT, int(eval(f"{left.value}{operator.value}{right.value}")))]
-            text = "".join([str(tok.value) for tok in toks if tok.type is not EOF])
-
-            self.lexer = Lexer(text)
-            self.current_token = self.lexer.get_next_token() 
+        return result
 
     def expr(self):
         """Arithmetic expression parser / interpreter.
 
-        expr   : factor ((MUL | DIV) factor)*
-        factor : INT
-        """
-        tokens = self.squash_muldiv(self.token_strm())
+        calc>  14 + 2 * 3 - 6 / 2
+        17
 
-        result = self.factor()
-        while self.current_token.type != EOF:
-            operator = self.current_token
-            self.eat_any(OP_TO_TYPE.values())
-            result = int(eval(f"{result}{operator.value}{self.factor()}"))
+        expr   : term ((PLUS | MINUS) term)*
+        term   : factor ((MUL | DIV) factor)*
+        factor : INTEGER
+        """
+        result = self.term()
+
+        while self.current_token.type in (PLUS, MINUS):
+            token = self.current_token
+            if token.type == PLUS:
+                self.eat(PLUS)
+                result = result + self.term()
+            elif token.type == MINUS:
+                self.eat(MINUS)
+                result = result - self.term()
 
         return result
 
