@@ -2,8 +2,8 @@
 #
 # EOF (end-of-file) token is used to indicate that
 # there is no more input left for lexical analysis
-INTEGER, PLUS, MINUS, MUL, DIV, EOF = (
-    'INTEGER', 'PLUS', 'MINUS', 'MUL', 'DIV', 'EOF'
+INTEGER, PLUS, MINUS, MUL, DIV, OPEN_PAR, CLOSE_PAR, EOF = (
+    'INTEGER', 'PLUS', 'MINUS', 'MUL', 'DIV', '(', ')', 'EOF'
 )
 
 
@@ -93,6 +93,14 @@ class Lexer(object):
                 self.advance()
                 return Token(DIV, '/')
 
+            if self.current_char == '(':
+                self.advance()
+                return Token(OPEN_PAR, '(')
+
+            if self.current_char == ')':
+                self.advance()
+                return Token(CLOSE_PAR, ')')
+
             self.error()
 
         return Token(EOF, None)
@@ -118,10 +126,18 @@ class Interpreter(object):
             self.error()
 
     def factor(self):
-        """factor : INTEGER"""
-        token = self.current_token
-        self.eat(INTEGER)
-        return token.value
+        """factor : (INTEGER | '(' expr ')')"""
+        if self.current_token.type == INTEGER:
+            val = self.current_token.value
+            self.eat(INTEGER)
+            return val
+        elif self.current_token.type == OPEN_PAR:
+            self.eat(OPEN_PAR)
+            val = self.expr()
+            self.eat(CLOSE_PAR)
+            return val
+
+        self.error()
 
     def term(self):
         """term : factor ((MUL | DIV) factor)*"""
@@ -172,7 +188,7 @@ def main():
             continue
         lexer = Lexer(text)
         interpreter = Interpreter(lexer)
-        result = interpreter.expr()
+        result = int(interpreter.expr())
         print(result)
 
 
