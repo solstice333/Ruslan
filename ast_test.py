@@ -64,8 +64,6 @@ class Num(AST):
       assert numtok.type == TypeId.INT, \
          f"expecting {TypeId.INT}, got {numtok.type}"
       super().__init__(numtok, parent, None)
-      if parent:
-         parent.children.append(self)
 
 class BinOp(AST):
    def __init__(
@@ -97,6 +95,7 @@ def expr() -> AST:
 
 def main() -> None:
    print(anytree.RenderTree(expr()))
+   print(list(anytree.PostOrderIter(expr())))
 
 if __name__ == '__main__':
    main()
