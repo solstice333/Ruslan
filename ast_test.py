@@ -1,4 +1,4 @@
-from anytree import NodeMixin # type:ignore
+from anytree import PostOrderIter, RenderTree, NodeMixin # type:ignore
 from enum import Enum, auto
 from typing import Any, List, overload
 
@@ -50,7 +50,7 @@ class AST(NodeMixin):
          self.children = children
 
    def __str__(self) -> str:
-      return str(self.tok) 
+      return f"{type(self).__name__}({self.tok})"
 
    def __repr__(self) -> str:
       return str(self)
@@ -93,9 +93,42 @@ def expr() -> AST:
    add_tok = Token(TypeId.ADD, '+')
    return BinOp(add_tok, Num(one_tok), term())
 
+def find(lst, lam):
+   idx = 0
+   for el in lst:
+      if lam(el):
+         return idx, el
+      idx += 1
+   return None
+
+def numify_val(val):
+   return Num(Token(TypeId.INT, val))
+
 def main() -> None:
-   print(anytree.RenderTree(expr()))
-   print(list(anytree.PostOrderIter(expr())))
+   print(RenderTree(expr()))
+   poi = list(PostOrderIter(expr()))
+
+   print(poi)
+
+   binop = find(poi, lambda node: isinstance(node, BinOp))
+   while binop:
+      idx, node = binop
+      tok = node.tok
+      num1 = poi[idx - 1].tok.value
+      num2 = poi[idx - 2].tok.value
+
+      if tok.type == TypeId.ADD:
+         poi[idx - 2: idx + 1] = [numify_val(num1 + num2)]
+      elif tok.type == TypeId.SUB:
+         poi[idx - 2: idx + 1] = [numify_val(num1 - num2)]
+      elif tok.type == TypeId.MUL:
+         poi[idx - 2: idx + 1] = [numify_val(num1 * num2)]
+      elif tok.type == TypeId.DIV:
+         poi[idx - 2: idx + 1] = [numify_val(num1 / num2)]
+
+      binop = find(poi, lambda node: isinstance(node, BinOp))
+
+   print(poi)
 
 if __name__ == '__main__':
    main()
