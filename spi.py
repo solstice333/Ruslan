@@ -1,37 +1,50 @@
-from enum import Enum, auto
-from typing import Optional, Union, List, Dict, overload
+from enum import Enum
+from typing import \
+    Any, \
+    Callable, \
+    Optional, \
+    Union, \
+    List, \
+    Dict, \
+    Mapping, \
+    NamedTuple, \
+    Iterator
 from abc import ABC, abstractmethod
-from anytree import PostOrderIter, RenderTree, NodeMixin # type:ignore
+from anytree import RenderTree # type:ignore
+from anytree import \
+    PostOrderIter, \
+    NodeMixin
+from re import Pattern, RegexFlag
+
+import re
+
+class TypeIdValue(NamedTuple):
+    pat: str
+    re: bool = False
+    type: Callable[[str], Any] = str
 
 
 class TypeId(Enum):
-    INT = auto()
-    ADD = auto()
-    SUB = auto()
-    MUL = auto()
-    DIV = auto()
-    LPAR = auto()
-    RPAR = auto()
-    EOF = auto()
+    INT = TypeIdValue(pat=r"\d+", re=True, type=int)
+    ADD = TypeIdValue(pat='+')
+    SUB = TypeIdValue(pat='-')
+    MUL = TypeIdValue(pat='*')
+    DIV = TypeIdValue(pat='/')
+    LPAR = TypeIdValue(pat='(')
+    RPAR = TypeIdValue(pat=')')
+    EOF = TypeIdValue(pat=r"$", re=True)
 
     def __repr__(self) -> str:
         return str(self)
  
     @classmethod
-    def operators(cls) -> List['TypeId']:
-        return [
-            cls.ADD, 
-            cls.SUB, 
-            cls.MUL, 
-            cls.DIV
-        ]
+    def members(cls) -> Mapping[str, 'TypeId']:
+        return cls.__members__
 
-    @classmethod
-    def parens(cls) -> List['TypeId']:
-        return [
-            cls.LPAR,
-            cls.RPAR
-        ]
+    @staticmethod
+    def pattern(ident: 'TypeId') -> str:
+        pat = ident.value.pat or ''
+        return pat if ident.value.re else re.escape(pat)
 
 
 class Token:
@@ -54,42 +67,38 @@ class Token:
 
 
 class Lexer:
-    _CHAR_TO_TYPEID = { 
-        '+': TypeId.ADD,
-        '-': TypeId.SUB,
-        '*': TypeId.MUL,
-        '/': TypeId.DIV,
-        '(': TypeId.LPAR,
-        ')': TypeId.RPAR
-    }
+    class TypeIdInfo(NamedTuple):
+        typeid: TypeId
+        pattern: str
 
     def __init__(self, text: str) -> None:
-        self.text: str = text
-        self.pos: int = 0
-        self.current_char: Optional[str] = self.text[self.pos]
+        self._token_gen: Iterator[Token] = self._iter_tokens()
+        self._text: str = text
 
-    def error(self) -> None:
-        raise RuntimeError('Invalid character')
+    def _token_name_to_tid_info(self) -> Dict[str, 'Lexer.TypeIdInfo']:
+        return { 
+            name: 
+            Lexer.TypeIdInfo(
+                tid, 
+                TypeId.pattern(tid)
+            )
+            for name, tid in TypeId.members().items()
+        }
 
-    def advance(self) -> None:
-        """Advance the `pos` pointer and set the `current_char` variable."""
-        self.pos += 1
-        if self.pos > len(self.text) - 1:
-            self.current_char = None
-        else:
-            self.current_char = self.text[self.pos]
+    def _iter_tokens(self) -> Iterator[Token]:
+        token_spec = self._token_name_to_tid_info()
+        token_pats = [
+            rf"(?P<{name}>{tid_info.pattern})" 
+            for name, tid_info in token_spec.items() 
+        ]
+        token_pat = "|".join(token_pats)
 
-    def skip_whitespace(self) -> None:
-        while self.current_char is not None and self.current_char.isspace():
-            self.advance()
+        for m in re.finditer(token_pat, self._text):
+            name = m.lastgroup if m.lastgroup else ''
+            tid = token_spec[name].typeid
+            yield Token(tid, tid.value.type(m[name]))
 
-    def integer(self) -> int:
-        """Return a (multidigit) integer consumed from the input."""
-        result = ''
-        while self.current_char is not None and self.current_char.isdigit():
-            result += self.current_char
-            self.advance()
-        return int(result)
+        yield Token(TypeId.EOF, None)
 
     def get_next_token(self) -> Token:
         """Lexical analyzer (also known as scanner or tokenizer)
@@ -97,26 +106,8 @@ class Lexer:
         This method is responsible for breaking a sentence
         apart into tokens. One token at a time.
         """
-        while self.current_char is not None:
 
-            if self.current_char.isspace():
-                self.skip_whitespace()
-                continue
-
-            elif self.current_char.isdigit():
-                return Token(TypeId.INT, self.integer())
-
-            elif self.current_char in Lexer._CHAR_TO_TYPEID.keys():
-                tok = Token(
-                    Lexer._CHAR_TO_TYPEID[self.current_char], 
-                    self.current_char
-                )
-                self.advance()
-                return tok
-            
-            self.error()
-
-        return Token(TypeId.EOF, None)
+        return next(self._token_gen)
 
 
 class AST(ABC, NodeMixin):
@@ -149,7 +140,7 @@ class Add(BinOp):
         self, 
         left: AST, 
         right: AST, 
-        opchar: str='+'
+        opchar: str=TypeId.ADD.value.pat
     ) -> None:
         super().__init__(left, right, Token(TypeId.ADD, opchar))
 
@@ -158,7 +149,7 @@ class Sub(BinOp):
         self, 
         left: AST, 
         right: AST, 
-        opchar: str='-'
+        opchar: str=TypeId.SUB.value.pat
     ) -> None:
         super().__init__(left, right, Token(TypeId.SUB, opchar))   
 
@@ -168,7 +159,7 @@ class Mul(BinOp):
         self, 
         left: AST, 
         right: AST, 
-        opchar: str='*'
+        opchar: str=TypeId.MUL.value.pat
     ) -> None:
         super().__init__(left, right, Token(TypeId.MUL, opchar))
 
@@ -178,7 +169,7 @@ class Div(BinOp):
         self, 
         left: AST, 
         right: AST, 
-        opchar: str='/'
+        opchar: str=TypeId.DIV.value.pat
     ) -> None:
         super().__init__(left, right, Token(TypeId.DIV, opchar))
 
@@ -275,32 +266,36 @@ class Parser:
 
 
 class NodeVisitor:
-    def visit(self, node) -> int:
+    def _gen_visit_method_name(self, node: AST) -> str:
         method_name = 'visit_' + type(node).__name__
-        method_name = method_name.lower()
-        return getattr(self, method_name, self.raise_visit_error)
+        return method_name.lower()
 
-    def raise_visit_error(self, node) -> None:
-        raise RuntimeError('No visit_{} method'.format(type(node).__name__))
+    def visit(self, node: AST) -> int:
+        method_name = self._gen_visit_method_name(node)
+        return getattr(self, method_name, self.raise_visit_error)(node)
+
+    def raise_visit_error(self, node: AST) -> None:
+        method_name = self._gen_visit_method_name(node)
+        raise RuntimeError(f"No {method_name} method")
 
 
 class Interpreter(NodeVisitor):
-    def visit_add(self, node) -> int:
+    def visit_add(self, node: AST) -> int:
         return self.visit(node.left) + self.visit(node.right)
 
-    def visit_sub(self, node) -> int:
+    def visit_sub(self, node: AST) -> int:
         return self.visit(node.left) - self.visit(node.right)
 
-    def visit_mul(self, node) -> int:
+    def visit_mul(self, node: AST) -> int:
         return self.visit(node.left) * self.visit(node.right)
 
-    def visit_div(self, node) -> int:
+    def visit_div(self, node: AST) -> int:
         return int(self.visit(node.left) / self.visit(node.right))
 
-    def visit_num(self, node) -> int:
+    def visit_num(self, node: AST) -> int:
         return node.value
 
-    def interpret(self, ast) -> int:
+    def interpret(self, ast: AST) -> int:
         return self.visit(ast)
 
 
