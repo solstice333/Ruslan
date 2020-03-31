@@ -315,6 +315,9 @@ class NodeVisitor:
 
 
 class Interpreter(NodeVisitor):
+    def __init__(self, text: str):
+        self._text = text
+
     def visit_pos(self, node: AST) -> int:
         return +self.visit(node.right)
 
@@ -336,7 +339,10 @@ class Interpreter(NodeVisitor):
     def visit_num(self, node: AST) -> int:
         return node.value
 
-    def interpret(self, ast: AST) -> int:
+    def interpret(self) -> int:
+        lexer: Lexer = Lexer(self._text)
+        parser: Parser = Parser(lexer)
+        ast: AST = parser.parse()
         return self.visit(ast)
 
 
@@ -349,12 +355,8 @@ def main() -> None:
         if not text:
             continue
 
-        lexer: Lexer = Lexer(text)
-        parser: Parser = Parser(lexer)
-        ast: AST = parser.parse()
-        interpreter: Interpreter = Interpreter()
-        result: int = interpreter.interpret(ast)
-        print(RenderTree(ast))
+        interpreter: Interpreter = Interpreter(text)
+        result: int = interpreter.interpret()
         print(result)
 
 
