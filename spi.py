@@ -174,6 +174,34 @@ class Div(BinOp):
         super().__init__(left, right, Token(TypeId.DIV, opchar))
 
 
+class UnOp(AST):
+    def __init__(self, right: AST, optok: Token ) -> None:
+        self.right = right
+        self.children = [self.right]
+        self._token = optok
+
+    @property
+    def token(self):
+        return self._token
+
+class Pos(UnOp):
+    def __init__(
+        self, 
+        right: AST,
+        opchar: str=TypeId.ADD.value.pat
+    ) -> None:
+        super().__init__(right, Token(TypeId.ADD, opchar))
+
+
+class Neg(UnOp):
+    def __init__(
+        self,
+        right: AST,
+        opchar: str=TypeId.SUB.value.pat
+    ) -> None:
+        super().__init__(right, Token(TypeId.SUB, opchar))
+
+
 class Num(AST):
     def __init__(self, numtok: Token) -> None:
         self._token = numtok
@@ -213,9 +241,16 @@ class Parser:
             self.error()
 
     def factor(self) -> AST:
-        """factor : INTEGER | LPAREN expr RPAREN"""
+        """factor : (ADD | SUB) factor | INTEGER | LPAREN expr RPAREN"""
         token: Token = self.current_token
-        if token.type == TypeId.INT:
+
+        if token.type == TypeId.ADD:
+            self.eat(TypeId.ADD) 
+            return Pos(self.factor())
+        elif token.type == TypeId.SUB:
+            self.eat(TypeId.SUB)
+            return Neg(self.factor())
+        elif token.type == TypeId.INT:
             self.eat(TypeId.INT)
             return Num(token)
         elif token.type == TypeId.LPAR:
@@ -246,7 +281,7 @@ class Parser:
         """
         expr   : term ((ADD | SUB) term)*
         term   : factor ((MUL | DIV) factor)*
-        factor : INTEGER | LPAREN expr RPAREN
+        factor : (POS | NEG)* factor | INTEGER | LPAREN expr RPAREN
         """
         node: AST = self.term()
 
@@ -280,6 +315,12 @@ class NodeVisitor:
 
 
 class Interpreter(NodeVisitor):
+    def visit_pos(self, node: AST) -> int:
+        return +self.visit(node.right)
+
+    def visit_neg(self, node: AST) -> int:
+        return -self.visit(node.right)
+
     def visit_add(self, node: AST) -> int:
         return self.visit(node.left) + self.visit(node.right)
 
@@ -310,8 +351,10 @@ def main() -> None:
 
         lexer: Lexer = Lexer(text)
         parser: Parser = Parser(lexer)
+        ast: AST = parser.parse()
         interpreter: Interpreter = Interpreter()
-        result: int = interpreter.interpret(parser.parse())
+        result: int = interpreter.interpret(ast)
+        print(RenderTree(ast))
         print(result)
 
 
