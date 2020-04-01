@@ -12,6 +12,12 @@ Tutorial here: https://ruslanspivak.com/lsbasi-part1/
 
 3. anytree is used for the AST
 
+## Install Dependencies
+
+```
+$ python3 -m pip install -r requirements.txt
+```
+
 ## Type Checking
 
 ```
