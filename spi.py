@@ -33,6 +33,12 @@ class TypeId(Enum):
     LPAR = TypeIdValue(pat='(')
     RPAR = TypeIdValue(pat=')')
     EOF = TypeIdValue(pat=r"$", re=True)
+    BEGIN = TypeIdValue(pat="BEGIN")
+    END = TypeIdValue(pat="END")
+    DOT = TypeIdValue(pat=".")
+    ID = TypeIdValue(pat=r"[a-zA-Z]\w+", re=True)
+    ASSIGN = TypeIdValue(pat=":=")
+    SEMI = TypeIdValue(pat=";")
 
     def __repr__(self) -> str:
         return str(self)
@@ -70,6 +76,11 @@ class Lexer:
     class TypeIdInfo(NamedTuple):
         typeid: TypeId
         pattern: str
+
+    RESERVED_KEYWORDS: Dict[str, Token] = {
+        "BEGIN": Token(TypeId.BEGIN, TypeId.BEGIN.value.pat),
+        "END": Token(TypeId.END, TypeId.END.value.pat)
+    }
 
     def __init__(self, text: str) -> None:
         self._token_gen: Iterator[Token] = self._iter_tokens()

@@ -1,4 +1,6 @@
 # run with `python3 -m unittest discover`
+# to run specific testcases, do `python3 -m unittest discover -v -k <method>`
+# -k can be specified multipled times
 import unittest
 from spi import TypeId, Lexer, Parser, Interpreter
 
@@ -49,6 +51,12 @@ class LexerTestCase(unittest.TestCase):
         token = lexer.get_next_token()
         self.assertEqual(token.type, TypeId.RPAR)
         self.assertEqual(token.value, ')')
+
+    def test_lexer_ident(self):
+        pass
+
+    def test_lexer_res_kw(self):
+        pass
 
 
 class InterpreterTestCase(unittest.TestCase):
