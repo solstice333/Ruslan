@@ -227,8 +227,8 @@ class Parser:
         # set current token to the first token taken from the input
         self.current_token = self.lexer.get_next_token()
 
-    def error(self) -> None:
-        raise RuntimeError('Invalid syntax')
+    def error(self, msg: str) -> None:
+        raise RuntimeError(f"Invalid syntax: {msg}")
 
     def eat(self, token_type: TypeId) -> None:
         # compare the current token type with the passed token
@@ -238,61 +238,70 @@ class Parser:
         if self.current_token.type == token_type:
             self.current_token = self.lexer.get_next_token()
         else:
-            self.error()
+            self.error(
+                f"was expecting {token_type}, got {self.current_token.type}")
 
-    def factor(self) -> AST:
+    def factor(self, lpar_b: bool=False) -> AST:
         """factor : (ADD | SUB) factor | INTEGER | LPAREN expr RPAREN"""
         token: Token = self.current_token
 
         if token.type == TypeId.ADD:
             self.eat(TypeId.ADD) 
-            return Pos(self.factor())
+            return Pos(self.factor(lpar_b))
         elif token.type == TypeId.SUB:
             self.eat(TypeId.SUB)
-            return Neg(self.factor())
+            return Neg(self.factor(lpar_b))
         elif token.type == TypeId.INT:
             self.eat(TypeId.INT)
+            if self.current_token.type == TypeId.LPAR:
+                self.error(f"found {self.current_token}")
+            elif self.current_token.type == TypeId.RPAR and not lpar_b:
+                self.error(f"{TypeId.RPAR} with no matching {TypeId.LPAR}")
             return Num(token)
         elif token.type == TypeId.LPAR:
             self.eat(TypeId.LPAR)
-            node: AST = self.expr()
+            node: AST = self.expr(True)
             self.eat(TypeId.RPAR)
             return node
 
-        self.error()
+        self.error(str(token))
         return Eof()
 
-    def term(self) -> AST:
+    def term(self, lpar_b: bool=False) -> AST:
         """term : factor ((MUL | DIV) factor)*"""
-        node: AST = self.factor()
+        node: AST = self.factor(lpar_b)
 
-        while self.current_token.type in (TypeId.MUL, TypeId.DIV):
+        while True:
             token: Token = self.current_token
             if token.type == TypeId.MUL:
                 self.eat(TypeId.MUL)
-                node = Mul(node, self.factor())
+                node = Mul(node, self.factor(lpar_b))
             elif token.type == TypeId.DIV:
                 self.eat(TypeId.DIV)
-                node = Div(node, self.factor())
+                node = Div(node, self.factor(lpar_b))
+            else:
+                break
 
         return node
 
-    def expr(self) -> AST:
+    def expr(self, lpar_b: bool=False) -> AST:
         """
         expr   : term ((ADD | SUB) term)*
         term   : factor ((MUL | DIV) factor)*
         factor : (POS | NEG)* factor | INTEGER | LPAREN expr RPAREN
         """
-        node: AST = self.term()
+        node: AST = self.term(lpar_b)
 
-        while self.current_token.type in (TypeId.ADD, TypeId.SUB):
+        while True:
             token: Token = self.current_token
             if token.type == TypeId.ADD:
                 self.eat(TypeId.ADD)
-                node = Add(node, self.term())
+                node = Add(node, self.term(lpar_b))
             elif token.type == TypeId.SUB:
                 self.eat(TypeId.SUB)
-                node = Sub(node, self.term())
+                node = Sub(node, self.term(lpar_b))
+            else:
+                break
 
         return node
 
@@ -316,7 +325,7 @@ class NodeVisitor:
 
 class Interpreter(NodeVisitor):
     def __init__(self, text: str):
-        self._text = text
+        self._text = text.strip()
 
     def visit_pos(self, node: AST) -> int:
         return +self.visit(node.right)
@@ -339,7 +348,9 @@ class Interpreter(NodeVisitor):
     def visit_num(self, node: AST) -> int:
         return node.value
 
-    def interpret(self) -> int:
+    def interpret(self) -> Union[int, str]:
+        if not self._text:
+            return ""
         lexer: Lexer = Lexer(self._text)
         parser: Parser = Parser(lexer)
         ast: AST = parser.parse()
@@ -356,7 +367,7 @@ def main() -> None:
             continue
 
         interpreter: Interpreter = Interpreter(text)
-        result: int = interpreter.interpret()
+        result: Union[int, str] = interpreter.interpret()
         print(result)
 
 
