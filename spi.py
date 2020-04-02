@@ -36,7 +36,7 @@ class TypeId(Enum):
     BEGIN = TypeIdValue(pat="BEGIN")
     END = TypeIdValue(pat="END")
     DOT = TypeIdValue(pat=".")
-    ID = TypeIdValue(pat=r"[a-zA-Z]\w+", re=True)
+    ID = TypeIdValue(pat=r"[a-zA-Z]\w*", re=True)
     ASSIGN = TypeIdValue(pat=":=")
     SEMI = TypeIdValue(pat=";")
 
@@ -71,33 +71,67 @@ class Token:
     def __repr__(self) -> str:
         return self.__str__()
 
+    def __bool__(self) -> bool:
+        return bool(self.value)
+
+    def __eq__(self, other) -> bool:
+        return self.type == other.type and self.value == other.value
+
+    def __ne__(self, other) -> bool:
+        return not self.__eq__(other)
+
 
 class Lexer:
     class TypeIdInfo(NamedTuple):
         typeid: TypeId
         pattern: str
+        token: Token=Token(TypeId.EOF, None)
 
-    RESERVED_KEYWORDS: Dict[str, Token] = {
-        "BEGIN": Token(TypeId.BEGIN, TypeId.BEGIN.value.pat),
-        "END": Token(TypeId.END, TypeId.END.value.pat)
-    }
+    RES_KW: List[TypeId] = [
+        TypeId.BEGIN,
+        TypeId.END
+    ]
+
+    __RES_KW_TO_TID_INFO: Dict[str, TypeIdInfo] = {}
+    __TOKEN_NAME_TO_TID_INFO: Dict[str, TypeIdInfo] = {}
+
+    @classmethod
+    def _RES_KW_TO_TID_INFO(cls) -> Dict[str, TypeIdInfo]:
+        if not cls.__RES_KW_TO_TID_INFO:
+            cls.__RES_KW_TO_TID_INFO = \
+                { 
+                    name: 
+                    cls.TypeIdInfo(
+                        typeid=tid,
+                        pattern=TypeId.pattern(tid),
+                        token=Token(tid, TypeId.pattern(tid))
+                    )
+                    for name, tid in TypeId.members().items() 
+                    if tid in cls.RES_KW
+                }
+        return cls.__RES_KW_TO_TID_INFO
+
+    @classmethod
+    def _TOKEN_NAME_TO_TID_INFO(cls) -> Dict[str, TypeIdInfo]:
+        if not cls.__TOKEN_NAME_TO_TID_INFO:
+            cls.__TOKEN_NAME_TO_TID_INFO = \
+                { 
+                    name: 
+                    cls.TypeIdInfo(
+                        tid,
+                        TypeId.pattern(tid)
+                    )
+                    for name, tid in TypeId.members().items()
+                }
+            cls.__TOKEN_NAME_TO_TID_INFO.update(cls._RES_KW_TO_TID_INFO())
+        return cls.__TOKEN_NAME_TO_TID_INFO
 
     def __init__(self, text: str) -> None:
         self._token_gen: Iterator[Token] = self._iter_tokens()
         self._text: str = text
 
-    def _token_name_to_tid_info(self) -> Dict[str, 'Lexer.TypeIdInfo']:
-        return { 
-            name: 
-            Lexer.TypeIdInfo(
-                tid, 
-                TypeId.pattern(tid)
-            )
-            for name, tid in TypeId.members().items()
-        }
-
     def _iter_tokens(self) -> Iterator[Token]:
-        token_spec = self._token_name_to_tid_info()
+        token_spec = Lexer._TOKEN_NAME_TO_TID_INFO()
         token_pats = [
             rf"(?P<{name}>{tid_info.pattern})" 
             for name, tid_info in token_spec.items() 
@@ -107,7 +141,10 @@ class Lexer:
         for m in re.finditer(token_pat, self._text):
             name = m.lastgroup if m.lastgroup else ''
             tid = token_spec[name].typeid
-            yield Token(tid, tid.value.type(m[name]))
+            if token_spec[name].token:
+                yield token_spec[name].token
+            else:
+                yield Token(tid, tid.value.type(m[name]))
 
         yield Token(TypeId.EOF, None)
 

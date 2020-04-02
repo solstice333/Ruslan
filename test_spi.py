@@ -2,7 +2,7 @@
 # to run specific testcases, do `python3 -m unittest discover -v -k <method>`
 # -k can be specified multipled times
 import unittest
-from spi import TypeId, Lexer, Parser, Interpreter
+from spi import TypeId, Token, Lexer, Parser, Interpreter
 
 
 class LexerTestCase(unittest.TestCase):
@@ -55,8 +55,41 @@ class LexerTestCase(unittest.TestCase):
     def test_lexer_ident(self):
         pass
 
-    def test_lexer_res_kw(self):
-        pass
+    def test_lexer_res_kw_single_char_var(self):
+        lexer = self.makeLexer("BEGIN a := 0; END.")
+        tokens = list(iter(lexer.get_next_token, Token(TypeId.EOF, "")))
+        res_kw_dict = Lexer._RES_KW_TO_TID_INFO()
+
+        self.assertEqual(len(tokens), 7)
+
+        self.assertEqual(tokens[0], Token(TypeId.BEGIN, "BEGIN"))
+        self.assertEqual(tokens[1], Token(TypeId.ID, "a"))
+        self.assertEqual(tokens[2], Token(TypeId.ASSIGN, ":="))
+        self.assertEqual(tokens[3], Token(TypeId.INT, 0))
+        self.assertEqual(tokens[4], Token(TypeId.SEMI, ";"))
+        self.assertEqual(tokens[5], Token(TypeId.END, "END"))
+        self.assertEqual(tokens[6], Token(TypeId.DOT, "."))
+
+        self.assertIs(tokens[0], res_kw_dict['BEGIN'].token)
+        self.assertIs(tokens[5], res_kw_dict['END'].token)
+
+    def test_lexer_res_kw_multi_char_var(self):
+        lexer = self.makeLexer("BEGIN foo_bar123 := 0; END.")
+        tokens = list(iter(lexer.get_next_token, Token(TypeId.EOF, "")))
+        res_kw_dict = Lexer._RES_KW_TO_TID_INFO()
+
+        self.assertEqual(len(tokens), 7)
+
+        self.assertEqual(tokens[0], Token(TypeId.BEGIN, "BEGIN"))
+        self.assertEqual(tokens[1], Token(TypeId.ID, "foo_bar123"))
+        self.assertEqual(tokens[2], Token(TypeId.ASSIGN, ":="))
+        self.assertEqual(tokens[3], Token(TypeId.INT, 0))
+        self.assertEqual(tokens[4], Token(TypeId.SEMI, ";"))
+        self.assertEqual(tokens[5], Token(TypeId.END, "END"))
+        self.assertEqual(tokens[6], Token(TypeId.DOT, "."))
+
+        self.assertIs(tokens[0], res_kw_dict['BEGIN'].token)
+        self.assertIs(tokens[5], res_kw_dict['END'].token)
 
 
 class InterpreterTestCase(unittest.TestCase):
