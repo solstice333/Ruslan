@@ -229,7 +229,7 @@ class UnOp(AST):
         self._token = optok
 
     @property
-    def token(self):
+    def token(self) -> Token:
         return self._token
 
 class Pos(UnOp):
@@ -256,8 +256,43 @@ class Num(AST):
         self.value = numtok.value
 
     @property
-    def token(self):
+    def token(self) -> Token:
         return self._token
+
+
+class Compound(AST):
+    """Represents a 'BEGIN ... END' block"""
+    def __init__(self) -> None:
+        self._token: Token = Token(TypeId.EOF, "Compound")
+        self.children: List[AST] = []
+
+    @property
+    def token(self) -> Token:
+        return self._token
+
+
+class Assign(AST):
+    def __init__(
+        self, 
+        left: AST, 
+        right: AST, 
+        opchar: str=TypeId.ASSIGN.value.pat
+    ) -> None:
+        self.left = left
+        self.right = right
+        self.children = [self.left, self.right]
+        self._token = Token(TypeId.ASSIGN, opchar)
+
+
+class Var(AST):
+    def __init__(self, ident: str) -> None:
+        self._token = Token(TypeId.ID, ident)
+        self.value = self._token.value
+
+
+class NoOp(AST):
+    def __init__(self) -> None:
+        self._token = Token(TypeId.EOF, "NoOp")
 
 
 class Eof(AST):
