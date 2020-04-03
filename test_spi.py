@@ -3,6 +3,7 @@
 # -k can be specified multipled times
 import unittest
 from spi import TypeId, Token, Lexer, Parser, Interpreter
+from anytree import PostOrderIter
 
 
 class LexerTestCase(unittest.TestCase):
@@ -92,6 +93,77 @@ class LexerTestCase(unittest.TestCase):
         self.assertIs(tokens[5], res_kw_dict['END'].token)
 
 
+class ParserTestCase(unittest.TestCase):
+    def makeParser(self, text):
+        lexer = Lexer(text)
+        return Parser(lexer)
+
+    def test_parser1(self):
+        p = self.makeParser("BEGIN x := 11; y := 2 + x END.")
+        ast = p.parse()
+        act = str(list(PostOrderIter(ast)))
+        exp = "[" + \
+            "Var(Token(TypeId.ID, x)), " + \
+            "Num(Token(TypeId.INT, 11)), " + \
+            "Assign(Token(TypeId.ASSIGN, :=)), " +\
+            "Var(Token(TypeId.ID, y)), " + \
+            "Num(Token(TypeId.INT, 2)), " + \
+            "Var(Token(TypeId.ID, x)), " + \
+            "Add(Token(TypeId.ADD, +)), " +\
+            "Assign(Token(TypeId.ASSIGN, :=)), " +\
+            "Compound(Token(TypeId.EOF, Compound))" +\
+        "]"
+        self.assertEqual(act, exp)
+
+    def test_parser2(self):
+        p = self.makeParser(
+            "BEGIN\n" + \
+            "    BEGIN\n" + \
+            "        number := 2;\n" + \
+            "        a := number;\n" + \
+            "        b := 10 * a + 10 * number / 4;\n" + \
+            "        c := a - - b\n" + \
+            "    END;\n" + \
+            "    x := 11;\n" + \
+            "END.\n"
+        )
+        ast = p.parse()
+        act = str(list(PostOrderIter(ast)))
+        exp = "[" + \
+            "Var(Token(TypeId.ID, number)), " + \
+            "Num(Token(TypeId.INT, 2)), " + \
+            "Assign(Token(TypeId.ASSIGN, :=)), " + \
+            "Var(Token(TypeId.ID, a)), " + \
+            "Var(Token(TypeId.ID, number)), " + \
+            "Assign(Token(TypeId.ASSIGN, :=)), " + \
+            "Var(Token(TypeId.ID, b)), " + \
+            "Num(Token(TypeId.INT, 10)), " + \
+            "Var(Token(TypeId.ID, a)), " + \
+            "Mul(Token(TypeId.MUL, *)), " + \
+            "Num(Token(TypeId.INT, 10)), " + \
+            "Var(Token(TypeId.ID, number)), " + \
+            "Mul(Token(TypeId.MUL, *)), " + \
+            "Num(Token(TypeId.INT, 4)), " + \
+            "Div(Token(TypeId.DIV, /)), " + \
+            "Add(Token(TypeId.ADD, +)), " + \
+            "Assign(Token(TypeId.ASSIGN, :=)), " + \
+            "Var(Token(TypeId.ID, c)), " + \
+            "Var(Token(TypeId.ID, a)), " + \
+            "Var(Token(TypeId.ID, b)), " + \
+            "Neg(Token(TypeId.SUB, -)), " + \
+            "Sub(Token(TypeId.SUB, -)), " + \
+            "Assign(Token(TypeId.ASSIGN, :=)), " + \
+            "Compound(Token(TypeId.EOF, Compound)), " + \
+            "Var(Token(TypeId.ID, x)), " + \
+            "Num(Token(TypeId.INT, 11)), " + \
+            "Assign(Token(TypeId.ASSIGN, :=)), " + \
+            "NoOp(Token(TypeId.EOF, NoOp)), " + \
+            "Compound(Token(TypeId.EOF, Compound))" + \
+        "]"
+
+        self.assertEqual(act, exp)
+
+
 class InterpreterTestCase(unittest.TestCase):
     def makeInterpreter(self, text):
         interpreter = Interpreter(text)
@@ -99,75 +171,75 @@ class InterpreterTestCase(unittest.TestCase):
 
     def test_expression1(self):
         interpreter = self.makeInterpreter('3')
-        result = interpreter.interpret()
+        result = interpreter.interpret_expr()
         self.assertEqual(result, 3)
 
     def test_expression2(self):
         interpreter = self.makeInterpreter('2 + 7 * 4')
-        result = interpreter.interpret()
+        result = interpreter.interpret_expr()
         self.assertEqual(result, 30)
 
     def test_expression3(self):
         interpreter = self.makeInterpreter('7 - 8 / 4')
-        result = interpreter.interpret()
+        result = interpreter.interpret_expr()
         self.assertEqual(result, 5)
 
     def test_expression4(self):
         interpreter = self.makeInterpreter('14 + 2 * 3 - 6 / 2')
-        result = interpreter.interpret()
+        result = interpreter.interpret_expr()
         self.assertEqual(result, 17)
 
     def test_expression5(self):
         interpreter = self.makeInterpreter('7 + 3 * (10 / (12 / (3 + 1) - 1))')
-        result = interpreter.interpret()
+        result = interpreter.interpret_expr()
         self.assertEqual(result, 22)
 
     def test_expression6(self):
         interpreter = self.makeInterpreter(
             '7 + 3 * (10 / (12 / (3 + 1) - 1)) / (2 + 3) - 5 - 3 + (8)'
         )
-        result = interpreter.interpret()
+        result = interpreter.interpret_expr()
         self.assertEqual(result, 10)
 
     def test_expression7(self):
         interpreter = self.makeInterpreter('7 + (((3 + 2)))')
-        result = interpreter.interpret()
+        result = interpreter.interpret_expr()
         self.assertEqual(result, 12)
 
     def test_expression8(self):
         interpreter = self.makeInterpreter('- 3')
-        result = interpreter.interpret()
+        result = interpreter.interpret_expr()
         self.assertEqual(result, -3)
 
     def test_expression9(self):
         interpreter = self.makeInterpreter('+ 3')
-        result = interpreter.interpret()
+        result = interpreter.interpret_expr()
         self.assertEqual(result, 3)
 
     def test_expression10(self):
         interpreter = self.makeInterpreter('5 - - - + - 3')
-        result = interpreter.interpret()
+        result = interpreter.interpret_expr()
         self.assertEqual(result, 8)
 
     def test_expression11(self):
         interpreter = self.makeInterpreter('5 - - - + - (3 + 4) - +2')
-        result = interpreter.interpret()
+        result = interpreter.interpret_expr()
         self.assertEqual(result, 10)
 
     def test_no_expression(self):
         interpreter = self.makeInterpreter('   ')
-        result = interpreter.interpret()
+        result = interpreter.interpret_expr()
         self.assertEqual(result, '')
 
     def test_expression_invalid_syntax1(self):
         interpreter = self.makeInterpreter('10 *')
         with self.assertRaises(RuntimeError):
-            interpreter.interpret()
+            interpreter.interpret_expr()
 
     def test_expression_invalid_syntax2(self):
         interpreter = self.makeInterpreter('1 (1 + 2)')
         with self.assertRaises(RuntimeError):
-            interpreter.interpret()
+            interpreter.interpret_expr()
 
 
 if __name__ == '__main__':

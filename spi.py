@@ -262,9 +262,9 @@ class Num(AST):
 
 class Compound(AST):
     """Represents a 'BEGIN ... END' block"""
-    def __init__(self) -> None:
+    def __init__(self, children: Optional[List[AST]]=None) -> None:
         self._token: Token = Token(TypeId.EOF, "Compound")
-        self.children: List[AST] = []
+        self.children: List[AST] = children or []
 
     @property
     def token(self) -> Token:
@@ -283,17 +283,29 @@ class Assign(AST):
         self.children = [self.left, self.right]
         self._token = Token(TypeId.ASSIGN, opchar)
 
+    @property
+    def token(self):
+        return self._token
+    
 
 class Var(AST):
-    def __init__(self, ident: str) -> None:
-        self._token = Token(TypeId.ID, ident)
+    def __init__(self, name: str) -> None:
+        self._token = Token(TypeId.ID, name)
         self.value = self._token.value
+
+    @property
+    def token(self):
+        return self._token
 
 
 class NoOp(AST):
     def __init__(self) -> None:
         self._token = Token(TypeId.EOF, "NoOp")
 
+    @property
+    def token(self):
+        return self._token
+    
 
 class Eof(AST):
     def __init__(self) -> None:
@@ -325,7 +337,14 @@ class Parser:
                 f"was expecting {token_type}, got {self.current_token.type}")
 
     def factor(self, lpar_b: bool=False) -> AST:
-        """factor : (ADD | SUB) factor | INTEGER | LPAREN expr RPAREN"""
+        """
+        factor : 
+            ADD factor | 
+            SUB factor | 
+            INTEGER | 
+            LPAREN expr RPAREN | 
+            variable
+        """
         token: Token = self.current_token
 
         if token.type == TypeId.ADD:
@@ -335,20 +354,22 @@ class Parser:
             self.eat(TypeId.SUB)
             return Neg(self.factor(lpar_b))
         elif token.type == TypeId.INT:
+            numtok = token
             self.eat(TypeId.INT)
-            if self.current_token.type == TypeId.LPAR:
-                self.error(f"found {self.current_token}")
-            elif self.current_token.type == TypeId.RPAR and not lpar_b:
+            token = self.current_token
+            if token.type == TypeId.LPAR:
+                self.error(f"found {token}")
+            elif token.type == TypeId.RPAR and not lpar_b:
                 self.error(f"{TypeId.RPAR} with no matching {TypeId.LPAR}")
-            return Num(token)
+            return Num(numtok)
         elif token.type == TypeId.LPAR:
             self.eat(TypeId.LPAR)
             node: AST = self.expr(True)
             self.eat(TypeId.RPAR)
             return node
+        else:
+            return self.variable()
 
-        self.error(str(token))
-        return Eof()
 
     def term(self, lpar_b: bool=False) -> AST:
         """term : factor ((MUL | DIV) factor)*"""
@@ -388,13 +409,78 @@ class Parser:
 
         return node
 
-    def parse(self) -> AST:
+    def empty(self) -> AST:
+        """empty rule"""
+        return NoOp()
+
+    def variable(self) -> AST:
+        """variable: ID"""
+        node = Var(str(self.current_token.value))
+        self.eat(TypeId.ID)
+        return node
+
+    def assignment_statement(self) -> AST:
+        """assignment_statement: variable ASSIGN expr"""
+        left = self.variable()
+        self.eat(TypeId.ASSIGN)
+        right = self.expr()
+        return Assign(left, right)
+
+    def statement(self) -> AST:
+        """statement: compound_statement | assignment | empty"""
+        tokty = self.current_token.type
+
+        if tokty == TypeId.BEGIN:
+            node = self.compound_statement()
+        elif tokty == TypeId.ID:
+            node = self.assignment_statement()
+        else:
+            node = self.empty()
+
+        return node
+
+    def statement_list(self) -> List[AST]:
+        """statement_list: statement | statement SEMI statement_list"""
+        statements = []
+        statements.append(self.statement())
+
+        while self.current_token.type == TypeId.SEMI:
+            self.eat(TypeId.SEMI)
+            statements.append(self.statement())
+
+        if self.current_token.type == TypeId.ID:
+            self.error(f"found {self.current_token}. Expected semi-colon")
+
+        return statements
+
+    def compound_statement(self) -> AST:
+        """
+        compound_statement: BEGIN statement_list END
+        """
+        self.eat(TypeId.BEGIN)
+        nodes = self.statement_list()
+        self.eat(TypeId.END)
+        return Compound(nodes)
+
+    def program(self) -> AST:
+        """program : compound_statement DOT"""
+        node = self.compound_statement()
+        self.eat(TypeId.DOT)
+        return node
+
+    def parse_expr(self):
         return self.expr()
+
+    def parse(self) -> AST:
+        prog = self.program()
+        if self.current_token.type != TypeId.EOF:
+            self.error(f"expected EOF. Got {self.current_token}")
+        return prog
 
 
 class NodeVisitor:
     def _gen_visit_method_name(self, node: AST) -> str:
-        method_name = 'visit_' + type(node).__name__
+        method_name = '_visit_' + type(node).__name__
         return method_name.lower()
 
     def visit(self, node: AST) -> int:
@@ -407,37 +493,44 @@ class NodeVisitor:
 
 
 class Interpreter(NodeVisitor):
-    def __init__(self, text: str):
-        self._text = text.strip()
-
-    def visit_pos(self, node: AST) -> int:
-        return +self.visit(node.right)
-
-    def visit_neg(self, node: AST) -> int:
-        return -self.visit(node.right)
-
-    def visit_add(self, node: AST) -> int:
-        return self.visit(node.left) + self.visit(node.right)
-
-    def visit_sub(self, node: AST) -> int:
-        return self.visit(node.left) - self.visit(node.right)
-
-    def visit_mul(self, node: AST) -> int:
-        return self.visit(node.left) * self.visit(node.right)
-
-    def visit_div(self, node: AST) -> int:
-        return int(self.visit(node.left) / self.visit(node.right))
-
-    def visit_num(self, node: AST) -> int:
-        return node.value
-
-    def interpret(self) -> Union[int, str]:
+    def _interpret(self, get_ast: Callable[[Parser], AST]) -> Union[int, str]:
         if not self._text:
             return ""
         lexer: Lexer = Lexer(self._text)
         parser: Parser = Parser(lexer)
-        ast: AST = parser.parse()
+        ast: AST = get_ast(parser)
         return self.visit(ast)
+
+    def __init__(self, text: str):
+        self._text = text.strip()
+
+    def _visit_pos(self, node: AST) -> int:
+        return +self.visit(node.right)
+
+    def _visit_neg(self, node: AST) -> int:
+        return -self.visit(node.right)
+
+    def _visit_add(self, node: AST) -> int:
+        return self.visit(node.left) + self.visit(node.right)
+
+    def _visit_sub(self, node: AST) -> int:
+        return self.visit(node.left) - self.visit(node.right)
+
+    def _visit_mul(self, node: AST) -> int:
+        return self.visit(node.left) * self.visit(node.right)
+
+    def _visit_div(self, node: AST) -> int:
+        return int(self.visit(node.left) / self.visit(node.right))
+
+    def _visit_num(self, node: AST) -> int:
+        return node.value
+
+    def interpret_expr(self) -> Union[int, str]:
+        return self._interpret(lambda parser: parser.parse_expr())
+
+    # TODO
+    def interpret(self) -> Union[int, str]:
+        return self._interpret(lambda parser: parser.parse())
 
 
 def main() -> None:
