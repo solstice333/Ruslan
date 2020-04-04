@@ -8,7 +8,8 @@ from typing import \
     Dict, \
     Mapping, \
     NamedTuple, \
-    Iterator
+    Iterator, \
+    cast
 from abc import ABC, abstractmethod
 from anytree import RenderTree # type:ignore
 from anytree import \
@@ -17,6 +18,7 @@ from anytree import \
 from re import Pattern, RegexFlag
 
 import re
+import argparse
 
 class TypeIdValue(NamedTuple):
     pat: str
@@ -232,6 +234,7 @@ class UnOp(AST):
     def token(self) -> Token:
         return self._token
 
+
 class Pos(UnOp):
     def __init__(
         self, 
@@ -251,9 +254,10 @@ class Neg(UnOp):
 
 
 class Num(AST):
+    # TODO accept `numtok.value` instead
     def __init__(self, numtok: Token) -> None:
         self._token = numtok
-        self.value = numtok.value
+        self.value: int = cast(int, numtok.value)
 
     @property
     def token(self) -> Token:
@@ -271,10 +275,20 @@ class Compound(AST):
         return self._token
 
 
+class Var(AST):
+    def __init__(self, name: str) -> None:
+        self._token = Token(TypeId.ID, name)
+        self.value: str = str(self._token.value)
+
+    @property
+    def token(self):
+        return self._token
+
+
 class Assign(AST):
     def __init__(
         self, 
-        left: AST, 
+        left: Var, 
         right: AST, 
         opchar: str=TypeId.ASSIGN.value.pat
     ) -> None:
@@ -287,16 +301,6 @@ class Assign(AST):
     def token(self):
         return self._token
     
-
-class Var(AST):
-    def __init__(self, name: str) -> None:
-        self._token = Token(TypeId.ID, name)
-        self.value = self._token.value
-
-    @property
-    def token(self):
-        return self._token
-
 
 class NoOp(AST):
     def __init__(self) -> None:
@@ -483,7 +487,7 @@ class NodeVisitor:
         method_name = '_visit_' + type(node).__name__
         return method_name.lower()
 
-    def visit(self, node: AST) -> int:
+    def visit(self, node: AST) -> Optional[int]:
         method_name = self._gen_visit_method_name(node)
         return getattr(self, method_name, self.raise_visit_error)(node)
 
@@ -493,7 +497,8 @@ class NodeVisitor:
 
 
 class Interpreter(NodeVisitor):
-    def _interpret(self, get_ast: Callable[[Parser], AST]) -> Union[int, str]:
+    def _interpret(
+        self, get_ast: Callable[[Parser], AST]) -> Union[int, str, None]:
         if not self._text:
             return ""
         lexer: Lexer = Lexer(self._text)
@@ -503,48 +508,74 @@ class Interpreter(NodeVisitor):
 
     def __init__(self, text: str):
         self._text = text.strip()
+        self.GLOBAL_SCOPE: Dict[str, int] = {}
 
-    def _visit_pos(self, node: AST) -> int:
-        return +self.visit(node.right)
+    # TODO: change the type of node to AST subclass
+    def _visit_pos(self, node: Pos) -> int:
+        return +cast(int, self.visit(node.right))
 
-    def _visit_neg(self, node: AST) -> int:
-        return -self.visit(node.right)
+    def _visit_neg(self, node: Neg) -> int:
+        return -cast(int, self.visit(node.right))
 
     def _visit_add(self, node: AST) -> int:
-        return self.visit(node.left) + self.visit(node.right)
+        return \
+            cast(int, self.visit(node.left)) + \
+            cast(int, self.visit(node.right))
 
     def _visit_sub(self, node: AST) -> int:
-        return self.visit(node.left) - self.visit(node.right)
+        return \
+            cast(int, self.visit(node.left)) - \
+            cast(int, self.visit(node.right))
 
     def _visit_mul(self, node: AST) -> int:
-        return self.visit(node.left) * self.visit(node.right)
+        return \
+            cast(int, self.visit(node.left)) * \
+            cast(int, self.visit(node.right))
 
     def _visit_div(self, node: AST) -> int:
-        return int(self.visit(node.left) / self.visit(node.right))
+        return int(
+            cast(int, self.visit(node.left)) / \
+            cast(int, self.visit(node.right))
+        )
 
-    def _visit_num(self, node: AST) -> int:
+    def _visit_num(self, node: Num) -> int:
         return node.value
 
-    def interpret_expr(self) -> Union[int, str]:
+    def _visit_compound(self, node: AST) -> None:
+        for child in node.children:
+            self.visit(child)
+
+    def _visit_noop(self, node: AST) -> None:
+        pass
+
+    def _visit_assign(self, node: Assign) -> None:
+        self.GLOBAL_SCOPE[node.left.value] = cast(int, self.visit(node.right))
+
+    def _visit_var(self, node: Var) -> int:
+        name = node.value
+        val = self.GLOBAL_SCOPE.get(name)
+        if val is None:
+            raise NameError(repr(name))
+        return val
+
+    def interpret_expr(self) -> Union[int, str, None]:
         return self._interpret(lambda parser: parser.parse_expr())
 
     # TODO
-    def interpret(self) -> Union[int, str]:
+    def interpret(self) -> Union[int, str, None]:
         return self._interpret(lambda parser: parser.parse())
 
 
 def main() -> None:
-    while True:
-        try:
-            text: str = input('spi> ')
-        except EOFError:
-            break
-        if not text:
-            continue
+    parser = argparse.ArgumentParser(description="simple pascal interpreter")
+    parser.add_argument("FILE", help="pascal file")
+    args = parser.parse_args()
 
+    with open(args.FILE) as pascal_file:
+        text = pascal_file.read()
         interpreter: Interpreter = Interpreter(text)
-        result: Union[int, str] = interpreter.interpret()
-        print(result)
+        interpreter.interpret()
+        print(interpreter.GLOBAL_SCOPE)  
 
 
 if __name__ == '__main__':
