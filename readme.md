@@ -14,11 +14,15 @@ Tutorial here: https://ruslanspivak.com/lsbasi-part1/
 
 ## Install Dependencies
 
+From the top-level:
+
 ```
 $ python3 -m pip install -r requirements.txt
 ```
 
 ## Type Checking
+
+From the top-level:
 
 ```
 $ python3 -m mypy spi.py
@@ -26,7 +30,10 @@ $ python3 -m mypy spi.py
 
 ## Usage
 
+From the top-level:
+
 ```
+$ python3 spi.py -h
 usage: spi.py [-h] FILE
 
 simple pascal interpreter
@@ -38,13 +45,15 @@ optional arguments:
   -h, --help  show this help message and exit
 ```
 
-For example,
+For example:
 
 ```
 $ python3 spi.py tests/assignments.txt
 ```
 
 ## Tests
+
+From the top-level:
 
 ```
 $ python3 -m unittest discover -s tests -v

@@ -1,4 +1,5 @@
 import sys
+import os
 import os.path
 import unittest
 from anytree import PostOrderIter
@@ -241,6 +242,23 @@ class InterpreterTestCase(unittest.TestCase):
         interpreter = self.makeInterpreter('1 (1 + 2)')
         with self.assertRaises(RuntimeError):
             interpreter.interpret_expr()
+
+    def test_expression_program(self):
+        with open("tests/assignments.txt") as assignments_txt:
+            txt = assignments_txt.read()
+
+        interpreter = self.makeInterpreter(txt)
+        interpreter.interpret()
+        self.assertEqual(
+            interpreter.GLOBAL_SCOPE,
+            {
+                'number': 2,
+                'a': 2,
+                'b': 25,
+                'c': 27,
+                'x': 11
+            }
+        )
 
 
 if __name__ == '__main__':
