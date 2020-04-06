@@ -1,9 +1,10 @@
-# run with `python3 -m unittest discover`
-# to run specific testcases, do `python3 -m unittest discover -v -k <method>`
-# -k can be specified multipled times
+import sys
+import os.path
 import unittest
-from spi import TypeId, Token, Lexer, Parser, Interpreter
 from anytree import PostOrderIter
+
+sys.path.append(os.path.realpath(".."))
+from spi import TypeId, Token, Lexer, Parser, Interpreter
 
 
 class LexerTestCase(unittest.TestCase):

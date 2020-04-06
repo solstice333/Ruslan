@@ -27,13 +27,25 @@ $ python3 -m mypy spi.py
 ## Usage
 
 ```
-$ python3 spi.py
+usage: spi.py [-h] FILE
+
+simple pascal interpreter
+
+positional arguments:
+  FILE        pascal file
+
+optional arguments:
+  -h, --help  show this help message and exit
+```
+
+For example,
+
+```
+$ python3 spi.py tests/assignments.txt
 ```
 
 ## Tests
 
 ```
-$ python3 -m unittest discover -v [-k <test method 1> [-k <test method 2> ...]]
+$ python3 -m unittest discover -s tests -v
 ```
-
-where -k arguments are optional
