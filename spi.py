@@ -16,6 +16,7 @@ from anytree import \
     PostOrderIter, \
     NodeMixin
 from re import Pattern, RegexFlag
+from collections.abc import Iterable
 
 import re
 import argparse
@@ -83,7 +84,7 @@ class Token:
         return not self.__eq__(other)
 
 
-class Lexer:
+class Lexer(Iterable):
     class TypeIdInfo(NamedTuple):
         typeid: TypeId
         pattern: str
@@ -129,7 +130,6 @@ class Lexer:
         return cls.__TOKEN_NAME_TO_TID_INFO
 
     def __init__(self, text: str) -> None:
-        self._token_gen: Iterator[Token] = self._iter_tokens()
         self._text: str = text
 
     def _iter_tokens(self) -> Iterator[Token]:
@@ -150,14 +150,14 @@ class Lexer:
 
         yield Token(TypeId.EOF, None)
 
-    def get_next_token(self) -> Token:
+    def __iter__(self) -> Iterator[Token]:
         """Lexical analyzer (also known as scanner or tokenizer)
 
         This method is responsible for breaking a sentence
         apart into tokens. One token at a time.
         """
 
-        return next(self._token_gen)
+        return self._iter_tokens()
 
 
 class AST(ABC, NodeMixin):
@@ -323,7 +323,8 @@ class Parser:
     def __init__(self, lexer: Lexer) -> None:
         self.lexer = lexer
         # set current token to the first token taken from the input
-        self.current_token = self.lexer.get_next_token()
+        self._it = iter(self.lexer)
+        self.current_token = next(self._it)
 
     def error(self, msg: str) -> None:
         raise RuntimeError(f"Invalid syntax: {msg}")
@@ -334,7 +335,7 @@ class Parser:
         # and assign the next token to the self.current_token,
         # otherwise raise an exception.
         if self.current_token.type == token_type:
-            self.current_token = self.lexer.get_next_token()
+            self.current_token = next(self._it)
         else:
             self.error(
                 f"was expecting {token_type}, got {self.current_token.type}")

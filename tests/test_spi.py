@@ -15,43 +15,43 @@ class LexerTestCase(unittest.TestCase):
 
     def test_lexer_integer(self):
         lexer = self.makeLexer('234')
-        token = lexer.get_next_token()
+        token = next(iter(lexer))
         self.assertEqual(token.type, TypeId.INT)
         self.assertEqual(token.value, 234)
 
     def test_lexer_mul(self):
         lexer = self.makeLexer('*')
-        token = lexer.get_next_token()
+        token = next(iter(lexer))
         self.assertEqual(token.type, TypeId.MUL)
         self.assertEqual(token.value, '*')
 
     def test_lexer_div(self):
         lexer = self.makeLexer(' / ')
-        token = lexer.get_next_token()
+        token = next(iter(lexer))
         self.assertEqual(token.type, TypeId.DIV)
         self.assertEqual(token.value, '/')
 
     def test_lexer_plus(self):
         lexer = self.makeLexer('+')
-        token = lexer.get_next_token()
+        token = next(iter(lexer))
         self.assertEqual(token.type, TypeId.ADD)
         self.assertEqual(token.value, '+')
 
     def test_lexer_minus(self):
         lexer = self.makeLexer('-')
-        token = lexer.get_next_token()
+        token = next(iter(lexer))
         self.assertEqual(token.type, TypeId.SUB)
         self.assertEqual(token.value, '-')
 
     def test_lexer_lparen(self):
         lexer = self.makeLexer('(')
-        token = lexer.get_next_token()
+        token = next(iter(lexer))
         self.assertEqual(token.type, TypeId.LPAR)
         self.assertEqual(token.value, '(')
 
     def test_lexer_rparen(self):
         lexer = self.makeLexer(')')
-        token = lexer.get_next_token()
+        token = next(iter(lexer))
         self.assertEqual(token.type, TypeId.RPAR)
         self.assertEqual(token.value, ')')
 
@@ -60,10 +60,10 @@ class LexerTestCase(unittest.TestCase):
 
     def test_lexer_res_kw_single_char_var(self):
         lexer = self.makeLexer("BEGIN a := 0; END.")
-        tokens = list(iter(lexer.get_next_token, Token(TypeId.EOF, "")))
+        tokens = list(iter(lexer))
         res_kw_dict = Lexer._RES_KW_TO_TID_INFO()
 
-        self.assertEqual(len(tokens), 7)
+        self.assertEqual(len(tokens), 9)
 
         self.assertEqual(tokens[0], Token(TypeId.BEGIN, "BEGIN"))
         self.assertEqual(tokens[1], Token(TypeId.ID, "a"))
@@ -72,16 +72,18 @@ class LexerTestCase(unittest.TestCase):
         self.assertEqual(tokens[4], Token(TypeId.SEMI, ";"))
         self.assertEqual(tokens[5], Token(TypeId.END, "END"))
         self.assertEqual(tokens[6], Token(TypeId.DOT, "."))
+        self.assertEqual(tokens[7], Token(TypeId.EOF, ""))
+        self.assertEqual(tokens[8], Token(TypeId.EOF, None))
 
         self.assertIs(tokens[0], res_kw_dict['BEGIN'].token)
         self.assertIs(tokens[5], res_kw_dict['END'].token)
 
     def test_lexer_res_kw_multi_char_var(self):
         lexer = self.makeLexer("BEGIN foo_bar123 := 0; END.")
-        tokens = list(iter(lexer.get_next_token, Token(TypeId.EOF, "")))
+        tokens = list(iter(lexer))
         res_kw_dict = Lexer._RES_KW_TO_TID_INFO()
 
-        self.assertEqual(len(tokens), 7)
+        self.assertEqual(len(tokens), 9)
 
         self.assertEqual(tokens[0], Token(TypeId.BEGIN, "BEGIN"))
         self.assertEqual(tokens[1], Token(TypeId.ID, "foo_bar123"))
@@ -90,6 +92,8 @@ class LexerTestCase(unittest.TestCase):
         self.assertEqual(tokens[4], Token(TypeId.SEMI, ";"))
         self.assertEqual(tokens[5], Token(TypeId.END, "END"))
         self.assertEqual(tokens[6], Token(TypeId.DOT, "."))
+        self.assertEqual(tokens[7], Token(TypeId.EOF, ""))
+        self.assertEqual(tokens[8], Token(TypeId.EOF, None))
 
         self.assertIs(tokens[0], res_kw_dict['BEGIN'].token)
         self.assertIs(tokens[5], res_kw_dict['END'].token)
