@@ -401,7 +401,7 @@ class Parser:
         """
         expr   : term ((ADD | SUB) term)*
         term   : factor ((MUL | DIV) factor)*
-        factor : (POS | NEG)* factor | INTEGER | LPAREN expr RPAREN
+        factor : POS factor | NEG factor | INTEGER | LPAREN expr RPAREN
         """
         node: AST = self.term(lpar_b)
 
