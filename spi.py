@@ -449,13 +449,13 @@ class Parser:
         return node
 
     def statement_list(self) -> List[AST]:
-        """statement_list: statement | statement SEMI statement_list"""
+        """statement_list: statement (SEMI statement)*"""
         statements = []
         statements.append(self.statement())
 
-        if self.current_token.type == TypeId.SEMI:
+        while self.current_token.type == TypeId.SEMI:
             self.eat(TypeId.SEMI)
-            statements += self.statement_list()
+            statements.append(self.statement())
 
         if self.current_token.type == TypeId.ID:
             self.error(f"found {self.current_token}. Expected semi-colon")
