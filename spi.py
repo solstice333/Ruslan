@@ -453,9 +453,9 @@ class Parser:
         statements = []
         statements.append(self.statement())
 
-        while self.current_token.type == TypeId.SEMI:
+        if self.current_token.type == TypeId.SEMI:
             self.eat(TypeId.SEMI)
-            statements.append(self.statement())
+            statements += self.statement_list()
 
         if self.current_token.type == TypeId.ID:
             self.error(f"found {self.current_token}. Expected semi-colon")
