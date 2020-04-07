@@ -254,10 +254,9 @@ class Neg(UnOp):
 
 
 class Num(AST):
-    # TODO accept `numtok.value` instead
-    def __init__(self, numtok: Token) -> None:
-        self._token = numtok
-        self.value: int = cast(int, numtok.value)
+    def __init__(self, val: int) -> None:
+        self._token = Token(TypeId.INT, val)
+        self.value: int = cast(int, self._token.value)
 
     @property
     def token(self) -> Token:
@@ -365,7 +364,7 @@ class Parser:
                 self.error(f"found {token}")
             elif token.type == TypeId.RPAR and not lpar_b:
                 self.error(f"{TypeId.RPAR} with no matching {TypeId.LPAR}")
-            return Num(numtok)
+            return Num(cast(int, numtok.value))
         elif token.type == TypeId.LPAR:
             self.eat(TypeId.LPAR)
             node: AST = self.expr(True)
@@ -458,9 +457,7 @@ class Parser:
         return statements
 
     def compound_statement(self) -> AST:
-        """
-        compound_statement: BEGIN statement_list END
-        """
+        """compound_statement: BEGIN statement_list END"""
         self.eat(TypeId.BEGIN)
         nodes = self.statement_list()
         self.eat(TypeId.END)
@@ -472,7 +469,7 @@ class Parser:
         self.eat(TypeId.DOT)
         return node
 
-    def parse_expr(self):
+    def parse_expr(self) -> AST:
         return self.expr()
 
     def parse(self) -> AST:
@@ -498,9 +495,7 @@ class NodeVisitor:
 
 class Interpreter(NodeVisitor):
     def _interpret(
-        self, get_ast: Callable[[Parser], AST]) -> Union[int, str, None]:
-        if not self._text:
-            return ""
+        self, get_ast: Callable[[Parser], AST]) -> Optional[int]:
         lexer: Lexer = Lexer(self._text)
         parser: Parser = Parser(lexer)
         ast: AST = get_ast(parser)
@@ -510,7 +505,6 @@ class Interpreter(NodeVisitor):
         self._text = text.strip()
         self.GLOBAL_SCOPE: Dict[str, int] = {}
 
-    # TODO: change the type of node to AST subclass
     def _visit_pos(self, node: Pos) -> int:
         return +cast(int, self.visit(node.right))
 
@@ -541,11 +535,11 @@ class Interpreter(NodeVisitor):
     def _visit_num(self, node: Num) -> int:
         return node.value
 
-    def _visit_compound(self, node: AST) -> None:
+    def _visit_compound(self, node: Compound) -> None:
         for child in node.children:
             self.visit(child)
 
-    def _visit_noop(self, node: AST) -> None:
+    def _visit_noop(self, node: NoOp) -> None:
         pass
 
     def _visit_assign(self, node: Assign) -> None:
@@ -558,12 +552,20 @@ class Interpreter(NodeVisitor):
             raise NameError(repr(name))
         return val
 
-    def interpret_expr(self) -> Union[int, str, None]:
-        return self._interpret(lambda parser: parser.parse_expr())
+    def interpret_expr(self) -> Union[int, str]:
+        if not self._text:
+            return ""
 
-    # TODO
-    def interpret(self) -> Union[int, str, None]:
-        return self._interpret(lambda parser: parser.parse())
+        return cast(
+            int,
+            self._interpret(lambda parser: parser.parse_expr())
+        )
+
+    def interpret(self) -> None:
+        return cast(
+            None, 
+            self._interpret(lambda parser: parser.parse())
+        )
 
 
 def main() -> None:
