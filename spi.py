@@ -32,7 +32,7 @@ class TypeId(Enum):
     ADD = TypeIdValue(pat='+')
     SUB = TypeIdValue(pat='-')
     MUL = TypeIdValue(pat='*')
-    DIV = TypeIdValue(pat='/')
+    DIV = TypeIdValue(pat='[dD][iI][vV]', re=True)
     LPAR = TypeIdValue(pat='(')
     RPAR = TypeIdValue(pat=')')
     EOF = TypeIdValue(pat=r"$", re=True)
@@ -95,7 +95,8 @@ class Lexer(Iterable):
 
     RES_KW: List[TypeId] = [
         TypeId.BEGIN,
-        TypeId.END
+        TypeId.END,
+        TypeId.DIV
     ]
 
     __RES_KW_TO_TID_INFO: Dict[str, TypeIdInfo] = {}

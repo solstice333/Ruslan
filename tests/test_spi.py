@@ -26,10 +26,10 @@ class LexerTestCase(unittest.TestCase):
         self.assertEqual(token.value, '*')
 
     def test_lexer_div(self):
-        lexer = self.makeLexer(' / ')
+        lexer = self.makeLexer(' dIv ')
         token = next(iter(lexer))
         self.assertEqual(token.type, TypeId.DIV)
-        self.assertEqual(token.value, '/')
+        self.assertEqual(token.value, '[dD][iI][vV]')
 
     def test_lexer_plus(self):
         lexer = self.makeLexer('+')
@@ -127,7 +127,7 @@ class ParserTestCase(unittest.TestCase):
             "    BEGIN\n" + \
             "        number := 2;\n" + \
             "        a := number;\n" + \
-            "        b := 10 * a + 10 * number / 4;\n" + \
+            "        b := 10 * a + 10 * number div 4;\n" + \
             "        c := a - - b\n" + \
             "    END;\n" + \
             "    x := 11;\n" + \
@@ -150,7 +150,7 @@ class ParserTestCase(unittest.TestCase):
             "Var(Token(TypeId.ID, number)), " + \
             "Mul(Token(TypeId.MUL, *)), " + \
             "Num(Token(TypeId.INT, 4)), " + \
-            "Div(Token(TypeId.DIV, /)), " + \
+            "Div(Token(TypeId.DIV, [dD][iI][vV])), " + \
             "Add(Token(TypeId.ADD, +)), " + \
             "Assign(Token(TypeId.ASSIGN, :=)), " + \
             "Var(Token(TypeId.ID, c)), " + \
@@ -186,23 +186,23 @@ class InterpreterTestCase(unittest.TestCase):
         self.assertEqual(result, 30)
 
     def test_expression3(self):
-        interpreter = self.makeInterpreter('7 - 8 / 4')
+        interpreter = self.makeInterpreter('7 - 8 div 4')
         result = interpreter.interpret_expr()
         self.assertEqual(result, 5)
 
     def test_expression4(self):
-        interpreter = self.makeInterpreter('14 + 2 * 3 - 6 / 2')
+        interpreter = self.makeInterpreter('14 + 2 * 3 - 6 div 2')
         result = interpreter.interpret_expr()
         self.assertEqual(result, 17)
 
     def test_expression5(self):
-        interpreter = self.makeInterpreter('7 + 3 * (10 / (12 / (3 + 1) - 1))')
+        interpreter = self.makeInterpreter('7 + 3 * (10 div (12 div (3 + 1) - 1))')
         result = interpreter.interpret_expr()
         self.assertEqual(result, 22)
 
     def test_expression6(self):
         interpreter = self.makeInterpreter(
-            '7 + 3 * (10 / (12 / (3 + 1) - 1)) / (2 + 3) - 5 - 3 + (8)'
+            '7 + 3 * (10 div (12 div (3 + 1) - 1)) div (2 + 3) - 5 - 3 + (8)'
         )
         result = interpreter.interpret_expr()
         self.assertEqual(result, 10)
