@@ -65,12 +65,12 @@ class LexerTestCase(unittest.TestCase):
 
         self.assertEqual(len(tokens), 9)
 
-        self.assertEqual(tokens[0], Token(TypeId.BEGIN, "BEGIN"))
+        self.assertEqual(tokens[0], Token(TypeId.BEGIN, "[bB][eE][gG][iI][nN]"))
         self.assertEqual(tokens[1], Token(TypeId.ID, "a"))
         self.assertEqual(tokens[2], Token(TypeId.ASSIGN, ":="))
         self.assertEqual(tokens[3], Token(TypeId.INT, 0))
         self.assertEqual(tokens[4], Token(TypeId.SEMI, ";"))
-        self.assertEqual(tokens[5], Token(TypeId.END, "END"))
+        self.assertEqual(tokens[5], Token(TypeId.END, "[eE][nN][dD]"))
         self.assertEqual(tokens[6], Token(TypeId.DOT, "."))
         self.assertEqual(tokens[7], Token(TypeId.EOF, ""))
         self.assertEqual(tokens[8], Token(TypeId.EOF, None))
@@ -85,12 +85,12 @@ class LexerTestCase(unittest.TestCase):
 
         self.assertEqual(len(tokens), 9)
 
-        self.assertEqual(tokens[0], Token(TypeId.BEGIN, "BEGIN"))
+        self.assertEqual(tokens[0], Token(TypeId.BEGIN, "[bB][eE][gG][iI][nN]"))
         self.assertEqual(tokens[1], Token(TypeId.ID, "foo_bar123"))
         self.assertEqual(tokens[2], Token(TypeId.ASSIGN, ":="))
         self.assertEqual(tokens[3], Token(TypeId.INT, 0))
         self.assertEqual(tokens[4], Token(TypeId.SEMI, ";"))
-        self.assertEqual(tokens[5], Token(TypeId.END, "END"))
+        self.assertEqual(tokens[5], Token(TypeId.END, "[eE][nN][dD]"))
         self.assertEqual(tokens[6], Token(TypeId.DOT, "."))
         self.assertEqual(tokens[7], Token(TypeId.EOF, ""))
         self.assertEqual(tokens[8], Token(TypeId.EOF, None))

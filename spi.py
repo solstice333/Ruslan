@@ -78,7 +78,10 @@ class Token:
         return bool(self.value)
 
     def __eq__(self, other) -> bool:
-        return self.type == other.type and self.value == other.value
+        return self.type == other.type and \
+            self.value.lower() == other.value.lower() \
+            if isinstance(self.value, str) else \
+            self.value == other.value
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)
@@ -134,6 +137,7 @@ class Lexer(Iterable):
 
     def _iter_tokens(self) -> Iterator[Token]:
         token_spec = Lexer._TOKEN_NAME_TO_TID_INFO()
+
         token_pats = [
             rf"(?P<{name}>{tid_info.pattern})" 
             for name, tid_info in token_spec.items() 
@@ -276,7 +280,7 @@ class Compound(AST):
 
 class Var(AST):
     def __init__(self, name: str) -> None:
-        self._token = Token(TypeId.ID, name)
+        self._token = Token(TypeId.ID, name.lower())
         self.value: str = str(self._token.value)
 
     @property
@@ -548,7 +552,7 @@ class Interpreter(NodeVisitor):
 
     def _visit_var(self, node: Var) -> int:
         name = node.value
-        val = self.GLOBAL_SCOPE.get(name)
+        val = self.GLOBAL_SCOPE.get(name.lower())
         if val is None:
             raise NameError(repr(name))
         return val
