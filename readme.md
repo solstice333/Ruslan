@@ -48,7 +48,7 @@ optional arguments:
 For example:
 
 ```
-$ python3 spi.py tests/assignments.txt
+$ python3 spi.py tests/foo.pas
 ```
 
 ## Tests

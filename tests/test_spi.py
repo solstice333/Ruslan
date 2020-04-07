@@ -244,8 +244,8 @@ class InterpreterTestCase(unittest.TestCase):
             interpreter.interpret_expr()
 
     def test_expression_program(self):
-        with open("tests/assignments.txt") as assignments_txt:
-            txt = assignments_txt.read()
+        with open("tests/foo.pas") as foo_pas:
+            txt = foo_pas.read()
 
         interpreter = self.makeInterpreter(txt)
         interpreter.interpret()
