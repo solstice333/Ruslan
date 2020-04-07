@@ -257,7 +257,7 @@ class InterpreterTestCase(unittest.TestCase):
             interpreter.GLOBAL_SCOPE,
             {
                 'number': 2,
-                'a': 2,
+                '_a': 2,
                 'b': 25,
                 'c': 27,
                 'x': 11

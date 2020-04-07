@@ -2,9 +2,9 @@ BEGIN
 
     BEGIN
         number := 2;
-        a := numBer;
-        b := 10 * a + 10 * number Div 4;
-        c := a - - b
+        _a := numBer;
+        b := 10 * _a + 10 * number Div 4;
+        c := _a - - b
     eNd;
 
     x := 11;

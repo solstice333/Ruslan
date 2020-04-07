@@ -39,7 +39,7 @@ class TypeId(Enum):
     BEGIN = TypeIdValue(pat="[bB][eE][gG][iI][nN]", re=True)
     END = TypeIdValue(pat="[eE][nN][dD]", re=True)
     DOT = TypeIdValue(pat=".")
-    ID = TypeIdValue(pat=r"[a-zA-Z]\w*", re=True)
+    ID = TypeIdValue(pat=r"[a-zA-Z_]\w*", re=True)
     ASSIGN = TypeIdValue(pat=":=")
     SEMI = TypeIdValue(pat=";")
 
