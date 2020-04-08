@@ -73,7 +73,7 @@ class Token:
         """String representation of the class instance.
 
         Examples:
-            Token(INTEGER, 3)
+            Token(INT_CONST, 3)
             Token(ADD, '+')
             Token(MUL, '*')
         """
@@ -102,9 +102,13 @@ class Lexer(Iterable):
         token: Token=Token(TypeId.EOF, None)
 
     RES_KW: List[TypeId] = [
+        TypeId.PROGRAM,
+        TypeId.VAR,
+        TypeId.INT_DIV,
+        TypeId.INTEGER,
+        TypeId.REAL,
         TypeId.BEGIN,
-        TypeId.END,
-        TypeId.INT_DIV
+        TypeId.END
     ]
 
     __RES_KW_TO_TID_INFO: Dict[str, TypeIdInfo] = {}
@@ -358,7 +362,7 @@ class Parser:
         factor : 
             ADD factor | 
             SUB factor | 
-            INTEGER_CONST | 
+            INT_CONST | 
             REAL_CONST | 
             LPAREN expr RPAREN | 
             variable
@@ -390,7 +394,7 @@ class Parser:
 
 
     def term(self, lpar_b: bool=False) -> AST:
-        """term : factor ((MUL | INTEGER_DIV | FLOAT_DIV) factor)*"""
+        """term : factor ((MUL | INT_DIV | FLOAT_DIV) factor)*"""
         node: AST = self.factor(lpar_b)
 
         while True:
@@ -407,11 +411,7 @@ class Parser:
         return node
 
     def expr(self, lpar_b: bool=False) -> AST:
-        """
-        expr   : term ((ADD | SUB) term)*
-        term   : factor ((MUL | INT_DIV | FLOAT_DIV) factor)*
-        factor : POS factor | NEG factor | INTEGER | LPAREN expr RPAREN
-        """
+        """expr: term ((ADD | SUB) term)* """
         node: AST = self.term(lpar_b)
 
         while True:
