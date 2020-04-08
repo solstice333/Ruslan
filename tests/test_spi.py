@@ -16,7 +16,7 @@ class LexerTestCase(unittest.TestCase):
     def test_lexer_integer(self):
         lexer = self.makeLexer('234')
         token = next(iter(lexer))
-        self.assertEqual(token.type, TypeId.INT)
+        self.assertEqual(token.type, TypeId.INT_CONST)
         self.assertEqual(token.value, 234)
 
     def test_lexer_mul(self):
@@ -28,7 +28,7 @@ class LexerTestCase(unittest.TestCase):
     def test_lexer_div(self):
         lexer = self.makeLexer(' dIv ')
         token = next(iter(lexer))
-        self.assertEqual(token.type, TypeId.DIV)
+        self.assertEqual(token.type, TypeId.INT_DIV)
         self.assertEqual(token.value, '[dD][iI][vV]')
 
     def test_lexer_plus(self):
@@ -68,7 +68,7 @@ class LexerTestCase(unittest.TestCase):
         self.assertEqual(tokens[0], Token(TypeId.BEGIN, "[bB][eE][gG][iI][nN]"))
         self.assertEqual(tokens[1], Token(TypeId.ID, "a"))
         self.assertEqual(tokens[2], Token(TypeId.ASSIGN, ":="))
-        self.assertEqual(tokens[3], Token(TypeId.INT, 0))
+        self.assertEqual(tokens[3], Token(TypeId.INT_CONST, 0))
         self.assertEqual(tokens[4], Token(TypeId.SEMI, ";"))
         self.assertEqual(tokens[5], Token(TypeId.END, "[eE][nN][dD]"))
         self.assertEqual(tokens[6], Token(TypeId.DOT, "."))
@@ -88,7 +88,7 @@ class LexerTestCase(unittest.TestCase):
         self.assertEqual(tokens[0], Token(TypeId.BEGIN, "[bB][eE][gG][iI][nN]"))
         self.assertEqual(tokens[1], Token(TypeId.ID, "foo_bar123"))
         self.assertEqual(tokens[2], Token(TypeId.ASSIGN, ":="))
-        self.assertEqual(tokens[3], Token(TypeId.INT, 0))
+        self.assertEqual(tokens[3], Token(TypeId.INT_CONST, 0))
         self.assertEqual(tokens[4], Token(TypeId.SEMI, ";"))
         self.assertEqual(tokens[5], Token(TypeId.END, "[eE][nN][dD]"))
         self.assertEqual(tokens[6], Token(TypeId.DOT, "."))
@@ -110,10 +110,10 @@ class ParserTestCase(unittest.TestCase):
         act = str(list(PostOrderIter(ast)))
         exp = "[" + \
             "Var(Token(TypeId.ID, x)), " + \
-            "Num(Token(TypeId.INT, 11)), " + \
+            "Num(Token(TypeId.INT_CONST, 11)), " + \
             "Assign(Token(TypeId.ASSIGN, :=)), " +\
             "Var(Token(TypeId.ID, y)), " + \
-            "Num(Token(TypeId.INT, 2)), " + \
+            "Num(Token(TypeId.INT_CONST, 2)), " + \
             "Var(Token(TypeId.ID, x)), " + \
             "Add(Token(TypeId.ADD, +)), " +\
             "Assign(Token(TypeId.ASSIGN, :=)), " +\
@@ -137,20 +137,20 @@ class ParserTestCase(unittest.TestCase):
         act = str(list(PostOrderIter(ast)))
         exp = "[" + \
             "Var(Token(TypeId.ID, number)), " + \
-            "Num(Token(TypeId.INT, 2)), " + \
+            "Num(Token(TypeId.INT_CONST, 2)), " + \
             "Assign(Token(TypeId.ASSIGN, :=)), " + \
             "Var(Token(TypeId.ID, a)), " + \
             "Var(Token(TypeId.ID, number)), " + \
             "Assign(Token(TypeId.ASSIGN, :=)), " + \
             "Var(Token(TypeId.ID, b)), " + \
-            "Num(Token(TypeId.INT, 10)), " + \
+            "Num(Token(TypeId.INT_CONST, 10)), " + \
             "Var(Token(TypeId.ID, a)), " + \
             "Mul(Token(TypeId.MUL, *)), " + \
-            "Num(Token(TypeId.INT, 10)), " + \
+            "Num(Token(TypeId.INT_CONST, 10)), " + \
             "Var(Token(TypeId.ID, number)), " + \
             "Mul(Token(TypeId.MUL, *)), " + \
-            "Num(Token(TypeId.INT, 4)), " + \
-            "Div(Token(TypeId.DIV, [dD][iI][vV])), " + \
+            "Num(Token(TypeId.INT_CONST, 4)), " + \
+            "Div(Token(TypeId.INT_DIV, [dD][iI][vV])), " + \
             "Add(Token(TypeId.ADD, +)), " + \
             "Assign(Token(TypeId.ASSIGN, :=)), " + \
             "Var(Token(TypeId.ID, c)), " + \
@@ -161,7 +161,7 @@ class ParserTestCase(unittest.TestCase):
             "Assign(Token(TypeId.ASSIGN, :=)), " + \
             "Compound(Token(TypeId.EOF, Compound)), " + \
             "Var(Token(TypeId.ID, x)), " + \
-            "Num(Token(TypeId.INT, 11)), " + \
+            "Num(Token(TypeId.INT_CONST, 11)), " + \
             "Assign(Token(TypeId.ASSIGN, :=)), " + \
             "NoOp(Token(TypeId.EOF, NoOp)), " + \
             "Compound(Token(TypeId.EOF, Compound))" + \

@@ -28,19 +28,27 @@ class TypeIdValue(NamedTuple):
 
 
 class TypeId(Enum):
-    INT = TypeIdValue(pat=r"\d+", re=True, type=int)
+    PROGRAM = TypeIdValue(pat=r"[pP][rR][oO][gG][rR][aA][mM]", re=True)
+    VAR = TypeIdValue(pat=r"[vV][aA][rR]", re=True)
+    COMMA = TypeIdValue(pat=",")
+    INTEGER = TypeIdValue(pat=r"[iI][nN][tT][eE][gG][eE][rR]", re=True)
+    REAL = TypeIdValue(pat=r"[rR][eE][aA][lL]", re=True)
+    INT_CONST = TypeIdValue(pat=r"\d+", re=True, type=int)
+    REAL_CONST = TypeIdValue(pat=r"\d+\.\d*", re=True, type=float)
     ADD = TypeIdValue(pat='+')
     SUB = TypeIdValue(pat='-')
     MUL = TypeIdValue(pat='*')
-    DIV = TypeIdValue(pat='[dD][iI][vV]', re=True)
+    INT_DIV = TypeIdValue(pat=r"[dD][iI][vV]", re=True)
+    FLOAT_DIV = TypeIdValue(pat='/')
     LPAR = TypeIdValue(pat='(')
     RPAR = TypeIdValue(pat=')')
     EOF = TypeIdValue(pat=r"$", re=True)
-    BEGIN = TypeIdValue(pat="[bB][eE][gG][iI][nN]", re=True)
-    END = TypeIdValue(pat="[eE][nN][dD]", re=True)
+    BEGIN = TypeIdValue(pat=r"[bB][eE][gG][iI][nN]", re=True)
+    END = TypeIdValue(pat=r"[eE][nN][dD]", re=True)
     DOT = TypeIdValue(pat=".")
     ID = TypeIdValue(pat=r"[a-zA-Z_]\w*", re=True)
     ASSIGN = TypeIdValue(pat=":=")
+    COLON = TypeIdValue(pat=":")
     SEMI = TypeIdValue(pat=";")
 
     def __repr__(self) -> str:
@@ -96,7 +104,7 @@ class Lexer(Iterable):
     RES_KW: List[TypeId] = [
         TypeId.BEGIN,
         TypeId.END,
-        TypeId.DIV
+        TypeId.INT_DIV
     ]
 
     __RES_KW_TO_TID_INFO: Dict[str, TypeIdInfo] = {}
@@ -224,9 +232,9 @@ class Div(BinOp):
         self, 
         left: AST, 
         right: AST, 
-        opchar: str=TypeId.DIV.value.pat
+        opchar: str=TypeId.INT_DIV.value.pat
     ) -> None:
-        super().__init__(left, right, Token(TypeId.DIV, opchar))
+        super().__init__(left, right, Token(TypeId.INT_DIV, opchar))
 
 
 class UnOp(AST):
@@ -260,7 +268,7 @@ class Neg(UnOp):
 
 class Num(AST):
     def __init__(self, val: int) -> None:
-        self._token = Token(TypeId.INT, val)
+        self._token = Token(TypeId.INT_CONST, val)
         self.value: int = cast(int, self._token.value)
 
     @property
@@ -350,7 +358,8 @@ class Parser:
         factor : 
             ADD factor | 
             SUB factor | 
-            INTEGER | 
+            INTEGER_CONST | 
+            REAL_CONST | 
             LPAREN expr RPAREN | 
             variable
         """
@@ -362,9 +371,9 @@ class Parser:
         elif token.type == TypeId.SUB:
             self.eat(TypeId.SUB)
             return Neg(self.factor(lpar_b))
-        elif token.type == TypeId.INT:
+        elif token.type == TypeId.INT_CONST:
             numtok = token
-            self.eat(TypeId.INT)
+            self.eat(TypeId.INT_CONST)
             token = self.current_token
             if token.type == TypeId.LPAR:
                 self.error(f"found {token}")
@@ -381,7 +390,7 @@ class Parser:
 
 
     def term(self, lpar_b: bool=False) -> AST:
-        """term : factor ((MUL | DIV) factor)*"""
+        """term : factor ((MUL | INTEGER_DIV | FLOAT_DIV) factor)*"""
         node: AST = self.factor(lpar_b)
 
         while True:
@@ -389,8 +398,8 @@ class Parser:
             if token.type == TypeId.MUL:
                 self.eat(TypeId.MUL)
                 node = Mul(node, self.factor(lpar_b))
-            elif token.type == TypeId.DIV:
-                self.eat(TypeId.DIV)
+            elif token.type == TypeId.INT_DIV:
+                self.eat(TypeId.INT_DIV)
                 node = Div(node, self.factor(lpar_b))
             else:
                 break
@@ -400,7 +409,7 @@ class Parser:
     def expr(self, lpar_b: bool=False) -> AST:
         """
         expr   : term ((ADD | SUB) term)*
-        term   : factor ((MUL | DIV) factor)*
+        term   : factor ((MUL | INT_DIV | FLOAT_DIV) factor)*
         factor : POS factor | NEG factor | INTEGER | LPAREN expr RPAREN
         """
         node: AST = self.term(lpar_b)
@@ -436,7 +445,7 @@ class Parser:
         return Assign(left, right)
 
     def statement(self) -> AST:
-        """statement: compound_statement | assignment | empty"""
+        """statement: compound_statement | assignment_statement | empty"""
         tokty = self.current_token.type
 
         if tokty == TypeId.BEGIN:
@@ -470,7 +479,7 @@ class Parser:
         return Compound(nodes)
 
     def program(self) -> AST:
-        """program : compound_statement DOT"""
+        """program : PROGRAM variable SEMI block DOT"""
         node = self.compound_statement()
         self.eat(TypeId.DOT)
         return node
