@@ -50,6 +50,7 @@ class TypeId(Enum):
     ASSIGN = TypeIdValue(pat=":=")
     COLON = TypeIdValue(pat=":")
     SEMI = TypeIdValue(pat=";")
+    COMMENT = TypeIdValue(pat=r"\{.*\}", re=True)
 
     def __repr__(self) -> str:
         return str(self)
@@ -137,8 +138,8 @@ class Lexer(Iterable):
                 { 
                     name: 
                     cls.TypeIdInfo(
-                        tid,
-                        TypeId.pattern(tid)
+                        typeid=tid,
+                        pattern=TypeId.pattern(tid)
                     )
                     for name, tid in TypeId.members().items()
                 }
@@ -160,6 +161,10 @@ class Lexer(Iterable):
         for m in re.finditer(token_pat, self._text):
             name = m.lastgroup if m.lastgroup else ''
             tid = token_spec[name].typeid
+
+            if tid == TypeId.COMMENT:
+                continue
+
             if token_spec[name].token:
                 yield token_spec[name].token
             else:

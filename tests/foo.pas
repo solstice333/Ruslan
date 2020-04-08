@@ -1,7 +1,7 @@
 BEGIN
 
-    BEGIN
-        number := 2;
+    BEGIN { a comment }
+        number := { a comment } 2;
         _a := numBer;
         b := 10 * _a + 10 * number Div 4;
         c := _a - - b
