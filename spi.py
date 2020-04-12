@@ -27,6 +27,7 @@ class TypeIdValue(NamedTuple):
     type: Callable[[str], Any] = str
 
 
+# TODO: add newline so line number can be tracked
 class TypeId(Enum):
     PROGRAM = TypeIdValue(pat=r"[pP][rR][oO][gG][rR][aA][mM]", re=True)
     VAR = TypeIdValue(pat=r"[vV][aA][rR]", re=True)
@@ -223,7 +224,7 @@ class Block(AST):
         return self._token
 
 
-class VarDecl(AST):
+class VarDecl(AST)    :
     def __init__(self, var: 'Var', vartype: 'Type') -> None:
         self._token = Token(TypeId.EOF, type(self).__name__)
         self.var = var
@@ -350,8 +351,7 @@ class Compound(AST):
 class Var(AST):
     def __init__(self, name: str) -> None:
         self._token = Token(TypeId.ID, name.lower())
-        # TODO use cast() here instead of str()
-        self.value: str = str(self._token.value)
+        self.value: str = cast(str, self._token.value)
 
     @property
     def token(self):
@@ -534,6 +534,52 @@ class Parser:
         nodes = self.statement_list()
         self.eat(TypeId.END)
         return Compound(nodes)
+
+
+    def type_spec(self) -> Type:
+        """type_spec: INTEGER | REAL"""
+
+        tok = Type(self.current_token)
+        if self.current_token.type == TypeId.INTEGER:
+            self.eat(TypeId.INTEGER)
+        elif self.current_token.type == TypeId.REAL:
+            self.eat(TypeId.REAL)
+        else:
+            self.error(f"expected a type spec. Got {self.current_token}")
+        return Type(tok)
+
+
+    def variable_declaration(self) -> List[VarDecl]:
+        """
+        variable_declaration: variable (COMMA variable)* COLON type_spec
+        """
+        var_nodes = [self.variable()]
+        while self.current_token.type == TypeId.COMMA:
+            self.eat(TypeId.COMMA)
+            var_nodes.append(self.variable())
+        self.eat(TypeId.COLON)
+        ty_node = self.type_spec()
+        return [VarDecl(var_node, ty_node) for var_node in var_nodes]
+
+
+    def declarations(self) -> List[VarDecl]:
+        """declarations: VAR (variable_declaration SEMI)+ | empty"""
+        declarations = []
+        if self.current_token.type == TypeId.VAR:
+            self.eat(TypeId.VAR)
+            while self.current_token.type == TypeId.ID:
+                declarations += self.variable_declaration()
+                self.eat(TypeId.SEMI)
+        else:
+            return self.empty()
+        return declarations
+
+
+    def block(self) -> Block:
+        """block: declarations compound_statement"""
+        declaration_nodes = self.declarations()
+        compound_statement_node = self.compound_statement()
+        return Block(declaration_nodes, compound_statement_node)
 
     def program(self) -> AST:
         """program : PROGRAM variable SEMI block DOT"""
