@@ -195,6 +195,57 @@ class AST(ABC, NodeMixin):
         return str(self)
 
 
+class Program(AST):
+    def __init__(self, name: 'Var', block: 'Block') -> None:
+        self._token = Token(TypeId.EOF, type(self).__name__)
+        self.name = name
+        self.block = block
+        self.children: List[AST] = [self.name, self.block]
+
+    @property
+    def token(self) -> Token:
+        return self._token
+
+
+class Block(AST):
+    def __init__(
+        self, 
+        declarations: List['VarDecl'], 
+        compound_statement: 'Compound'
+    ) -> None:
+        self._token = Token(TypeId.EOF, type(self).__name__)
+        self.declarations = declarations
+        self.compound_statement = compound_statement
+        self.children: List[AST] = self.declarations + [self.compound_statement]
+
+    @property
+    def token(self) -> Token:
+        return self._token
+
+
+class VarDecl(AST):
+    def __init__(self, var: 'Var', vartype: 'Type') -> None:
+        self._token = Token(TypeId.EOF, type(self).__name__)
+        self.var = var
+        self.vartype = vartype
+        self.children = [self.var, self.vartype]
+
+    @property
+    def token(self) -> Token:
+        return self._token
+
+
+class Type(AST):
+    def __init__(self, tytok: Token) -> None:
+        self._token = tytok
+        self.type = self._token.type
+        self.value = self._token.value
+
+    @property
+    def token(self) -> Token:
+        return self._token
+    
+
 class BinOp(AST):
     def __init__(self, left: AST, right: AST, optok: Token) -> None:
         self.left = left
@@ -299,6 +350,7 @@ class Compound(AST):
 class Var(AST):
     def __init__(self, name: str) -> None:
         self._token = Token(TypeId.ID, name.lower())
+        # TODO use cast() here instead of str()
         self.value: str = str(self._token.value)
 
     @property
