@@ -67,7 +67,11 @@ class TypeId(Enum):
 
 
 class Token:
-    def __init__(self, type: TypeId, value: Union[str, int, None]) -> None:
+    def __init__(
+        self, 
+        type: TypeId, 
+        value: Union[str, int, float, None]
+    ) -> None:
         self.type = type
         self.value = value
 
@@ -197,11 +201,11 @@ class AST(ABC, NodeMixin):
 
 
 class Program(AST):
-    def __init__(self, name: 'Var', block: 'Block') -> None:
+    def __init__(self, name: str, block: 'Block') -> None:
         self._token = Token(TypeId.EOF, type(self).__name__)
         self.name = name
         self.block = block
-        self.children: List[AST] = [self.name, self.block]
+        self.children: List[AST] = [self.block]
 
     @property
     def token(self) -> Token:
@@ -288,7 +292,7 @@ class Mul(BinOp):
         super().__init__(left, right, Token(TypeId.MUL, opchar))
 
 
-class Div(BinOp):
+class IntDiv(BinOp):
      def __init__(
         self, 
         left: AST, 
@@ -296,6 +300,16 @@ class Div(BinOp):
         opchar: str=TypeId.INT_DIV.value.pat
     ) -> None:
         super().__init__(left, right, Token(TypeId.INT_DIV, opchar))
+
+
+class FloatDiv(BinOp):
+    def __init__(
+        self, 
+        left: AST, 
+        right: AST, 
+        opchar: str=TypeId.FLOAT_DIV.value.pat
+    ) -> None:
+        super().__init__(left, right, Token(TypeId.FLOAT_DIV, opchar))
 
 
 class UnOp(AST):
@@ -328,9 +342,17 @@ class Neg(UnOp):
 
 
 class Num(AST):
-    def __init__(self, val: int) -> None:
-        self._token = Token(TypeId.INT_CONST, val)
-        self.value: int = cast(int, self._token.value)
+    def __init__(self, val: Union[int, float]) -> None:
+        self.value: Union[int, float]
+
+        if isinstance(val, int):
+            self._token = Token(TypeId.INT_CONST, val)
+            self.value = cast(int, self._token.value)
+        elif isinstance(val, float):
+            self._token = Token(TypeId.REAL_CONST, val)
+            self.value = cast(float, self._token.value)
+        else:
+            raise TypeError("val must be int or float")
 
     @property
     def token(self) -> Token:
@@ -424,6 +446,14 @@ class Parser:
             LPAREN expr RPAREN | 
             variable
         """
+
+        def assert_no_lpar_rpar(): 
+            token = self.current_token
+            if token.type == TypeId.LPAR:
+                self.error(f"found {token}")
+            elif token.type == TypeId.RPAR and not lpar_b:
+                self.error(f"{TypeId.RPAR} with no matching {TypeId.LPAR}")
+
         token: Token = self.current_token
 
         if token.type == TypeId.ADD:
@@ -435,12 +465,13 @@ class Parser:
         elif token.type == TypeId.INT_CONST:
             numtok = token
             self.eat(TypeId.INT_CONST)
-            token = self.current_token
-            if token.type == TypeId.LPAR:
-                self.error(f"found {token}")
-            elif token.type == TypeId.RPAR and not lpar_b:
-                self.error(f"{TypeId.RPAR} with no matching {TypeId.LPAR}")
+            assert_no_lpar_rpar()
             return Num(cast(int, numtok.value))
+        elif token.type == TypeId.REAL_CONST:
+            numtok = token
+            self.eat(TypeId.REAL_CONST)
+            assert_no_lpar_rpar()
+            return Num(cast(float, numtok.value))
         elif token.type == TypeId.LPAR:
             self.eat(TypeId.LPAR)
             node: AST = self.expr(True)
@@ -461,7 +492,10 @@ class Parser:
                 node = Mul(node, self.factor(lpar_b))
             elif token.type == TypeId.INT_DIV:
                 self.eat(TypeId.INT_DIV)
-                node = Div(node, self.factor(lpar_b))
+                node = IntDiv(node, self.factor(lpar_b))
+            elif token.type == TypeId.FLOAT_DIV:
+                self.eat(TypeId.FLOAT_DIV)
+                node = FloatDiv(node, self.factor(lpar_b))
             else:
                 break
 
@@ -583,12 +617,19 @@ class Parser:
 
     def program(self) -> AST:
         """program : PROGRAM variable SEMI block DOT"""
-        node = self.compound_statement()
+        self.eat(TypeId.PROGRAM)
+        var_node = self.variable()
+        prog_name = var_node.value
+        self.eat(TypeId.SEMI)
+        block_node = self.block()
         self.eat(TypeId.DOT)
-        return node
+        return Program(prog_name, block_node)
 
     def parse_expr(self) -> AST:
         return self.expr()
+
+    def parse_compound(self) -> AST:
+        return self.compound_statement()
 
     def parse(self) -> AST:
         prog = self.program()
@@ -602,7 +643,7 @@ class NodeVisitor:
         method_name = '_visit_' + type(node).__name__
         return method_name.lower()
 
-    def visit(self, node: AST) -> Optional[int]:
+    def visit(self, node: AST) -> Union[int, float, None]:
         method_name = self._gen_visit_method_name(node)
         return getattr(self, method_name, self.raise_visit_error)(node)
 
@@ -613,7 +654,9 @@ class NodeVisitor:
 
 class Interpreter(NodeVisitor):
     def _interpret(
-        self, get_ast: Callable[[Parser], AST]) -> Optional[int]:
+        self, 
+        get_ast: Callable[[Parser], AST]
+    ) -> Union[int, float, None]:
         lexer: Lexer = Lexer(self._text)
         parser: Parser = Parser(lexer)
         ast: AST = get_ast(parser)
@@ -621,36 +664,40 @@ class Interpreter(NodeVisitor):
 
     def __init__(self, text: str):
         self._text = text.strip()
-        self.GLOBAL_SCOPE: Dict[str, int] = {}
+        self.GLOBAL_SCOPE: Dict[str, Union[int, float]] = {}
 
-    def _visit_pos(self, node: Pos) -> int:
-        return +cast(int, self.visit(node.right))
+    def _visit_pos(self, node: Pos) -> Union[int, float]:
+        return +cast(Union[int, float], self.visit(node.right))
 
-    def _visit_neg(self, node: Neg) -> int:
-        return -cast(int, self.visit(node.right))
+    def _visit_neg(self, node: Neg) -> Union[int, float]:
+        return -cast(Union[int, float], self.visit(node.right))
 
-    def _visit_add(self, node: AST) -> int:
+    def _visit_add(self, node: AST) -> Union[int, float]:
         return \
-            cast(int, self.visit(node.left)) + \
-            cast(int, self.visit(node.right))
+            cast(Union[int, float], self.visit(node.left)) + \
+            cast(Union[int, float], self.visit(node.right))
 
-    def _visit_sub(self, node: AST) -> int:
+    def _visit_sub(self, node: AST) -> Union[int, float]:
         return \
-            cast(int, self.visit(node.left)) - \
-            cast(int, self.visit(node.right))
+            cast(Union[int, float], self.visit(node.left)) - \
+            cast(Union[int, float], self.visit(node.right))
 
-    def _visit_mul(self, node: AST) -> int:
+    def _visit_mul(self, node: AST) -> Union[int, float]:
         return \
-            cast(int, self.visit(node.left)) * \
-            cast(int, self.visit(node.right))
+            cast(Union[int, float], self.visit(node.left)) * \
+            cast(Union[int, float], self.visit(node.right))
 
-    def _visit_div(self, node: AST) -> int:
-        return int(
-            cast(int, self.visit(node.left)) / \
-            cast(int, self.visit(node.right))
-        )
+    def _visit_intdiv(self, node: AST) -> Union[int, float]:
+        return \
+            cast(Union[int, float], self.visit(node.left)) // \
+            cast(Union[int, float], self.visit(node.right))
 
-    def _visit_num(self, node: Num) -> int:
+    def _visit_floatdiv(self, node: AST) -> Union[int, float]:
+        return \
+            cast(Union[int, float], self.visit(node.left)) / \
+            cast(Union[int, float], self.visit(node.right))
+
+    def _visit_num(self, node: Num) -> Union[int, float]:
         return node.value
 
     def _visit_compound(self, node: Compound) -> None:
@@ -661,29 +708,33 @@ class Interpreter(NodeVisitor):
         pass
 
     def _visit_assign(self, node: Assign) -> None:
-        self.GLOBAL_SCOPE[node.left.value] = cast(int, self.visit(node.right))
+        self.GLOBAL_SCOPE[node.left.value] = \
+            cast(Union[int, float], self.visit(node.right))
 
-    def _visit_var(self, node: Var) -> int:
+    def _visit_var(self, node: Var) -> Union[int, float]:
         name = node.value
         val = self.GLOBAL_SCOPE.get(name.lower())
         if val is None:
             raise NameError(repr(name))
         return val
 
-    def interpret_expr(self) -> Union[int, str]:
+    def interpret_expr(self) -> Union[int, float, str]:
         if not self._text:
             return ""
 
         return cast(
-            int,
+            Union[int, float],
             self._interpret(lambda parser: parser.parse_expr())
         )
 
-    def interpret(self) -> None:
+    def interpret_compound(self) -> None:
         return cast(
             None, 
-            self._interpret(lambda parser: parser.parse())
+            self._interpret(lambda parser: parser.parse_compound())
         )
+
+    def interpret(self) -> None:
+        raise NotImplementedError()
 
 
 def main() -> None:

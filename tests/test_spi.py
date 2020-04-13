@@ -106,7 +106,7 @@ class ParserTestCase(unittest.TestCase):
 
     def test_parser1(self):
         p = self.makeParser("BEGIN x := 11; y := 2 + x END.")
-        ast = p.parse()
+        ast = p.parse_compound()
         act = str(list(PostOrderIter(ast)))
         exp = "[" + \
             "Var(Token(TypeId.ID, x)), " + \
@@ -133,7 +133,7 @@ class ParserTestCase(unittest.TestCase):
             "    x := 11;\n" + \
             "END.\n"
         )
-        ast = p.parse()
+        ast = p.parse_compound()
         act = str(list(PostOrderIter(ast)))
         exp = "[" + \
             "Var(Token(TypeId.ID, number)), " + \
@@ -150,7 +150,7 @@ class ParserTestCase(unittest.TestCase):
             "Var(Token(TypeId.ID, number)), " + \
             "Mul(Token(TypeId.MUL, *)), " + \
             "Num(Token(TypeId.INT_CONST, 4)), " + \
-            "Div(Token(TypeId.INT_DIV, [dD][iI][vV])), " + \
+            "IntDiv(Token(TypeId.INT_DIV, [dD][iI][vV])), " + \
             "Add(Token(TypeId.ADD, +)), " + \
             "Assign(Token(TypeId.ASSIGN, :=)), " + \
             "Var(Token(TypeId.ID, c)), " + \
@@ -252,7 +252,7 @@ class InterpreterTestCase(unittest.TestCase):
             txt = foo_pas.read()
 
         interpreter = self.makeInterpreter(txt)
-        interpreter.interpret()
+        interpreter.interpret_compound()
         self.assertEqual(
             interpreter.GLOBAL_SCOPE,
             {
