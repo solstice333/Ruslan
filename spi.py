@@ -34,8 +34,8 @@ class TypeId(Enum):
     COMMA = TypeIdValue(pat=",")
     INTEGER = TypeIdValue(pat=r"[iI][nN][tT][eE][gG][eE][rR]", re=True)
     REAL = TypeIdValue(pat=r"[rR][eE][aA][lL]", re=True)
-    INT_CONST = TypeIdValue(pat=r"\d+", re=True, type=int)
     REAL_CONST = TypeIdValue(pat=r"\d+\.\d*", re=True, type=float)
+    INT_CONST = TypeIdValue(pat=r"\d+", re=True, type=int)
     ADD = TypeIdValue(pat='+')
     SUB = TypeIdValue(pat='-')
     MUL = TypeIdValue(pat='*')
@@ -481,7 +481,7 @@ class Parser:
             return self.variable()
 
 
-    def term(self, lpar_b: bool=False) -> AST:
+    def term(self, lpar_b: bool=False) -> BinOp:
         """term : factor ((MUL | INT_DIV | FLOAT_DIV) factor)*"""
         node: AST = self.factor(lpar_b)
 
@@ -501,7 +501,7 @@ class Parser:
 
         return node
 
-    def expr(self, lpar_b: bool=False) -> AST:
+    def expr(self, lpar_b: bool=False) -> BinOp:
         """expr: term ((ADD | SUB) term)* """
         node: AST = self.term(lpar_b)
 
@@ -518,17 +518,17 @@ class Parser:
 
         return node
 
-    def empty(self) -> AST:
+    def empty(self) -> NoOp:
         """empty rule"""
         return NoOp()
 
-    def variable(self) -> AST:
+    def variable(self) -> Var:
         """variable: ID"""
         node = Var(str(self.current_token.value))
         self.eat(TypeId.ID)
         return node
 
-    def assignment_statement(self) -> AST:
+    def assignment_statement(self) -> Assign:
         """assignment_statement: variable ASSIGN expr"""
         left = self.variable()
         self.eat(TypeId.ASSIGN)
@@ -562,7 +562,7 @@ class Parser:
 
         return statements
 
-    def compound_statement(self) -> AST:
+    def compound_statement(self) -> Compound:
         """compound_statement: BEGIN statement_list END"""
         self.eat(TypeId.BEGIN)
         nodes = self.statement_list()
@@ -615,7 +615,7 @@ class Parser:
         compound_statement_node = self.compound_statement()
         return Block(declaration_nodes, compound_statement_node)
 
-    def program(self) -> AST:
+    def program(self) -> Program:
         """program : PROGRAM variable SEMI block DOT"""
         self.eat(TypeId.PROGRAM)
         var_node = self.variable()
