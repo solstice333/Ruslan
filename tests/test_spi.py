@@ -216,6 +216,18 @@ class ParserTestCase(unittest.TestCase):
 
         self.assertEqual(act, exp)
 
+    def test_fail_parse(self):
+        with open("tests/bar.pas") as f:
+            p = self.makeParser(f.read())
+        with self.assertRaises(RuntimeError) as e:
+            p.parse_compound()
+
+        exp_msg = \
+            "Invalid syntax: found Token(TypeId.ID, _a). " + \
+            "Expected semi-colon, line 6"
+        act_msg = e.exception.args[0]
+        self.assertEqual(act_msg, exp_msg)
+
 
 class InterpreterTestCase(unittest.TestCase):
     def makeInterpreter(self, text):

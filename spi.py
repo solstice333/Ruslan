@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import \
     Any, \
+    TypeVar, \
     Callable, \
     Optional, \
     Union, \
@@ -9,6 +10,7 @@ from typing import \
     Mapping, \
     NamedTuple, \
     Iterator, \
+    Iterable, \
     cast
 from abc import ABC, abstractmethod
 from anytree import RenderTree # type:ignore
@@ -16,10 +18,12 @@ from anytree import \
     PostOrderIter, \
     NodeMixin
 from re import Pattern, RegexFlag
-from collections.abc import Iterable
 
 import re
 import argparse
+
+T = TypeVar('T')
+
 
 class TypeIdValue(NamedTuple):
     pat: str
@@ -27,7 +31,6 @@ class TypeIdValue(NamedTuple):
     type: Callable[[str], Any] = str
 
 
-# TODO: add newline so line number can be tracked
 class TypeId(Enum):
     PROGRAM = TypeIdValue(pat=r"[pP][rR][oO][gG][rR][aA][mM]", re=True)
     VAR = TypeIdValue(pat=r"[vV][aA][rR]", re=True)
@@ -52,6 +55,7 @@ class TypeId(Enum):
     COLON = TypeIdValue(pat=":")
     SEMI = TypeIdValue(pat=";")
     COMMENT = TypeIdValue(pat=r"\{.*\}", re=True)
+    NEWLINE = TypeIdValue(pat=r"\n", re=True)
 
     def __repr__(self) -> str:
         return str(self)
@@ -101,7 +105,7 @@ class Token:
         return not self.__eq__(other)
 
 
-class Lexer(Iterable):
+class Lexer(Iterable[Token]):
     class TypeIdInfo(NamedTuple):
         typeid: TypeId
         pattern: str
@@ -153,6 +157,7 @@ class Lexer(Iterable):
 
     def __init__(self, text: str) -> None:
         self._text: str = text
+        self.linenum: int = 1
 
     def _iter_tokens(self) -> Iterator[Token]:
         token_spec = Lexer._TOKEN_NAME_TO_TID_INFO()
@@ -167,7 +172,12 @@ class Lexer(Iterable):
             name = m.lastgroup if m.lastgroup else ''
             tid = token_spec[name].typeid
 
-            if tid == TypeId.COMMENT:
+            if any_of(
+                [TypeId.NEWLINE, TypeId.COMMENT], 
+                lambda tid_elem: tid == tid_elem
+            ):
+                if tid == TypeId.NEWLINE:
+                    self.linenum += 1
                 continue
 
             if token_spec[name].token:
@@ -427,8 +437,12 @@ class Parser:
         self._it: Iterator[Token] = iter(self.lexer)
         self.current_token: Token = next(self._it)
 
+    @property
+    def linenum(self):
+        return self.lexer.linenum
+
     def error(self, msg: str) -> None:
-        raise RuntimeError(f"Invalid syntax: {msg}")
+        raise RuntimeError(f"Invalid syntax: {msg}, line {self.linenum}")
 
     def eat(self, token_type: TypeId) -> None:
         if self.current_token.type == token_type:
@@ -738,6 +752,12 @@ class Interpreter(NodeVisitor):
     def interpret(self) -> None:
         raise NotImplementedError()
 
+
+def any_of(vals: Iterable[T], pred: Callable[[T], bool]):
+    for val in vals:
+        if pred(val):
+            return True
+    return False
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="simple pascal interpreter")
