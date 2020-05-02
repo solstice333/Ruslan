@@ -69,11 +69,11 @@ class TypeId(Enum):
 class Token:
     def __init__(
         self, 
-        type: TypeId, 
+        ty: TypeId, 
         value: Union[str, int, float, None]
     ) -> None:
-        self.type = type
-        self.value = value
+        self.type: TypeId = ty
+        self.value: Union[str, int, float, None] = value
 
     def __str__(self) -> str:
         """String representation of the class instance.
@@ -203,8 +203,8 @@ class AST(ABC, NodeMixin):
 class Program(AST):
     def __init__(self, name: str, block: 'Block') -> None:
         self._token = Token(TypeId.EOF, type(self).__name__)
-        self.name = name
-        self.block = block
+        self.name: str = name
+        self.block: 'Block' = block
         self.children: List[AST] = [self.block]
 
     @property
@@ -219,8 +219,8 @@ class Block(AST):
         compound_statement: 'Compound'
     ) -> None:
         self._token = Token(TypeId.EOF, type(self).__name__)
-        self.declarations = declarations
-        self.compound_statement = compound_statement
+        self.declarations: List['VarDecl'] = declarations
+        self.compound_statement: 'Compound' = compound_statement
         self.children: List[AST] = self.declarations + [self.compound_statement]
 
     @property
@@ -231,9 +231,9 @@ class Block(AST):
 class VarDecl(AST)    :
     def __init__(self, var: 'Var', vartype: 'Type') -> None:
         self._token = Token(TypeId.EOF, type(self).__name__)
-        self.var = var
-        self.vartype = vartype
-        self.children = [self.var, self.vartype]
+        self.var: 'Var' = var
+        self.vartype: 'Type' = vartype
+        self.children: List[AST] = [self.var, self.vartype]
 
     @property
     def token(self) -> Token:
@@ -242,9 +242,13 @@ class VarDecl(AST)    :
 
 class Type(AST):
     def __init__(self, tytok: Token) -> None:
-        self._token = tytok
-        self.type = self._token.type
-        self.value = self._token.value
+        self._token: Token = tytok
+        self.type: TypeId = self._token.type
+        self.value: str  = cast(str, self._token.value)
+
+    @classmethod
+    def copy(cls, other: 'Type') -> 'Type':
+        return cls(other._token)
 
     @property
     def token(self) -> Token:
@@ -253,10 +257,11 @@ class Type(AST):
 
 class BinOp(AST):
     def __init__(self, left: AST, right: AST, optok: Token) -> None:
-        self.left = left
-        self._token = self.op = optok
-        self.right = right
-        self.children = [self.left, self.right]
+        self._token: Token = optok
+        self.op: Token = self._token
+        self.left: AST = left
+        self.right: AST = right
+        self.children: List[AST] = [self.left, self.right]
 
     @property
     def token(self) -> Token:
@@ -314,9 +319,9 @@ class FloatDiv(BinOp):
 
 class UnOp(AST):
     def __init__(self, right: AST, optok: Token ) -> None:
-        self.right = right
-        self.children = [self.right]
-        self._token = optok
+        self.right: AST = right
+        self.children: List[AST] = [self.right]
+        self._token: Token = optok
 
     @property
     def token(self) -> Token:
@@ -343,7 +348,8 @@ class Neg(UnOp):
 
 class Num(AST):
     def __init__(self, val: Union[int, float]) -> None:
-        self.value: Union[int, float]
+        self._token: Token = Token(TypeId.EOF, None)
+        self.value: Union[int, float] = 0
 
         if isinstance(val, int):
             self._token = Token(TypeId.INT_CONST, val)
@@ -372,7 +378,7 @@ class Compound(AST):
 
 class Var(AST):
     def __init__(self, name: str) -> None:
-        self._token = Token(TypeId.ID, name.lower())
+        self._token: Token = Token(TypeId.ID, name.lower())
         self.value: str = cast(str, self._token.value)
 
     @property
@@ -387,10 +393,10 @@ class Assign(AST):
         right: AST, 
         opchar: str=TypeId.ASSIGN.value.pat
     ) -> None:
-        self.left = left
-        self.right = right
-        self.children = [self.left, self.right]
-        self._token = Token(TypeId.ASSIGN, opchar)
+        self.left: Var = left
+        self.right: AST = right
+        self.children: List[AST] = [self.left, self.right]
+        self._token: Token = Token(TypeId.ASSIGN, opchar)
 
     @property
     def token(self):
@@ -399,7 +405,7 @@ class Assign(AST):
 
 class NoOp(AST):
     def __init__(self) -> None:
-        self._token = Token(TypeId.EOF, "NoOp")
+        self._token: Token = Token(TypeId.EOF, "NoOp")
 
     @property
     def token(self):
@@ -408,7 +414,7 @@ class NoOp(AST):
 
 class Eof(AST):
     def __init__(self) -> None:
-        self._token = Token(TypeId.EOF, None)
+        self._token: Token = Token(TypeId.EOF, None)
 
     @property
     def token(self) -> Token:
@@ -417,19 +423,14 @@ class Eof(AST):
     
 class Parser:
     def __init__(self, lexer: Lexer) -> None:
-        self.lexer = lexer
-        # set current token to the first token taken from the input
-        self._it = iter(self.lexer)
-        self.current_token = next(self._it)
+        self.lexer: Lexer = lexer
+        self._it: Iterator[Token] = iter(self.lexer)
+        self.current_token: Token = next(self._it)
 
     def error(self, msg: str) -> None:
         raise RuntimeError(f"Invalid syntax: {msg}")
 
     def eat(self, token_type: TypeId) -> None:
-        # compare the current token type with the passed token
-        # type and if they match then "eat" the current token
-        # and assign the next token to the self.current_token,
-        # otherwise raise an exception.
         if self.current_token.type == token_type:
             self.current_token = next(self._it)
         else:
@@ -524,7 +525,7 @@ class Parser:
 
     def variable(self) -> Var:
         """variable: ID"""
-        node = Var(str(self.current_token.value))
+        node = Var(cast(str, self.current_token.value))
         self.eat(TypeId.ID)
         return node
 
@@ -580,8 +581,7 @@ class Parser:
             self.eat(TypeId.REAL)
         else:
             self.error(f"expected a type spec. Got {self.current_token}")
-        return Type(tok)
-
+        return tok
 
     def variable_declaration(self) -> List[VarDecl]:
         """
@@ -593,8 +593,10 @@ class Parser:
             var_nodes.append(self.variable())
         self.eat(TypeId.COLON)
         ty_node = self.type_spec()
-        return [VarDecl(var_node, ty_node) for var_node in var_nodes]
-
+        return [
+            VarDecl(var_node, Type.copy(ty_node)) \
+            for var_node in var_nodes \
+        ]
 
     def declarations(self) -> List[VarDecl]:
         """declarations: VAR (variable_declaration SEMI)+ | empty"""
@@ -663,7 +665,7 @@ class Interpreter(NodeVisitor):
         return self.visit(ast)
 
     def __init__(self, text: str):
-        self._text = text.strip()
+        self._text: str = text.strip()
         self.GLOBAL_SCOPE: Dict[str, Union[int, float]] = {}
 
     def _visit_pos(self, node: Pos) -> Union[int, float]:

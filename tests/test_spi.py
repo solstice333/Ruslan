@@ -2,7 +2,7 @@ import sys
 import os
 import os.path
 import unittest
-from anytree import PostOrderIter
+from anytree import PostOrderIter, RenderTree
 
 sys.path.append(os.path.realpath(".."))
 from spi import TypeId, Token, Lexer, Parser, Interpreter
@@ -100,6 +100,9 @@ class LexerTestCase(unittest.TestCase):
 
 
 class ParserTestCase(unittest.TestCase):
+    def setUp(self):
+        self.maxDiff = None
+
     def makeParser(self, text):
         lexer = Lexer(text)
         return Parser(lexer)
@@ -165,6 +168,50 @@ class ParserTestCase(unittest.TestCase):
             "Assign(Token(TypeId.ASSIGN, :=)), " + \
             "NoOp(Token(TypeId.EOF, NoOp)), " + \
             "Compound(Token(TypeId.EOF, Compound))" + \
+        "]"
+
+        self.assertEqual(act, exp)
+
+    def test_parser3(self):
+        with open("tests/part10.pas") as f:
+            p = self.makeParser(f.read())
+        ast = p.parse()
+        act = str(list(PostOrderIter(ast)))
+        exp = "[" + \
+            "Var(Token(TypeId.ID, a)), " + \
+            "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
+            "VarDecl(Token(TypeId.EOF, VarDecl)), " + \
+            "Var(Token(TypeId.ID, b)), " + \
+            "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
+            "VarDecl(Token(TypeId.EOF, VarDecl)), " + \
+            "Var(Token(TypeId.ID, y)), " + \
+            "Type(Token(TypeId.REAL, [rR][eE][aA][lL])), " + \
+            "VarDecl(Token(TypeId.EOF, VarDecl)), " + \
+            "Var(Token(TypeId.ID, a)), " + \
+            "Num(Token(TypeId.INT_CONST, 2)), " + \
+            "Assign(Token(TypeId.ASSIGN, :=)), " + \
+            "Var(Token(TypeId.ID, b)), " + \
+            "Num(Token(TypeId.INT_CONST, 10)), " + \
+            "Var(Token(TypeId.ID, a)), " + \
+            "Mul(Token(TypeId.MUL, *)), " + \
+            "Num(Token(TypeId.INT_CONST, 10)), " + \
+            "Var(Token(TypeId.ID, a)), " + \
+            "Mul(Token(TypeId.MUL, *)), " + \
+            "Num(Token(TypeId.INT_CONST, 4)), " + \
+            "IntDiv(Token(TypeId.INT_DIV, [dD][iI][vV])), " + \
+            "Add(Token(TypeId.ADD, +)), " + \
+            "Assign(Token(TypeId.ASSIGN, :=)), " + \
+            "Var(Token(TypeId.ID, y)), " + \
+            "Num(Token(TypeId.INT_CONST, 20)), " + \
+            "Num(Token(TypeId.INT_CONST, 7)), " + \
+            "FloatDiv(Token(TypeId.FLOAT_DIV, /)), " + \
+            "Num(Token(TypeId.REAL_CONST, 3.14)), " + \
+            "Add(Token(TypeId.ADD, +)), " + \
+            "Assign(Token(TypeId.ASSIGN, :=)), " + \
+            "NoOp(Token(TypeId.EOF, NoOp)), " + \
+            "Compound(Token(TypeId.EOF, Compound)), " + \
+            "Block(Token(TypeId.EOF, Block)), " + \
+            "Program(Token(TypeId.EOF, Program))" + \
         "]"
 
         self.assertEqual(act, exp)
