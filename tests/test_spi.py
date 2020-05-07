@@ -8,6 +8,16 @@ sys.path.append(os.path.realpath(".."))
 from spi import TypeId, Token, Lexer, Parser, Interpreter
 
 
+class Float:
+    def __init__(self, val):
+       self.val = val
+
+    def eq(self, eps, other):
+        if isinstance(other, float):
+            other = Float(other)
+        return abs(self.val - other.val) < eps  
+
+
 class LexerTestCase(unittest.TestCase):
     def makeLexer(self, text):
         lexer = Lexer(text)
@@ -321,6 +331,20 @@ class InterpreterTestCase(unittest.TestCase):
                 'c': 27,
                 'x': 11
             }
+        )
+
+    def test_part10_program(self):
+        with open("tests/part10.pas") as pas:
+            txt = pas.read()
+
+        interpreter = self.makeInterpreter(txt)
+        interpreter.interpret()
+        self.assertEqual(len(interpreter.GLOBAL_SCOPE), 3)
+        self.assertEqual(interpreter.GLOBAL_SCOPE['a'], 2)
+        self.assertEqual(interpreter.GLOBAL_SCOPE['b'], 25)
+
+        self.assertTrue(
+            Float(interpreter.GLOBAL_SCOPE['y']).eq(0.01, Float(5.99))
         )
 
 
