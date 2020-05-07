@@ -641,13 +641,13 @@ class Parser:
         self.eat(TypeId.DOT)
         return Program(prog_name, block_node)
 
-    def parse_expr(self) -> AST:
+    def parse_expr(self) -> BinOp:
         return self.expr()
 
-    def parse_compound(self) -> AST:
+    def parse_compound(self) -> Compound:
         return self.compound_statement()
 
-    def parse(self) -> AST:
+    def parse(self) -> Program:
         prog = self.program()
         if self.current_token.type != TypeId.EOF:
             self.error(f"expected EOF. Got {self.current_token}")
@@ -734,6 +734,19 @@ class Interpreter(NodeVisitor):
             raise NameError(repr(name))
         return val
 
+    def _visit_program(self, node: Program) -> None:
+        self.visit(node.block)
+
+    def _visit_block(self, node: Block) -> None:
+        for ast in node.children:
+            self.visit(ast)
+
+    def _visit_vardecl(self, node: VarDecl) -> None:
+        pass
+
+    def _visit_type(self, node: Type) -> None:
+        pass
+
     def interpret_expr(self) -> Union[int, float, str]:
         if not self._text:
             return ""
@@ -750,7 +763,10 @@ class Interpreter(NodeVisitor):
         )
 
     def interpret(self) -> None:
-        raise NotImplementedError()
+        return cast(
+            None,
+            self._interpret(lambda parser: parser.parse())
+        )
 
 
 def any_of(vals: Iterable[T], pred: Callable[[T], bool]):
