@@ -197,11 +197,34 @@ class Lexer(Iterable[Token]):
         return self._iter_tokens()
 
 
-class AST(ABC, NodeMixin):
-    @property
+class IAST(ABC, NodeMixin):
+    @property # type:ignore
     @abstractmethod
     def token(self) -> Token:
         pass
+
+    @property # type:ignore
+    @abstractmethod
+    def linenum(self) -> int:
+        pass
+
+    @linenum.setter # type:ignore
+    @abstractmethod
+    def linenum(self, num: int) -> None:
+        pass
+
+
+class AST(IAST):
+    def __init__(self):
+        self._linenum = 0
+
+    @property
+    def linenum(self) -> int:
+        return self._linenum
+
+    @linenum.setter
+    def linenum(self, num: int) -> None:
+        self._linenum = num 
 
     def __str__(self) -> str:
         return f"{type(self).__name__}({self.token})"
@@ -212,6 +235,7 @@ class AST(ABC, NodeMixin):
 
 class Program(AST):
     def __init__(self, name: str, block: 'Block') -> None:
+        super().__init__()
         self._token = Token(TypeId.EOF, type(self).__name__)
         self.name: str = name
         self.block: 'Block' = block
@@ -228,6 +252,7 @@ class Block(AST):
         declarations: List['VarDecl'], 
         compound_statement: 'Compound'
     ) -> None:
+        super().__init__()
         self._token = Token(TypeId.EOF, type(self).__name__)
         self.declarations: List['VarDecl'] = declarations
         self.compound_statement: 'Compound' = compound_statement
@@ -239,11 +264,12 @@ class Block(AST):
 
 
 class VarDecl(AST)    :
-    def __init__(self, var: 'Var', vartype: 'Type') -> None:
+    def __init__(self, var: 'Var', ty: 'Type') -> None:
+        super().__init__()
         self._token = Token(TypeId.EOF, type(self).__name__)
         self.var: 'Var' = var
-        self.vartype: 'Type' = vartype
-        self.children: List[AST] = [self.var, self.vartype]
+        self.type: 'Type' = ty
+        self.children: List[AST] = [self.var, self.type]
 
     @property
     def token(self) -> Token:
@@ -252,9 +278,10 @@ class VarDecl(AST)    :
 
 class Type(AST):
     def __init__(self, tytok: Token) -> None:
+        super().__init__()
         self._token: Token = tytok
         self.type: TypeId = self._token.type
-        self.value: str  = cast(str, self._token.value)
+        self.value: str  = self.type.name
 
     @classmethod
     def copy(cls, other: 'Type') -> 'Type':
@@ -267,6 +294,7 @@ class Type(AST):
 
 class BinOp(AST):
     def __init__(self, left: AST, right: AST, optok: Token) -> None:
+        super().__init__()
         self._token: Token = optok
         self.op: Token = self._token
         self.left: AST = left
@@ -329,6 +357,7 @@ class FloatDiv(BinOp):
 
 class UnOp(AST):
     def __init__(self, right: AST, optok: Token ) -> None:
+        super().__init__()
         self.right: AST = right
         self.children: List[AST] = [self.right]
         self._token: Token = optok
@@ -358,6 +387,7 @@ class Neg(UnOp):
 
 class Num(AST):
     def __init__(self, val: Union[int, float]) -> None:
+        super().__init__()
         self._token: Token = Token(TypeId.EOF, None)
         self.value: Union[int, float] = 0
 
@@ -378,6 +408,7 @@ class Num(AST):
 class Compound(AST):
     """Represents a 'BEGIN ... END' block"""
     def __init__(self, children: Optional[List[AST]]=None) -> None:
+        super().__init__()
         self._token: Token = Token(TypeId.EOF, "Compound")
         self.children: List[AST] = children or []
 
@@ -388,6 +419,7 @@ class Compound(AST):
 
 class Var(AST):
     def __init__(self, name: str) -> None:
+        super().__init__()
         self._token: Token = Token(TypeId.ID, name.lower())
         self.value: str = cast(str, self._token.value)
 
@@ -403,6 +435,7 @@ class Assign(AST):
         right: AST, 
         opchar: str=TypeId.ASSIGN.value.pat
     ) -> None:
+        super().__init__()
         self.left: Var = left
         self.right: AST = right
         self.children: List[AST] = [self.left, self.right]
@@ -415,6 +448,7 @@ class Assign(AST):
 
 class NoOp(AST):
     def __init__(self) -> None:
+        super().__init__()
         self._token: Token = Token(TypeId.EOF, "NoOp")
 
     @property
@@ -424,13 +458,79 @@ class NoOp(AST):
 
 class Eof(AST):
     def __init__(self) -> None:
+        super().__init__()
         self._token: Token = Token(TypeId.EOF, None)
 
     @property
     def token(self) -> Token:
         return self._token
     
-    
+
+class Symbol:
+    def __init__(
+        self, name: str, ty: Optional['BuiltinTypeSymbol']=None) -> None:
+        self.name: str = name
+        self.type: Optional['BuiltinTypeSymbol'] = ty
+
+
+class BuiltinTypeSymbol(Symbol):
+    def __init__(self, name: str) -> None:
+        super().__init__(name)
+
+    def __str__(self) -> str:
+        return self.name
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+
+class VarSymbol(Symbol):
+    def __init__(self, name: str, ty: BuiltinTypeSymbol) -> None:
+        super().__init__(name, ty)
+
+    def __str__(self) -> str:
+        return f"<{self.name}:{self.type}>"
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+
+class SymbolTable:
+    def _init_builtins(self):
+        self.define(BuiltinTypeSymbol(TypeId.INTEGER.name))
+        self.define(BuiltinTypeSymbol(TypeId.REAL.name))
+
+    def __init__(self) -> None:
+        self._symbols: Dict[str, Symbol] = {}
+        self._init_builtins()
+
+    def __str__(self) -> str:
+        return f"Symbols: {list(self._symbols.values())}"
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+    def __getitem__(self, name: str) -> Symbol:
+        if not isinstance(name, str):
+            raise TypeError("name must be a str")
+        sym: Optional[Symbol] = self.lookup(name)
+        if sym is None:
+            raise KeyError(f"{name} does not exist in {type(self).__name__}")
+        return cast(Symbol, sym)
+
+    def __iter__(self) -> Iterator[Symbol]:
+        return iter(self._symbols.values())
+
+    def __len__(self) -> int:
+        return len(self._symbols)
+
+    def lookup(self, name: str) -> Optional[Symbol]:
+        return self._symbols.get(name)
+
+    def define(self, sym: Symbol) -> None:
+        self._symbols[sym.name] = sym
+
+
 class Parser:
     def __init__(self, lexer: Lexer) -> None:
         self.lexer: Lexer = lexer
@@ -540,6 +640,7 @@ class Parser:
     def variable(self) -> Var:
         """variable: ID"""
         node = Var(cast(str, self.current_token.value))
+        node.linenum = self.linenum
         self.eat(TypeId.ID)
         return node
 
@@ -654,7 +755,7 @@ class Parser:
         return prog
 
 
-class NodeVisitor:
+class NodeVisitor(ABC):
     def _gen_visit_method_name(self, node: AST) -> str:
         method_name = '_visit_' + type(node).__name__
         return method_name.lower()
@@ -666,6 +767,148 @@ class NodeVisitor:
     def raise_visit_error(self, node: AST) -> None:
         method_name = self._gen_visit_method_name(node)
         raise RuntimeError(f"No {method_name} method")
+
+    @abstractmethod
+    def _visit_pos(self, node: Pos) -> Union[int, float, None]:
+        pass
+
+    @abstractmethod
+    def _visit_neg(self, node: Neg) -> Union[int, float, None]:
+        pass
+
+    @abstractmethod
+    def _visit_add(self, node: AST) -> Union[int, float, None]:
+        pass
+
+    @abstractmethod
+    def _visit_sub(self, node: AST) -> Union[int, float, None]:
+        pass
+
+    @abstractmethod
+    def _visit_mul(self, node: AST) -> Union[int, float, None]:
+        pass
+
+    @abstractmethod
+    def _visit_intdiv(self, node: AST) -> Union[int, float, None]:
+        pass
+
+    @abstractmethod
+    def _visit_floatdiv(self, node: AST) -> Union[int, float, None]:
+        pass
+
+    @abstractmethod
+    def _visit_num(self, node: Num) -> Union[int, float, None]:
+        pass
+
+    @abstractmethod
+    def _visit_compound(self, node: Compound) -> None:
+        pass
+
+    @abstractmethod
+    def _visit_noop(self, node: NoOp) -> None:
+        pass
+
+    @abstractmethod
+    def _visit_assign(self, node: Assign) -> None:
+        pass
+
+    @abstractmethod
+    def _visit_var(self, node: Var) -> Union[int, float, None]:
+        pass
+
+    @abstractmethod
+    def _visit_program(self, node: Program) -> None:
+        pass
+
+    @abstractmethod
+    def _visit_block(self, node: Block) -> None:
+        pass
+
+    @abstractmethod
+    def _visit_vardecl(self, node: VarDecl) -> None:
+        pass
+
+    @abstractmethod
+    def _visit_type(self, node: Type) -> None:
+        pass
+
+
+class SymbolTableBuilder(NodeVisitor):
+    def __init__(self):
+        self.table = SymbolTable()
+
+    def _visit_binop(self, node: AST) -> None:
+        self.visit(node.left)
+        self.visit(node.right)
+
+    def _visit_unop(self, node: UnOp) -> None:
+        self.visit(node.right)
+
+    def _visit_pos(self, node: Pos) -> None:
+        self._visit_unop(node)
+
+    def _visit_neg(self, node: Neg) -> None:
+        self._visit_unop(node)
+
+    def _visit_add(self, node: AST) -> None:
+        self._visit_binop(node)
+
+    def _visit_sub(self, node: AST) -> None:
+        self._visit_binop(node)
+
+    def _visit_mul(self, node: AST) -> None:
+        self._visit_binop(node)
+
+    def _visit_intdiv(self, node: AST) -> None:
+        self._visit_binop(node)
+
+    def _visit_floatdiv(self, node: AST) -> None:
+        self._visit_binop(node)
+
+    def _visit_num(self, node: Num) -> None:
+        pass
+
+    def _visit_compound(self, node: Compound) -> None:
+        for n in node.children:
+            self.visit(n)
+
+    def _visit_noop(self, node: NoOp) -> None:
+        pass
+
+    def _visit_assign(self, node: Assign) -> None:
+        assignee = node.left
+        var_name = assignee.value
+        if self.table.lookup(var_name) is None:
+            linenum = assignee.linenum
+            raise NameError(
+                f"{var_name}" + (f" at line {linenum}" if linenum else "")
+            )
+        self.visit(node.right)
+
+    def _visit_var(self, node: Var) -> None:
+        var_name = node.value
+        if self.table.lookup(var_name) is None:
+            linenum = node.linenum
+            raise NameError(
+                f"{var_name}" + (f" at line {linenum}" if linenum else "")
+            )
+
+    def _visit_program(self, node: Program) -> None:
+        self.visit(node.block)
+
+    def _visit_block(self, node: Block) -> None:
+        for n in node.children:
+            self.visit(n)
+
+    def _visit_vardecl(self, node: VarDecl) -> None:
+        type_name = node.type.value
+        type_sym = self.table.lookup(type_name)
+        var_name = node.var.value
+        var_sym = VarSymbol(var_name, type_sym)
+        self.table.define(var_sym)
+
+    def _visit_type(self, node: Type) -> None:
+        raise NotImplementedError()
 
 
 class Interpreter(NodeVisitor):

@@ -5,7 +5,7 @@ import unittest
 from anytree import PostOrderIter, RenderTree
 
 sys.path.append(os.path.realpath(".."))
-from spi import TypeId, Token, Lexer, Parser, Interpreter
+from spi import TypeId, Token, Lexer, Parser, Interpreter, SymbolTableBuilder
 
 
 class Float:
@@ -347,6 +347,43 @@ class InterpreterTestCase(unittest.TestCase):
             Float(interpreter.GLOBAL_SCOPE['y']).eq(0.01, Float(5.99))
         )
 
+
+class SymbolTableBuilderTestCase(unittest.TestCase):
+    def test_symbol_builder(self):
+        with open("tests/part11.pas") as f:
+            txt = f.read()
+        parser = Parser(Lexer(txt))
+        ast = parser.parse()
+        stb = SymbolTableBuilder()
+        stb.visit(ast)
+        self.assertEqual(
+            str(stb.table), 
+            "Symbols: [INTEGER, REAL, <x:INTEGER>, <y:REAL>]"
+        )
+
+    def test_symbol_builder_name_error(self):
+        with open("tests/name_err.pas") as f:
+            txt = f.read()
+        parser = Parser(Lexer(txt))
+        ast = parser.parse()
+        stb = SymbolTableBuilder()
+
+        with self.assertRaises(NameError) as e:
+            stb.visit(ast)
+
+        self.assertEqual(e.exception.args[0], "b at line 6")
+
+    def test_symbol_builder_name_error2(self):
+        with open("tests/name_err2.pas") as f:
+            txt = f.read()
+        parser = Parser(Lexer(txt))
+        ast = parser.parse()
+        stb = SymbolTableBuilder()
+
+        with self.assertRaises(NameError) as e:
+            stb.visit(ast)
+
+        self.assertEqual(e.exception.args[0], "a at line 7")
 
 if __name__ == '__main__':
     unittest.main()
