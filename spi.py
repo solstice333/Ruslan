@@ -742,7 +742,7 @@ class Parser:
         self.eat(TypeId.DOT)
         return Program(prog_name, block_node)
 
-    def parse_expr(self) -> BinOp:
+    def parse_expr(self) -> Union[BinOp, NoOp]:
         return self.expr()
 
     def parse_compound(self) -> Compound:
@@ -873,7 +873,7 @@ class SymbolTableBuilder(NodeVisitor):
             self.visit(n)
 
     def _visit_noop(self, node: NoOp) -> None:
-        pass
+        return None
 
     def _visit_assign(self, node: Assign) -> None:
         assignee = node.left
@@ -912,17 +912,7 @@ class SymbolTableBuilder(NodeVisitor):
 
 
 class Interpreter(NodeVisitor):
-    def _interpret(
-        self, 
-        get_ast: Callable[[Parser], AST]
-    ) -> Union[int, float, None]:
-        lexer: Lexer = Lexer(self._text)
-        parser: Parser = Parser(lexer)
-        ast: AST = get_ast(parser)
-        return self.visit(ast)
-
-    def __init__(self, text: str):
-        self._text: str = text.strip()
+    def __init__(self):
         self.GLOBAL_SCOPE: Dict[str, Union[int, float]] = {}
 
     def _visit_pos(self, node: Pos) -> Union[int, float]:
@@ -990,26 +980,8 @@ class Interpreter(NodeVisitor):
     def _visit_type(self, node: Type) -> None:
         pass
 
-    def interpret_expr(self) -> Union[int, float, str]:
-        if not self._text:
-            return ""
-
-        return cast(
-            Union[int, float],
-            self._interpret(lambda parser: parser.parse_expr())
-        )
-
-    def interpret_compound(self) -> None:
-        return cast(
-            None, 
-            self._interpret(lambda parser: parser.parse_compound())
-        )
-
-    def interpret(self) -> None:
-        return cast(
-            None,
-            self._interpret(lambda parser: parser.parse())
-        )
+    def interpret(self, ast: AST) -> Union[int, float, None]:
+        return self.visit(ast)
 
 
 def any_of(vals: Iterable[T], pred: Callable[[T], bool]):
@@ -1019,15 +991,18 @@ def any_of(vals: Iterable[T], pred: Callable[[T], bool]):
     return False
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="simple pascal interpreter")
-    parser.add_argument("FILE", help="pascal file")
-    args = parser.parse_args()
+    argparser = argparse.ArgumentParser(description="simple pascal interpreter")
+    argparser.add_argument("FILE", help="pascal file")
+    args = argparser.parse_args()
 
     with open(args.FILE) as pascal_file:
         text = pascal_file.read()
-        interpreter: Interpreter = Interpreter(text)
-        interpreter.interpret()
-        print(interpreter.GLOBAL_SCOPE)  
+
+    lexer: Lexer = Lexer(text)
+    parser: Parser = Parser(lexer)
+    interpreter: Interpreter = Interpreter()
+    interpreter.interpret(parser.parse())
+    print(interpreter.GLOBAL_SCOPE)  
 
 
 if __name__ == '__main__':

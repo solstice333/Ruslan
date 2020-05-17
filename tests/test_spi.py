@@ -113,12 +113,8 @@ class ParserTestCase(unittest.TestCase):
     def setUp(self):
         self.maxDiff = None
 
-    def makeParser(self, text):
-        lexer = Lexer(text)
-        return Parser(lexer)
-
     def test_parser1(self):
-        p = self.makeParser("BEGIN x := 11; y := 2 + x END.")
+        p = make_parser("BEGIN x := 11; y := 2 + x END.")
         ast = p.parse_compound()
         act = str(list(PostOrderIter(ast)))
         exp = "[" + \
@@ -135,7 +131,7 @@ class ParserTestCase(unittest.TestCase):
         self.assertEqual(act, exp)
 
     def test_parser2(self):
-        p = self.makeParser(
+        p = make_parser(
             "BEGIN\n" + \
             "    BEGIN\n" + \
             "        number := 2;\n" + \
@@ -184,7 +180,7 @@ class ParserTestCase(unittest.TestCase):
 
     def test_parser3(self):
         with open("tests/part10.pas") as f:
-            p = self.makeParser(f.read())
+            p = make_parser(f.read())
         ast = p.parse()
         act = str(list(PostOrderIter(ast)))
         exp = "[" + \
@@ -228,7 +224,7 @@ class ParserTestCase(unittest.TestCase):
 
     def test_fail_parse(self):
         with open("tests/bar.pas") as f:
-            p = self.makeParser(f.read())
+            p = make_parser(f.read())
         with self.assertRaises(RuntimeError) as e:
             p.parse_compound()
 
@@ -240,90 +236,103 @@ class ParserTestCase(unittest.TestCase):
 
 
 class InterpreterTestCase(unittest.TestCase):
-    def makeInterpreter(self, text):
-        interpreter = Interpreter(text)
-        return interpreter
+    def setUp(self):
+        self.interpreter = Interpreter()
+
+    def make_expr_ast(self, txt):
+        p = make_parser(txt)
+        return p.parse_expr()
+
+    def make_prog_ast(self, txt):
+        p = make_parser(txt)
+        return p.parse()
+
+    def make_compound_ast(self, txt):
+        p = make_parser(txt)
+        return p.parse_compound()
 
     def test_expression1(self):
-        interpreter = self.makeInterpreter('3')
-        result = interpreter.interpret_expr()
+        ast = self.make_expr_ast('3')
+        result = self.interpreter.interpret(ast)
         self.assertEqual(result, 3)
 
     def test_expression2(self):
-        interpreter = self.makeInterpreter('2 + 7 * 4')
-        result = interpreter.interpret_expr()
+        ast = self.make_expr_ast('2 + 7 * 4')
+        result = self.interpreter.interpret(ast)
         self.assertEqual(result, 30)
 
     def test_expression3(self):
-        interpreter = self.makeInterpreter('7 - 8 div 4')
-        result = interpreter.interpret_expr()
+        ast = self.make_expr_ast('7 - 8 div 4')
+        result = self.interpreter.interpret(ast)
         self.assertEqual(result, 5)
 
     def test_expression4(self):
-        interpreter = self.makeInterpreter('14 + 2 * 3 - 6 div 2')
-        result = interpreter.interpret_expr()
+        ast = self.make_expr_ast('14 + 2 * 3 - 6 div 2')
+        result = self.interpreter.interpret(ast)
         self.assertEqual(result, 17)
 
     def test_expression5(self):
-        interpreter = self.makeInterpreter('7 + 3 * (10 div (12 div (3 + 1) - 1))')
-        result = interpreter.interpret_expr()
+        ast = self.make_expr_ast('7 + 3 * (10 div (12 div (3 + 1) - 1))')
+        result = self.interpreter.interpret(ast)
         self.assertEqual(result, 22)
 
     def test_expression6(self):
-        interpreter = self.makeInterpreter(
+        ast = self.make_expr_ast(
             '7 + 3 * (10 div (12 div (3 + 1) - 1)) div (2 + 3) - 5 - 3 + (8)'
         )
-        result = interpreter.interpret_expr()
+        result = self.interpreter.interpret(ast)
         self.assertEqual(result, 10)
 
     def test_expression7(self):
-        interpreter = self.makeInterpreter('7 + (((3 + 2)))')
-        result = interpreter.interpret_expr()
+        ast = self.make_expr_ast('7 + (((3 + 2)))')
+        result = self.interpreter.interpret(ast)
         self.assertEqual(result, 12)
 
     def test_expression8(self):
-        interpreter = self.makeInterpreter('- 3')
-        result = interpreter.interpret_expr()
+        ast = self.make_expr_ast('- 3')
+        result = self.interpreter.interpret(ast)
         self.assertEqual(result, -3)
 
     def test_expression9(self):
-        interpreter = self.makeInterpreter('+ 3')
-        result = interpreter.interpret_expr()
+        ast = self.make_expr_ast('+ 3')
+        result = self.interpreter.interpret(ast)
         self.assertEqual(result, 3)
 
     def test_expression10(self):
-        interpreter = self.makeInterpreter('5 - - - + - 3')
-        result = interpreter.interpret_expr()
+        ast = self.make_expr_ast('5 - - - + - 3')
+        result = self.interpreter.interpret(ast)
         self.assertEqual(result, 8)
 
     def test_expression11(self):
-        interpreter = self.makeInterpreter('5 - - - + - (3 + 4) - +2')
-        result = interpreter.interpret_expr()
+        ast = self.make_expr_ast('5 - - - + - (3 + 4) - +2')
+        result = self.interpreter.interpret(ast)
         self.assertEqual(result, 10)
 
     def test_no_expression(self):
-        interpreter = self.makeInterpreter('   ')
-        result = interpreter.interpret_expr()
-        self.assertEqual(result, '')
+        with self.assertRaises(RuntimeError) as e:
+            ast = self.make_expr_ast('   ')
+        msg = e.exception.args[0]
+        self.assertEqual(
+            msg, 
+            "Invalid syntax: was expecting TypeId.ID, got TypeId.EOF, line 1"
+        )
 
     def test_expression_invalid_syntax1(self):
-        interpreter = self.makeInterpreter('10 *')
         with self.assertRaises(RuntimeError):
-            interpreter.interpret_expr()
+            ast = self.make_expr_ast('10 *')
 
     def test_expression_invalid_syntax2(self):
-        interpreter = self.makeInterpreter('1 (1 + 2)')
         with self.assertRaises(RuntimeError):
-            interpreter.interpret_expr()
+            ast = self.make_expr_ast('1 (1 + 2)')
 
-    def test_expression_program(self):
+    def test_expression_compound(self):
         with open("tests/foo.pas") as foo_pas:
             txt = foo_pas.read()
 
-        interpreter = self.makeInterpreter(txt)
-        interpreter.interpret_compound()
+        ast = self.make_compound_ast(txt)
+        self.interpreter.interpret(ast)
         self.assertEqual(
-            interpreter.GLOBAL_SCOPE,
+            self.interpreter.GLOBAL_SCOPE,
             {
                 'number': 2,
                 '_a': 2,
@@ -337,14 +346,14 @@ class InterpreterTestCase(unittest.TestCase):
         with open("tests/part10.pas") as pas:
             txt = pas.read()
 
-        interpreter = self.makeInterpreter(txt)
-        interpreter.interpret()
-        self.assertEqual(len(interpreter.GLOBAL_SCOPE), 3)
-        self.assertEqual(interpreter.GLOBAL_SCOPE['a'], 2)
-        self.assertEqual(interpreter.GLOBAL_SCOPE['b'], 25)
+        ast = self.make_prog_ast(txt)
+        self.interpreter.interpret(ast)
+        self.assertEqual(len(self.interpreter.GLOBAL_SCOPE), 3)
+        self.assertEqual(self.interpreter.GLOBAL_SCOPE['a'], 2)
+        self.assertEqual(self.interpreter.GLOBAL_SCOPE['b'], 25)
 
         self.assertTrue(
-            Float(interpreter.GLOBAL_SCOPE['y']).eq(0.01, Float(5.99))
+            Float(self.interpreter.GLOBAL_SCOPE['y']).eq(0.01, Float(5.99))
         )
 
 
@@ -384,6 +393,11 @@ class SymbolTableBuilderTestCase(unittest.TestCase):
             stb.visit(ast)
 
         self.assertEqual(e.exception.args[0], "a at line 7")
+
+
+def make_parser(text):
+    lexer = Lexer(text)
+    return Parser(lexer)
 
 if __name__ == '__main__':
     unittest.main()
