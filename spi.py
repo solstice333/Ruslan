@@ -910,6 +910,9 @@ class SymbolTableBuilder(NodeVisitor):
     def _visit_type(self, node: Type) -> None:
         raise NotImplementedError()
 
+    def build(self, node: AST) -> None:
+        self.visit(node)
+
 
 class Interpreter(NodeVisitor):
     def __init__(self):
@@ -1000,8 +1003,14 @@ def main() -> None:
 
     lexer: Lexer = Lexer(text)
     parser: Parser = Parser(lexer)
+    ast: AST = parser.parse()
+
+    st_bldr: SymbolTableBuilder = SymbolTableBuilder()
+    st_bldr.build(ast)
+    print(st_bldr.table)
+
     interpreter: Interpreter = Interpreter()
-    interpreter.interpret(parser.parse())
+    interpreter.interpret(ast)
     print(interpreter.GLOBAL_SCOPE)  
 
 
