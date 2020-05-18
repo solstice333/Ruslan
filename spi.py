@@ -34,6 +34,8 @@ class TypeIdValue(NamedTuple):
 class TypeId(Enum):
     PROGRAM = TypeIdValue(pat=r"[pP][rR][oO][gG][rR][aA][mM]", re=True)
     VAR = TypeIdValue(pat=r"[vV][aA][rR]", re=True)
+    PROCEDURE = TypeIdValue(
+        pat=r"[pP][rR][oO][cC][eE][dD][uU][rR][eE]", re=True)
     COMMA = TypeIdValue(pat=",")
     INTEGER = TypeIdValue(pat=r"[iI][nN][tT][eE][gG][eE][rR]", re=True)
     REAL = TypeIdValue(pat=r"[rR][eE][aA][lL]", re=True)
@@ -114,6 +116,7 @@ class Lexer(Iterable[Token]):
     RES_KW: List[TypeId] = [
         TypeId.PROGRAM,
         TypeId.VAR,
+        TypeId.PROCEDURE,
         TypeId.INT_DIV,
         TypeId.INTEGER,
         TypeId.REAL,
@@ -274,6 +277,13 @@ class VarDecl(AST)    :
     @property
     def token(self) -> Token:
         return self._token
+
+
+class ProcedureDecl(AST):
+    def __init__(self, proc_name: str, block_node: Block):
+        self.proc_name = proc_name
+        self.block_node = block_node
+        self.children = [self.block_node]
 
 
 class Type(AST):
@@ -713,18 +723,31 @@ class Parser:
             for var_node in var_nodes \
         ]
 
-    def declarations(self) -> List[VarDecl]:
-        """declarations: VAR (variable_declaration SEMI)+ | empty"""
-        declarations = []
+    def declarations(self) -> List[AST]:
+        """
+        declarations: 
+            VAR (variable_declaration SEMI)+ | 
+            (PROCEDURE variable SEMI block SEMI)* | 
+            empty
+        """
+        declarations: List[AST] = []
+
         if self.current_token.type == TypeId.VAR:
             self.eat(TypeId.VAR)
             while self.current_token.type == TypeId.ID:
                 declarations += self.variable_declaration()
                 self.eat(TypeId.SEMI)
-        else:
-            return self.empty()
-        return declarations
 
+        while self.current_token.type == TypeId.PROCEDURE:
+            self.eat(TypeId.PROCEDURE)
+            var_n: Var = self.variable()
+            proc_name: str = var_n.value
+            self.eat(TypeId.SEMI)
+            block_n: Block = self.block()
+            self.eat(TypeId.SEMI)
+            declarations.append(ProcedureDecl(proc_name, block_n))
+
+        return declarations
 
     def block(self) -> Block:
         """block: declarations compound_statement"""
