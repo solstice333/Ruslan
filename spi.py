@@ -220,6 +220,11 @@ class IAST(ABC, NodeMixin):
 class AST(IAST):
     def __init__(self):
         self._linenum = 0
+        self._token = Token(TypeId.EOF, None)
+
+    @property
+    def token(self) -> Token:
+        return self._token
 
     @property
     def linenum(self) -> int:
@@ -239,14 +244,9 @@ class AST(IAST):
 class Program(AST):
     def __init__(self, name: str, block: 'Block') -> None:
         super().__init__()
-        self._token = Token(TypeId.EOF, type(self).__name__)
         self.name: str = name
         self.block: 'Block' = block
         self.children: List[AST] = [self.block]
-
-    @property
-    def token(self) -> Token:
-        return self._token
 
 
 class Block(AST):
@@ -256,31 +256,23 @@ class Block(AST):
         compound_statement: 'Compound'
     ) -> None:
         super().__init__()
-        self._token = Token(TypeId.EOF, type(self).__name__)
         self.declarations: List['VarDecl'] = declarations
         self.compound_statement: 'Compound' = compound_statement
         self.children: List[AST] = self.declarations + [self.compound_statement]
-
-    @property
-    def token(self) -> Token:
-        return self._token
 
 
 class VarDecl(AST)    :
     def __init__(self, var: 'Var', ty: 'Type') -> None:
         super().__init__()
-        self._token = Token(TypeId.EOF, type(self).__name__)
         self.var: 'Var' = var
         self.type: 'Type' = ty
         self.children: List[AST] = [self.var, self.type]
 
-    @property
-    def token(self) -> Token:
-        return self._token
 
-
-class ProcedureDecl(AST):
+class ProcDecl(AST):
     def __init__(self, proc_name: str, block_node: Block):
+        super().__init__()
+        self._token = Token(TypeId.EOF, proc_name)
         self.proc_name = proc_name
         self.block_node = block_node
         self.children = [self.block_node]
@@ -297,10 +289,6 @@ class Type(AST):
     def copy(cls, other: 'Type') -> 'Type':
         return cls(other._token)
 
-    @property
-    def token(self) -> Token:
-        return self._token
-    
 
 class BinOp(AST):
     def __init__(self, left: AST, right: AST, optok: Token) -> None:
@@ -310,10 +298,6 @@ class BinOp(AST):
         self.left: AST = left
         self.right: AST = right
         self.children: List[AST] = [self.left, self.right]
-
-    @property
-    def token(self) -> Token:
-        return self._token
 
 
 class Add(BinOp):
@@ -372,10 +356,6 @@ class UnOp(AST):
         self.children: List[AST] = [self.right]
         self._token: Token = optok
 
-    @property
-    def token(self) -> Token:
-        return self._token
-
 
 class Pos(UnOp):
     def __init__(
@@ -398,33 +378,24 @@ class Neg(UnOp):
 class Num(AST):
     def __init__(self, val: Union[int, float]) -> None:
         super().__init__()
-        self._token: Token = Token(TypeId.EOF, None)
         self.value: Union[int, float] = 0
+        self._token: Token = Token(TypeId.EOF, None)
 
         if isinstance(val, int):
-            self._token = Token(TypeId.INT_CONST, val)
-            self.value = cast(int, self._token.value)
+            self.value = cast(int, val)
+            self._token = Token(TypeId.INT_CONST, self.value)
         elif isinstance(val, float):
-            self._token = Token(TypeId.REAL_CONST, val)
-            self.value = cast(float, self._token.value)
+            self.value = cast(float, val)
+            self._token = Token(TypeId.REAL_CONST, self.value)
         else:
             raise TypeError("val must be int or float")
-
-    @property
-    def token(self) -> Token:
-        return self._token
 
 
 class Compound(AST):
     """Represents a 'BEGIN ... END' block"""
     def __init__(self, children: Optional[List[AST]]=None) -> None:
         super().__init__()
-        self._token: Token = Token(TypeId.EOF, "Compound")
         self.children: List[AST] = children or []
-
-    @property
-    def token(self) -> Token:
-        return self._token
 
 
 class Var(AST):
@@ -432,10 +403,6 @@ class Var(AST):
         super().__init__()
         self._token: Token = Token(TypeId.ID, name.lower())
         self.value: str = cast(str, self._token.value)
-
-    @property
-    def token(self):
-        return self._token
 
 
 class Assign(AST):
@@ -451,30 +418,17 @@ class Assign(AST):
         self.children: List[AST] = [self.left, self.right]
         self._token: Token = Token(TypeId.ASSIGN, opchar)
 
-    @property
-    def token(self):
-        return self._token
-    
 
 class NoOp(AST):
     def __init__(self) -> None:
         super().__init__()
-        self._token: Token = Token(TypeId.EOF, "NoOp")
 
-    @property
-    def token(self):
-        return self._token
-    
 
 class Eof(AST):
     def __init__(self) -> None:
         super().__init__()
         self._token: Token = Token(TypeId.EOF, None)
 
-    @property
-    def token(self) -> Token:
-        return self._token
-    
 
 class Symbol:
     def __init__(
@@ -745,7 +699,7 @@ class Parser:
             self.eat(TypeId.SEMI)
             block_n: Block = self.block()
             self.eat(TypeId.SEMI)
-            declarations.append(ProcedureDecl(proc_name, block_n))
+            declarations.append(ProcDecl(proc_name, block_n))
 
         return declarations
 
@@ -852,6 +806,10 @@ class NodeVisitor(ABC):
         pass
 
     @abstractmethod
+    def _visit_procdecl(self, node: ProcDecl) -> None:
+        pass
+
+    @abstractmethod
     def _visit_type(self, node: Type) -> None:
         pass
 
@@ -930,6 +888,9 @@ class SymbolTableBuilder(NodeVisitor):
         var_sym = VarSymbol(var_name, type_sym)
         self.table.define(var_sym)
 
+    def _visit_procdecl(self, node: ProcDecl) -> None:
+        pass
+
     def _visit_type(self, node: Type) -> None:
         raise NotImplementedError()
 
@@ -1001,6 +962,9 @@ class Interpreter(NodeVisitor):
             self.visit(ast)
 
     def _visit_vardecl(self, node: VarDecl) -> None:
+        pass
+
+    def _visit_procdecl(self, node: ProcDecl) -> None:
         pass
 
     def _visit_type(self, node: Type) -> None:

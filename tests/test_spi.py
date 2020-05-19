@@ -126,7 +126,7 @@ class ParserTestCase(unittest.TestCase):
             "Var(Token(TypeId.ID, x)), " + \
             "Add(Token(TypeId.ADD, +)), " +\
             "Assign(Token(TypeId.ASSIGN, :=)), " +\
-            "Compound(Token(TypeId.EOF, Compound))" +\
+            "Compound(Token(TypeId.EOF, None))" +\
         "]"
         self.assertEqual(act, exp)
 
@@ -168,12 +168,12 @@ class ParserTestCase(unittest.TestCase):
             "Neg(Token(TypeId.SUB, -)), " + \
             "Sub(Token(TypeId.SUB, -)), " + \
             "Assign(Token(TypeId.ASSIGN, :=)), " + \
-            "Compound(Token(TypeId.EOF, Compound)), " + \
+            "Compound(Token(TypeId.EOF, None)), " + \
             "Var(Token(TypeId.ID, x)), " + \
             "Num(Token(TypeId.INT_CONST, 11)), " + \
             "Assign(Token(TypeId.ASSIGN, :=)), " + \
-            "NoOp(Token(TypeId.EOF, NoOp)), " + \
-            "Compound(Token(TypeId.EOF, Compound))" + \
+            "NoOp(Token(TypeId.EOF, None)), " + \
+            "Compound(Token(TypeId.EOF, None))" + \
         "]"
 
         self.assertEqual(act, exp)
@@ -186,13 +186,13 @@ class ParserTestCase(unittest.TestCase):
         exp = "[" + \
             "Var(Token(TypeId.ID, a)), " + \
             "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
-            "VarDecl(Token(TypeId.EOF, VarDecl)), " + \
+            "VarDecl(Token(TypeId.EOF, None)), " + \
             "Var(Token(TypeId.ID, b)), " + \
             "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
-            "VarDecl(Token(TypeId.EOF, VarDecl)), " + \
+            "VarDecl(Token(TypeId.EOF, None)), " + \
             "Var(Token(TypeId.ID, y)), " + \
             "Type(Token(TypeId.REAL, [rR][eE][aA][lL])), " + \
-            "VarDecl(Token(TypeId.EOF, VarDecl)), " + \
+            "VarDecl(Token(TypeId.EOF, None)), " + \
             "Var(Token(TypeId.ID, a)), " + \
             "Num(Token(TypeId.INT_CONST, 2)), " + \
             "Assign(Token(TypeId.ASSIGN, :=)), " + \
@@ -214,12 +214,55 @@ class ParserTestCase(unittest.TestCase):
             "Num(Token(TypeId.REAL_CONST, 3.14)), " + \
             "Add(Token(TypeId.ADD, +)), " + \
             "Assign(Token(TypeId.ASSIGN, :=)), " + \
-            "NoOp(Token(TypeId.EOF, NoOp)), " + \
-            "Compound(Token(TypeId.EOF, Compound)), " + \
-            "Block(Token(TypeId.EOF, Block)), " + \
-            "Program(Token(TypeId.EOF, Program))" + \
+            "NoOp(Token(TypeId.EOF, None)), " + \
+            "Compound(Token(TypeId.EOF, None)), " + \
+            "Block(Token(TypeId.EOF, None)), " + \
+            "Program(Token(TypeId.EOF, None))" + \
         "]"
 
+        self.assertEqual(act, exp)
+
+    def test_parser_proc(self):
+        with open("tests/part12.pas") as f:
+            p = make_parser(f.read())
+
+        ast = p.parse()
+        act = str(list(PostOrderIter(ast)))
+        exp = "[" + \
+            "Var(Token(TypeId.ID, a)), " + \
+            "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
+            "VarDecl(Token(TypeId.EOF, None)), " + \
+            "Var(Token(TypeId.ID, a)), " + \
+            "Type(Token(TypeId.REAL, [rR][eE][aA][lL])), " + \
+            "VarDecl(Token(TypeId.EOF, None)), " + \
+            "Var(Token(TypeId.ID, k)), " + \
+            "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
+            "VarDecl(Token(TypeId.EOF, None)), " + \
+            "Var(Token(TypeId.ID, a)), " + \
+            "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
+            "VarDecl(Token(TypeId.EOF, None)), " + \
+            "Var(Token(TypeId.ID, z)), " + \
+            "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
+            "VarDecl(Token(TypeId.EOF, None)), " + \
+            "Var(Token(TypeId.ID, z)), " + \
+            "Num(Token(TypeId.INT_CONST, 777)), " + \
+            "Assign(Token(TypeId.ASSIGN, :=)), "  + \
+            "NoOp(Token(TypeId.EOF, None)), " + \
+            "Compound(Token(TypeId.EOF, None)), " + \
+            "Block(Token(TypeId.EOF, None)), " + \
+            "ProcDecl(Token(TypeId.EOF, p2)), " + \
+            "NoOp(Token(TypeId.EOF, None)), " + \
+            "Compound(Token(TypeId.EOF, None)), " + \
+            "Block(Token(TypeId.EOF, None)), " + \
+            "ProcDecl(Token(TypeId.EOF, p1)), " + \
+            "Var(Token(TypeId.ID, a)), " + \
+            "Num(Token(TypeId.INT_CONST, 10)), " + \
+            "Assign(Token(TypeId.ASSIGN, :=)), " + \
+            "NoOp(Token(TypeId.EOF, None)), " + \
+            "Compound(Token(TypeId.EOF, None)), " + \
+            "Block(Token(TypeId.EOF, None)), " + \
+            "Program(Token(TypeId.EOF, None))" + \
+        "]"
         self.assertEqual(act, exp)
 
     def test_fail_parse(self):

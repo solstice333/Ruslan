@@ -17,10 +17,6 @@ PROCEDURE P1;
    BEGIN {P1}
    END;  {P1}
 
-PROCEDURE P1A;
-   BEGIN {P1A}
-   END; {P1A}
-
 BEGIN {Part12}
    a := 10;
 END.  {Part12}
