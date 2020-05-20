@@ -282,78 +282,70 @@ class InterpreterTestCase(unittest.TestCase):
     def setUp(self):
         self.interpreter = Interpreter()
 
-    def make_expr_ast(self, txt):
-        p = make_parser(txt)
-        return p.parse_expr()
-
-    def make_prog_ast(self, txt):
-        p = make_parser(txt)
-        return p.parse()
-
     def make_compound_ast(self, txt):
         p = make_parser(txt)
         return p.parse_compound()
 
     def test_expression1(self):
-        ast = self.make_expr_ast('3')
+        ast = make_expr_ast('3')
         result = self.interpreter.interpret(ast)
         self.assertEqual(result, 3)
 
     def test_expression2(self):
-        ast = self.make_expr_ast('2 + 7 * 4')
+        ast = make_expr_ast('2 + 7 * 4')
         result = self.interpreter.interpret(ast)
         self.assertEqual(result, 30)
 
     def test_expression3(self):
-        ast = self.make_expr_ast('7 - 8 div 4')
+        ast = make_expr_ast('7 - 8 div 4')
         result = self.interpreter.interpret(ast)
         self.assertEqual(result, 5)
 
     def test_expression4(self):
-        ast = self.make_expr_ast('14 + 2 * 3 - 6 div 2')
+        ast = make_expr_ast('14 + 2 * 3 - 6 div 2')
         result = self.interpreter.interpret(ast)
         self.assertEqual(result, 17)
 
     def test_expression5(self):
-        ast = self.make_expr_ast('7 + 3 * (10 div (12 div (3 + 1) - 1))')
+        ast = make_expr_ast('7 + 3 * (10 div (12 div (3 + 1) - 1))')
         result = self.interpreter.interpret(ast)
         self.assertEqual(result, 22)
 
     def test_expression6(self):
-        ast = self.make_expr_ast(
+        ast = make_expr_ast(
             '7 + 3 * (10 div (12 div (3 + 1) - 1)) div (2 + 3) - 5 - 3 + (8)'
         )
         result = self.interpreter.interpret(ast)
         self.assertEqual(result, 10)
 
     def test_expression7(self):
-        ast = self.make_expr_ast('7 + (((3 + 2)))')
+        ast = make_expr_ast('7 + (((3 + 2)))')
         result = self.interpreter.interpret(ast)
         self.assertEqual(result, 12)
 
     def test_expression8(self):
-        ast = self.make_expr_ast('- 3')
+        ast = make_expr_ast('- 3')
         result = self.interpreter.interpret(ast)
         self.assertEqual(result, -3)
 
     def test_expression9(self):
-        ast = self.make_expr_ast('+ 3')
+        ast = make_expr_ast('+ 3')
         result = self.interpreter.interpret(ast)
         self.assertEqual(result, 3)
 
     def test_expression10(self):
-        ast = self.make_expr_ast('5 - - - + - 3')
+        ast = make_expr_ast('5 - - - + - 3')
         result = self.interpreter.interpret(ast)
         self.assertEqual(result, 8)
 
     def test_expression11(self):
-        ast = self.make_expr_ast('5 - - - + - (3 + 4) - +2')
+        ast = make_expr_ast('5 - - - + - (3 + 4) - +2')
         result = self.interpreter.interpret(ast)
         self.assertEqual(result, 10)
 
     def test_no_expression(self):
         with self.assertRaises(RuntimeError) as e:
-            ast = self.make_expr_ast('   ')
+            ast = make_expr_ast('   ')
         msg = e.exception.args[0]
         self.assertEqual(
             msg, 
@@ -362,11 +354,11 @@ class InterpreterTestCase(unittest.TestCase):
 
     def test_expression_invalid_syntax1(self):
         with self.assertRaises(RuntimeError):
-            ast = self.make_expr_ast('10 *')
+            ast = make_expr_ast('10 *')
 
     def test_expression_invalid_syntax2(self):
         with self.assertRaises(RuntimeError):
-            ast = self.make_expr_ast('1 (1 + 2)')
+            ast = make_expr_ast('1 (1 + 2)')
 
     def test_expression_compound(self):
         with open("tests/foo.pas") as foo_pas:
@@ -389,7 +381,7 @@ class InterpreterTestCase(unittest.TestCase):
         with open("tests/part10.pas") as pas:
             txt = pas.read()
 
-        ast = self.make_prog_ast(txt)
+        ast = make_prog_ast(txt)
         self.interpreter.interpret(ast)
         self.assertEqual(len(self.interpreter.GLOBAL_SCOPE), 3)
         self.assertEqual(self.interpreter.GLOBAL_SCOPE['a'], 2)
@@ -399,13 +391,16 @@ class InterpreterTestCase(unittest.TestCase):
             Float(self.interpreter.GLOBAL_SCOPE['y']).eq(0.01, Float(5.99))
         )
 
+    def test_part12_program(self):
+        ast = make_prog_ast_from_file("tests/part12.pas")
+        self.interpreter.interpret(ast)
+        self.assertEqual(len(self.interpreter.GLOBAL_SCOPE), 1)
+        self.assertEqual(self.interpreter.GLOBAL_SCOPE['a'], 10)
+
 
 class SymbolTableBuilderTestCase(unittest.TestCase):
-    def test_symbol_builder(self):
-        with open("tests/part11.pas") as f:
-            txt = f.read()
-        parser = Parser(Lexer(txt))
-        ast = parser.parse()
+    def test_builder(self):
+        ast = make_prog_ast_from_file("tests/part11.pas")
         stb = SymbolTableBuilder()
         stb.visit(ast)
         self.assertEqual(
@@ -413,34 +408,48 @@ class SymbolTableBuilderTestCase(unittest.TestCase):
             "Symbols: [INTEGER, REAL, <x:INTEGER>, <y:REAL>]"
         )
 
-    def test_symbol_builder_name_error(self):
-        with open("tests/name_err.pas") as f:
-            txt = f.read()
-        parser = Parser(Lexer(txt))
-        ast = parser.parse()
+    def test_builder_name_error(self):
+        ast = make_prog_ast_from_file("tests/name_err.pas")
         stb = SymbolTableBuilder()
 
         with self.assertRaises(NameError) as e:
             stb.visit(ast)
-
         self.assertEqual(e.exception.args[0], "b at line 6")
 
-    def test_symbol_builder_name_error2(self):
-        with open("tests/name_err2.pas") as f:
-            txt = f.read()
-        parser = Parser(Lexer(txt))
-        ast = parser.parse()
+    def test_builder_name_error2(self):
+        ast = make_prog_ast_from_file("tests/name_err2.pas")
         stb = SymbolTableBuilder()
 
         with self.assertRaises(NameError) as e:
             stb.visit(ast)
-
         self.assertEqual(e.exception.args[0], "a at line 7")
+
+    def test_builder_part12(self):
+        ast = make_prog_ast_from_file("tests/part12.pas")
+        stb = SymbolTableBuilder()
+        stb.build(ast)
+        self.assertEqual(
+            "Symbols: [INTEGER, REAL, <a:INTEGER>]", 
+            str(stb.table)
+        )
 
 
 def make_parser(text):
     lexer = Lexer(text)
     return Parser(lexer)
+
+def make_expr_ast(txt):
+    p = make_parser(txt)
+    return p.parse_expr()
+
+def make_prog_ast(txt):
+    parser = make_parser(txt)
+    return parser.parse()
+
+def make_prog_ast_from_file(path):
+    with open(path) as f:
+        txt = f.read()
+    return make_prog_ast(txt)
 
 if __name__ == '__main__':
     unittest.main()
