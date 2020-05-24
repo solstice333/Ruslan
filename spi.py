@@ -445,7 +445,7 @@ class BuiltinTypeSymbol(Symbol):
         return self.name
 
     def __repr__(self) -> str:
-        return self.__str__()
+        return f"{type(self).__name__}(name='{self.name}')"
 
 
 class VarSymbol(Symbol):
@@ -456,7 +456,7 @@ class VarSymbol(Symbol):
         return f"<{self.name}:{self.type}>"
 
     def __repr__(self) -> str:
-        return self.__str__()
+        return f"{type(self).__name__}(name='{self.name}', type='{self.type}')"
 
 
 class SymbolTable:
@@ -469,10 +469,14 @@ class SymbolTable:
         self._init_builtins()
 
     def __str__(self) -> str:
-        return f"Symbols: {list(self._symbols.values())}"
+        return f"Symbols: {[str(sym) for sym in self._symbols.values()]}"
 
     def __repr__(self) -> str:
-        return self.__str__()
+        header = "Symbol Table Contents"
+        lines = \
+            [header, "-" * len(header)] + \
+            [f"{name}: {repr(sym)}" for name, sym in self._symbols.items()]
+        return "\n".join(lines)
 
     def __getitem__(self, name: str) -> Symbol:
         if not isinstance(name, str):

@@ -403,9 +403,10 @@ class SymbolTableBuilderTestCase(unittest.TestCase):
         ast = make_prog_ast_from_file("tests/part11.pas")
         stb = SymbolTableBuilder()
         stb.visit(ast)
+
         self.assertEqual(
             str(stb.table), 
-            "Symbols: [INTEGER, REAL, <x:INTEGER>, <y:REAL>]"
+            "Symbols: ['INTEGER', 'REAL', '<x:INTEGER>', '<y:REAL>']"
         )
 
     def test_builder_name_error(self):
@@ -429,7 +430,7 @@ class SymbolTableBuilderTestCase(unittest.TestCase):
         stb = SymbolTableBuilder()
         stb.build(ast)
         self.assertEqual(
-            "Symbols: [INTEGER, REAL, <a:INTEGER>]", 
+            "Symbols: ['INTEGER', 'REAL', '<a:INTEGER>']", 
             str(stb.table)
         )
 
