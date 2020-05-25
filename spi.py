@@ -461,8 +461,8 @@ class VarSymbol(Symbol):
 
 class SymbolTable:
     def _init_builtins(self):
-        self.define(BuiltinTypeSymbol(TypeId.INTEGER.name))
-        self.define(BuiltinTypeSymbol(TypeId.REAL.name))
+        self.insert(BuiltinTypeSymbol(TypeId.INTEGER.name))
+        self.insert(BuiltinTypeSymbol(TypeId.REAL.name))
 
     def __init__(self) -> None:
         self._symbols: Dict[str, Symbol] = {}
@@ -495,7 +495,7 @@ class SymbolTable:
     def lookup(self, name: str) -> Optional[Symbol]:
         return self._symbols.get(name)
 
-    def define(self, sym: Symbol) -> None:
+    def insert(self, sym: Symbol) -> None:
         self._symbols[sym.name] = sym
 
 
@@ -890,7 +890,7 @@ class SemanticAnalyzer(NodeVisitor):
         type_sym = self.table.lookup(type_name)
         var_name = node.var.value
         var_sym = VarSymbol(var_name, type_sym)
-        self.table.define(var_sym)
+        self.table.insert(var_sym)
 
     def _visit_procdecl(self, node: ProcDecl) -> None:
         pass
