@@ -5,7 +5,7 @@ import unittest
 from anytree import PostOrderIter, RenderTree
 
 sys.path.append(os.path.realpath(".."))
-from spi import TypeId, Token, Lexer, Parser, Interpreter, SymbolTableBuilder
+from spi import TypeId, Token, Lexer, Parser, Interpreter, SemanticAnalyzer
 
 
 class Float:
@@ -398,10 +398,10 @@ class InterpreterTestCase(unittest.TestCase):
         self.assertEqual(self.interpreter.GLOBAL_SCOPE['a'], 10)
 
 
-class SymbolTableBuilderTestCase(unittest.TestCase):
+class SemanticAnalyzerTestCase(unittest.TestCase):
     def test_builder(self):
         ast = make_prog_ast_from_file("tests/part11.pas")
-        stb = SymbolTableBuilder()
+        stb = SemanticAnalyzer()
         stb.visit(ast)
 
         self.assertEqual(
@@ -411,7 +411,7 @@ class SymbolTableBuilderTestCase(unittest.TestCase):
 
     def test_builder_name_error(self):
         ast = make_prog_ast_from_file("tests/name_err.pas")
-        stb = SymbolTableBuilder()
+        stb = SemanticAnalyzer()
 
         with self.assertRaises(NameError) as e:
             stb.visit(ast)
@@ -419,7 +419,7 @@ class SymbolTableBuilderTestCase(unittest.TestCase):
 
     def test_builder_name_error2(self):
         ast = make_prog_ast_from_file("tests/name_err2.pas")
-        stb = SymbolTableBuilder()
+        stb = SemanticAnalyzer()
 
         with self.assertRaises(NameError) as e:
             stb.visit(ast)
@@ -427,7 +427,7 @@ class SymbolTableBuilderTestCase(unittest.TestCase):
 
     def test_builder_part12(self):
         ast = make_prog_ast_from_file("tests/part12.pas")
-        stb = SymbolTableBuilder()
+        stb = SemanticAnalyzer()
         stb.build(ast)
         self.assertEqual(
             "Symbols: ['INTEGER', 'REAL', '<a:INTEGER>']", 

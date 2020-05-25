@@ -818,7 +818,7 @@ class NodeVisitor(ABC):
         pass
 
 
-class SymbolTableBuilder(NodeVisitor):
+class SemanticAnalyzer(NodeVisitor):
     def __init__(self):
         self.table = SymbolTable()
 
@@ -996,7 +996,7 @@ def main() -> None:
     parser: Parser = Parser(lexer)
     ast: AST = parser.parse()
 
-    st_bldr: SymbolTableBuilder = SymbolTableBuilder()
+    st_bldr: SemanticAnalyzer = SemanticAnalyzer()
     st_bldr.build(ast)
     print(st_bldr.table)
 
