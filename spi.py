@@ -858,13 +858,7 @@ class SemanticAnalyzer(NodeVisitor):
         return None
 
     def _visit_assign(self, node: Assign) -> None:
-        assignee = node.left
-        var_name = assignee.value
-        if self.table.lookup(var_name) is None:
-            linenum = assignee.linenum
-            raise NameError(
-                f"{var_name}" + (f" at line {linenum}" if linenum else "")
-            )
+        self.visit(node.left)
         self.visit(node.right)
 
     def _visit_var(self, node: Var) -> None:
