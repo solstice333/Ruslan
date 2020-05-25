@@ -681,13 +681,13 @@ class Parser:
     def declarations(self) -> List[AST]:
         """
         declarations: 
-            VAR (variable_declaration SEMI)+ | 
+            (VAR (variable_declaration SEMI)+)* | 
             (PROCEDURE variable SEMI block SEMI)* | 
             empty
         """
         declarations: List[AST] = []
 
-        if self.current_token.type == TypeId.VAR:
+        while self.current_token.type == TypeId.VAR:
             self.eat(TypeId.VAR)
             while self.current_token.type == TypeId.ID:
                 declarations += self.variable_declaration()
@@ -866,8 +866,7 @@ class SemanticAnalyzer(NodeVisitor):
         if self.table.lookup(var_name) is None:
             linenum = node.linenum
             raise NameError(
-                f"{var_name}" + (f" at line {linenum}" if linenum else "")
-            )
+                f"{var_name}" + (f" at line {linenum}" if linenum else ""))
 
     def _visit_program(self, node: Program) -> None:
         self.visit(node.block)
@@ -881,6 +880,12 @@ class SemanticAnalyzer(NodeVisitor):
         type_sym = self.table.lookup(type_name)
         var_name = node.var.value
         var_sym = VarSymbol(var_name, type_sym)
+
+        if self.table.lookup(var_sym.name) is not None:
+            linenum = node.var.linenum
+            raise NameError(
+                f"duplicate identifier {var_sym.name} found at line {linenum}")
+
         self.table.insert(var_sym)
 
     def _visit_procdecl(self, node: ProcDecl) -> None:
@@ -889,7 +894,7 @@ class SemanticAnalyzer(NodeVisitor):
     def _visit_type(self, node: Type) -> None:
         raise NotImplementedError()
 
-    def build(self, node: AST) -> None:
+    def analyze(self, node: AST) -> None:
         self.visit(node)
 
 
@@ -988,7 +993,7 @@ def main() -> None:
     ast: AST = parser.parse()
 
     st_bldr: SemanticAnalyzer = SemanticAnalyzer()
-    st_bldr.build(ast)
+    st_bldr.analyze(ast)
     print(st_bldr.table)
 
     interpreter: Interpreter = Interpreter()

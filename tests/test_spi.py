@@ -401,38 +401,47 @@ class InterpreterTestCase(unittest.TestCase):
 class SemanticAnalyzerTestCase(unittest.TestCase):
     def test_builder(self):
         ast = make_prog_ast_from_file("tests/part11.pas")
-        stb = SemanticAnalyzer()
-        stb.visit(ast)
+        lyz = SemanticAnalyzer()
+        lyz.visit(ast)
 
         self.assertEqual(
-            str(stb.table), 
+            str(lyz.table), 
             "Symbols: ['INTEGER', 'REAL', '<x:INTEGER>', '<y:REAL>']"
         )
 
     def test_builder_name_error(self):
         ast = make_prog_ast_from_file("tests/name_err.pas")
-        stb = SemanticAnalyzer()
+        lyz = SemanticAnalyzer()
 
         with self.assertRaises(NameError) as e:
-            stb.visit(ast)
+            lyz.visit(ast)
         self.assertEqual(e.exception.args[0], "b at line 6")
 
     def test_builder_name_error2(self):
         ast = make_prog_ast_from_file("tests/name_err2.pas")
-        stb = SemanticAnalyzer()
+        lyz = SemanticAnalyzer()
 
         with self.assertRaises(NameError) as e:
-            stb.visit(ast)
+            lyz.visit(ast)
         self.assertEqual(e.exception.args[0], "a at line 7")
 
     def test_builder_part12(self):
         ast = make_prog_ast_from_file("tests/part12.pas")
-        stb = SemanticAnalyzer()
-        stb.build(ast)
+        lyz = SemanticAnalyzer()
+        lyz.analyze(ast)
         self.assertEqual(
             "Symbols: ['INTEGER', 'REAL', '<a:INTEGER>']", 
-            str(stb.table)
+            str(lyz.table)
         )
+
+    def test_dup_var(self):
+        ast = make_prog_ast_from_file("tests/dup_var_err.pas")
+        lyz = SemanticAnalyzer()
+
+        with self.assertRaises(NameError) as e:
+            lyz.analyze(ast)
+        self.assertEqual(
+            e.exception.args[0], "duplicate identifier y found at line 3")
 
 
 def make_parser(text):
