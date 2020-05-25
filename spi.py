@@ -460,13 +460,10 @@ class VarSymbol(Symbol):
 
 
 class SymbolTable:
-    def _init_builtins(self):
-        self.insert(BuiltinTypeSymbol(TypeId.INTEGER.name))
-        self.insert(BuiltinTypeSymbol(TypeId.REAL.name))
-
     def __init__(self) -> None:
         self._symbols: Dict[str, Symbol] = {}
-        self._init_builtins()
+        self.insert(BuiltinTypeSymbol(TypeId.INTEGER.name))
+        self.insert(BuiltinTypeSymbol(TypeId.REAL.name))
 
     def __str__(self) -> str:
         return f"Symbols: {[str(sym) for sym in self._symbols.values()]}"
