@@ -261,7 +261,7 @@ class Block(AST):
         self.children: List[AST] = self.declarations + [self.compound_statement]
 
 
-class VarDecl(AST)    :
+class VarDecl(AST):
     def __init__(self, var: 'Var', ty: 'Type') -> None:
         super().__init__()
         self.var: 'Var' = var
