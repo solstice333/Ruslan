@@ -405,8 +405,12 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         lyz.visit(ast)
 
         self.assertEqual(
-            str(lyz.table), 
-            "Symbols: ['INTEGER', 'REAL', '<x:INTEGER>', '<y:REAL>']"
+            str(lyz.scope), 
+            "(" + \
+                "name: global, " + \
+                "level: 1, " + \
+                "symbols: ['INTEGER', 'REAL', '<x:INTEGER>', '<y:REAL>']" + \
+            ")"
         )
 
     def test_builder_name_error(self):
@@ -430,8 +434,12 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         lyz = SemanticAnalyzer()
         lyz.analyze(ast)
         self.assertEqual(
-            "Symbols: ['INTEGER', 'REAL', '<a:INTEGER>']", 
-            str(lyz.table)
+            str(lyz.scope),
+            "(" + \
+                "name: global, " + \
+                "level: 1, " + \
+                "symbols: ['INTEGER', 'REAL', '<a:INTEGER>']" + \
+            ")"
         )
 
     def test_dup_var(self):

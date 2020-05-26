@@ -287,7 +287,9 @@ class Type(AST):
 
     @classmethod
     def copy(cls, other: 'Type') -> 'Type':
-        return cls(other._token)
+        tok = cls(other._token)
+        tok.linenum = other.linenum
+        return tok
 
 
 class BinOp(AST):
@@ -459,20 +461,37 @@ class VarSymbol(Symbol):
         return f"{type(self).__name__}(name='{self.name}', type='{self.type}')"
 
 
-class SymbolTable:
-    def __init__(self) -> None:
+class ScopedSymbolTable:
+    def __init__(self, name: str, level: int) -> None:
         self._symbols: Dict[str, Symbol] = {}
+        self.name: str = name
+        self.level: int = level
+
         self.insert(BuiltinTypeSymbol(TypeId.INTEGER.name))
         self.insert(BuiltinTypeSymbol(TypeId.REAL.name))
 
     def __str__(self) -> str:
-        return f"Symbols: {[str(sym) for sym in self._symbols.values()]}"
+        return f"(" + \
+            f"name: {self.name}, " + \
+            f"level: {self.level}, " + \
+            f"symbols: {[str(sym) for sym in self._symbols.values()]}" + \
+            ")"
 
     def __repr__(self) -> str:
         header = "Symbol Table Contents"
-        lines = \
-            [header, "-" * len(header)] + \
-            [f"{name}: {repr(sym)}" for name, sym in self._symbols.items()]
+        header2 = "Scope (Scoped symbol table) contents"
+        name_header = "Scope name"
+        level_header = "Scope level"
+
+        lines = [
+            header, 
+            "="*len(header),
+            f"{name_header:<15}: {self.name}",
+            f"{level_header:<15}: {self.level}",
+            f"{header2}",
+            "-"*len(header2),
+        ]
+        lines += [f"{name:7}: {sym!r}" for name, sym in self._symbols.items()]
         return "\n".join(lines)
 
     def __getitem__(self, name: str) -> Symbol:
@@ -661,6 +680,8 @@ class Parser:
             self.eat(TypeId.REAL)
         else:
             self.error(f"expected a type spec. Got {self.current_token}")
+
+        tok.linenum = self.linenum
         return tok
 
     def variable_declaration(self) -> List[VarDecl]:
@@ -817,7 +838,7 @@ class NodeVisitor(ABC):
 
 class SemanticAnalyzer(NodeVisitor):
     def __init__(self):
-        self.table = SymbolTable()
+        self.scope: ScopedSymbolTable = ScopedSymbolTable("global", 1)
 
     def _visit_binop(self, node: AST) -> None:
         self.visit(node.left)
@@ -863,7 +884,7 @@ class SemanticAnalyzer(NodeVisitor):
 
     def _visit_var(self, node: Var) -> None:
         var_name = node.value
-        if self.table.lookup(var_name) is None:
+        if self.scope.lookup(var_name) is None:
             linenum = node.linenum
             raise NameError(
                 f"{var_name}" + (f" at line {linenum}" if linenum else ""))
@@ -876,17 +897,25 @@ class SemanticAnalyzer(NodeVisitor):
             self.visit(n)
 
     def _visit_vardecl(self, node: VarDecl) -> None:
-        type_name = node.type.value
-        type_sym = self.table.lookup(type_name)
-        var_name = node.var.value
-        var_sym = VarSymbol(var_name, type_sym)
+        var = node.var
+        ty = node.type
 
-        if self.table.lookup(var_sym.name) is not None:
+        type_name = ty.value
+        type_sym = self.scope.lookup(type_name)
+
+        if type_sym is None:
+            raise TypeError(
+                f"{type_name} not in symbol table at line {ty.linenum}")
+
+        var_name = var.value
+        var_sym = VarSymbol(var_name, cast(BuiltinTypeSymbol, type_sym))
+
+        if self.scope.lookup(var_sym.name) is not None:
             linenum = node.var.linenum
             raise NameError(
                 f"duplicate identifier {var_sym.name} found at line {linenum}")
 
-        self.table.insert(var_sym)
+        self.scope.insert(var_sym)
 
     def _visit_procdecl(self, node: ProcDecl) -> None:
         pass
@@ -994,7 +1023,7 @@ def main() -> None:
 
     st_bldr: SemanticAnalyzer = SemanticAnalyzer()
     st_bldr.analyze(ast)
-    print(st_bldr.table)
+    print(st_bldr.scope)
 
     interpreter: Interpreter = Interpreter()
     interpreter.interpret(ast)
