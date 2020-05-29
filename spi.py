@@ -439,10 +439,8 @@ class Eof(AST):
 
 
 class Symbol:
-    def __init__(
-        self, name: str, ty: Optional['BuiltinTypeSymbol']=None) -> None:
+    def __init__(self, name: str) -> None:
         self.name: str = name
-        self.type: Optional['BuiltinTypeSymbol'] = ty
 
 
 class BuiltinTypeSymbol(Symbol):
@@ -458,7 +456,8 @@ class BuiltinTypeSymbol(Symbol):
 
 class VarSymbol(Symbol):
     def __init__(self, name: str, ty: BuiltinTypeSymbol) -> None:
-        super().__init__(name, ty)
+        super().__init__(name)
+        self.type: BuiltinTypeSymbol = ty
 
     def __str__(self) -> str:
         return f"<{self.name}:{self.type}>"
