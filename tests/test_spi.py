@@ -277,6 +277,86 @@ class ParserTestCase(unittest.TestCase):
         act_msg = e.exception.args[0]
         self.assertEqual(act_msg, exp_msg)
 
+    def test_parser_proc_sig(self):
+        ast = make_prog_ast_from_file("tests/part14.pas")
+        actual = str(list(PostOrderIter(ast)))
+
+        self.assertEqual(
+            actual,
+            "[" + \
+                "Var(Token(TypeId.ID, x)), " + \
+                "Type(Token(TypeId.REAL, [rR][eE][aA][lL])), " + \
+                "VarDecl(Token(TypeId.EOF, None)), " + \
+                "Var(Token(TypeId.ID, y)), " + \
+                "Type(Token(TypeId.REAL, [rR][eE][aA][lL])), " + \
+                "VarDecl(Token(TypeId.EOF, None)), " + \
+                "Var(Token(TypeId.ID, a)), " + \
+                "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
+                "Param(Token(TypeId.EOF, None)), " + \
+                "Var(Token(TypeId.ID, y)), " + \
+                "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
+                "VarDecl(Token(TypeId.EOF, None)), " + \
+                "Var(Token(TypeId.ID, x)), " + \
+                "Var(Token(TypeId.ID, a)), " + \
+                "Var(Token(TypeId.ID, x)), " + \
+                "Add(Token(TypeId.ADD, +)), " + \
+                "Var(Token(TypeId.ID, y)), " + \
+                "Add(Token(TypeId.ADD, +)), " + \
+                "Assign(Token(TypeId.ASSIGN, :=)), " + \
+                "NoOp(Token(TypeId.EOF, None)), " + \
+                "Compound(Token(TypeId.EOF, None)), " + \
+                "Block(Token(TypeId.EOF, None)), " + \
+                "ProcDecl(Token(TypeId.EOF, alpha)), " + \
+                "NoOp(Token(TypeId.EOF, None)), " + \
+                "Compound(Token(TypeId.EOF, None)), " + \
+                "Block(Token(TypeId.EOF, None)), " + \
+                "Program(Token(TypeId.EOF, None))" + \
+            "]"
+        )
+
+    def test_parser_proc_sig2(self):
+        ast = make_prog_ast_from_file("tests/part14_2.pas")
+        actual = str(list(PostOrderIter(ast)))
+
+        self.assertEqual(
+            actual,
+            "[" + \
+                "Var(Token(TypeId.ID, x)), " + \
+                "Type(Token(TypeId.REAL, [rR][eE][aA][lL])), " + \
+                "VarDecl(Token(TypeId.EOF, None)), " + \
+                "Var(Token(TypeId.ID, y)), " + \
+                "Type(Token(TypeId.REAL, [rR][eE][aA][lL])), " + \
+                "VarDecl(Token(TypeId.EOF, None)), " + \
+                "Var(Token(TypeId.ID, a)), " + \
+                "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
+                "Param(Token(TypeId.EOF, None)), " + \
+                "Var(Token(TypeId.ID, b)), " + \
+                "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
+                "Param(Token(TypeId.EOF, None)), " + \
+                "Var(Token(TypeId.ID, c)), " + \
+                "Type(Token(TypeId.REAL, [rR][eE][aA][lL])), " + \
+                "Param(Token(TypeId.EOF, None)), " + \
+                "Var(Token(TypeId.ID, y)), " + \
+                "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
+                "VarDecl(Token(TypeId.EOF, None)), " + \
+                "Var(Token(TypeId.ID, x)), " + \
+                "Var(Token(TypeId.ID, a)), " + \
+                "Var(Token(TypeId.ID, x)), " + \
+                "Add(Token(TypeId.ADD, +)), " + \
+                "Var(Token(TypeId.ID, y)), " + \
+                "Add(Token(TypeId.ADD, +)), " + \
+                "Assign(Token(TypeId.ASSIGN, :=)), " + \
+                "NoOp(Token(TypeId.EOF, None)), " + \
+                "Compound(Token(TypeId.EOF, None)), " + \
+                "Block(Token(TypeId.EOF, None)), " + \
+                "ProcDecl(Token(TypeId.EOF, alpha)), " + \
+                "NoOp(Token(TypeId.EOF, None)), " + \
+                "Compound(Token(TypeId.EOF, None)), " + \
+                "Block(Token(TypeId.EOF, None)), " + \
+                "Program(Token(TypeId.EOF, None))" + \
+            "]"
+        )
+
 
 class InterpreterTestCase(unittest.TestCase):
     def setUp(self):

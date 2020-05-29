@@ -269,13 +269,19 @@ class VarDecl(AST):
         self.children: List[AST] = [self.var, self.type]
 
 
+class Param(VarDecl):
+    def __init__(self, var: 'Var', ty: 'Type') -> None:
+        super().__init__(var, ty)
+
+
 class ProcDecl(AST):
-    def __init__(self, proc_name: str, block_node: Block):
+    def __init__(self, proc_name: str, params: List[Param], block_node: Block):
         super().__init__()
-        self._token = Token(TypeId.EOF, proc_name)
-        self.proc_name = proc_name
-        self.block_node = block_node
-        self.children = [self.block_node]
+        self._token: Token = Token(TypeId.EOF, proc_name)
+        self.proc_name: str = proc_name
+        self.params: List[Param] = params
+        self.block_node: Block = block_node
+        self.children: List[AST] = self.params + [self.block_node]
 
 
 class Type(AST):
@@ -699,11 +705,37 @@ class Parser:
             for var_node in var_nodes \
         ]
 
+    def formal_parameters(self) -> List[Param]:
+        """
+        formal_parameters: variable (COMMA variable)* COLON type_spec
+        """
+        param_nodes = [self.variable()]
+        while self.current_token.type == TypeId.COMMA:
+            self.eat(TypeId.COMMA)
+            param_nodes.append(self.variable())
+        self.eat(TypeId.COLON)
+        ty_node = self.type_spec()
+        return [
+            Param(param_node, Type.copy(ty_node)) \
+            for param_node in param_nodes \
+        ]
+
+    def formal_parameter_list(self) -> List[Param]:
+        """
+        formal_parameter_list: formal_parameters (SEMI formal_parameters)*
+        """
+        param_nodes = self.formal_parameters()
+        while self.current_token.type == TypeId.SEMI:
+            self.eat(TypeId.SEMI)
+            param_nodes += self.formal_parameters()
+        return param_nodes
+
     def declarations(self) -> List[AST]:
         """
         declarations: 
             (VAR (variable_declaration SEMI)+)* | 
-            (PROCEDURE variable SEMI block SEMI)* | 
+            (PROCEDURE variable (LPAR formal_parameter_list RPAR)? 
+                SEMI block SEMI)* | 
             empty
         """
         declarations: List[AST] = []
@@ -718,10 +750,17 @@ class Parser:
             self.eat(TypeId.PROCEDURE)
             var_n: Var = self.variable()
             proc_name: str = var_n.value
+
+            params: List[Param] = []
+            if self.current_token.type == TypeId.LPAR:
+                self.eat(TypeId.LPAR)
+                params = self.formal_parameter_list()
+                self.eat(TypeId.RPAR)
+
             self.eat(TypeId.SEMI)
             block_n: Block = self.block()
             self.eat(TypeId.SEMI)
-            declarations.append(ProcDecl(proc_name, block_n))
+            declarations.append(ProcDecl(proc_name, params, block_n))
 
         return declarations
 
