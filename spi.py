@@ -976,10 +976,10 @@ class SemanticAnalyzer(NodeVisitor):
         var_name = var.value
         var_sym = VarSymbol(var_name, cast(BuiltinTypeSymbol, type_sym))
 
-        # if self.current_scope.lookup(var_sym.name) is not None:
-        #     linenum = node.var.linenum
-        #     raise NameError(
-        #         f"duplicate identifier {var_sym.name} found at line {linenum}")
+        if self.current_scope.lookup(var_sym.name) is not None:
+            linenum = node.var.linenum
+            raise NameError(
+                f"duplicate identifier {var_sym.name} found at line {linenum}")
 
         self.current_scope.insert(var_sym)
 
