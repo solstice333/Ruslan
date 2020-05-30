@@ -518,7 +518,10 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "(" + \
                 "name: global, " + \
                 "level: 1, " + \
-                "symbols: ['INTEGER', 'REAL', '<a:INTEGER>']" + \
+                "symbols: [" + \
+                    "'INTEGER', 'REAL', " + \
+                    "'<a:INTEGER>', 'ProcSymbol(name=p1, params=[])'" + \
+                "]" + \
             ")"
         )
 
@@ -531,14 +534,15 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         self.assertEqual(
             e.exception.args[0], "duplicate identifier y found at line 3")
 
+    # TODO
     def test_part14_decl_only(self):
-        print()
-        
+        # print()
+
         ast = make_prog_ast_from_file("tests/part14_decl_only.pas")
         lyz = SemanticAnalyzer()
         lyz.analyze(ast)
 
-        print(f"\n{RenderTree(ast)}")
+        # print(f"\n{RenderTree(ast)}")
 
 
 def make_parser(text):

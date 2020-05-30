@@ -957,6 +957,7 @@ class SemanticAnalyzer(NodeVisitor):
 
         logging.info(global_scope)
         logging.info(f"LEAVE scope {global_scope.name}")
+        self.current_scope = global_scope
 
     def _visit_block(self, node: Block) -> None:
         for n in node.children:
@@ -1006,6 +1007,7 @@ class SemanticAnalyzer(NodeVisitor):
 
         logging.info(proc_scope)
         logging.info(f"LEAVE scope {proc_scope.name}")
+        self.current_scope = proc_scope
 
     def _visit_type(self, node: Type) -> None:
         raise NotImplementedError()
