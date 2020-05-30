@@ -1088,7 +1088,7 @@ class Interpreter(NodeVisitor):
 
     def interpret(self, ast: AST) -> Union[int, float, None]:
         val = self.visit(ast)
-        logging.info(self.GLOBAL_SCOPE)
+        logging.info(f"global runtime memory: {self.GLOBAL_SCOPE}")
         return val
 
 
