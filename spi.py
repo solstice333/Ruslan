@@ -21,6 +21,7 @@ from re import Pattern, RegexFlag
 
 import re
 import argparse
+import logging
 
 T = TypeVar('T')
 
@@ -278,7 +279,7 @@ class ProcDecl(AST):
     def __init__(self, proc_name: str, params: List[Param], block_node: Block):
         super().__init__()
         self._token: Token = Token(TypeId.EOF, proc_name)
-        self.proc_name: str = proc_name
+        self.name: str = proc_name
         self.params: List[Param] = params
         self.block_node: Block = block_node
         self.children: List[AST] = self.params + [self.block_node]
@@ -466,6 +467,14 @@ class VarSymbol(Symbol):
         return f"{type(self).__name__}(name='{self.name}', type='{self.type}')"
 
 
+class ProcSymbol(Symbol):
+    def __init__(self, name: str, params: List[VarSymbol]=None) -> None:
+        super().__init__(name)
+        self.params: List[VarSymbol] = params if params is not None else []
+
+    def __str__(self) -> str:
+        return f"{type(self).__name__}(name={self.name}, params={self.params})"
+
 class ScopedSymbolTable:
     def __init__(self, name: str, level: int) -> None:
         self._symbols: Dict[str, Symbol] = {}
@@ -514,9 +523,11 @@ class ScopedSymbolTable:
         return len(self._symbols)
 
     def lookup(self, name: str) -> Optional[Symbol]:
+        logging.info(f"Lookup: {name}")
         return self._symbols.get(name)
 
     def insert(self, sym: Symbol) -> None:
+        logging.info(f"Insert: {sym.name}")
         self._symbols[sym.name] = sym
 
 
@@ -876,7 +887,16 @@ class NodeVisitor(ABC):
 
 class SemanticAnalyzer(NodeVisitor):
     def __init__(self):
-        self.scope: ScopedSymbolTable = ScopedSymbolTable("global", 1)
+        self._current_scope: Optional[ScopedSymbolTable] = None
+
+    @property
+    def current_scope(self) -> ScopedSymbolTable:
+        assert self._current_scope is not None
+        return cast(ScopedSymbolTable, self._current_scope)
+
+    @current_scope.setter
+    def current_scope(self, scope: ScopedSymbolTable) -> None:
+        self._current_scope = scope
 
     def _visit_binop(self, node: AST) -> None:
         self.visit(node.left)
@@ -922,13 +942,21 @@ class SemanticAnalyzer(NodeVisitor):
 
     def _visit_var(self, node: Var) -> None:
         var_name = node.value
-        if self.scope.lookup(var_name) is None:
+        if self.current_scope.lookup(var_name) is None:
             linenum = node.linenum
             raise NameError(
                 f"{var_name}" + (f" at line {linenum}" if linenum else ""))
 
     def _visit_program(self, node: Program) -> None:
+        scope_name = "global"
+        logging.info(f"ENTER scope {scope_name}")
+        global_scope: ScopedSymbolTable = ScopedSymbolTable(scope_name, 1)
+        self.current_scope = global_scope
+
         self.visit(node.block)
+
+        logging.info(global_scope)
+        logging.info(f"LEAVE scope {global_scope.name}")
 
     def _visit_block(self, node: Block) -> None:
         for n in node.children:
@@ -939,7 +967,7 @@ class SemanticAnalyzer(NodeVisitor):
         ty = node.type
 
         type_name = ty.value
-        type_sym = self.scope.lookup(type_name)
+        type_sym = self.current_scope.lookup(type_name)
 
         if type_sym is None:
             raise TypeError(
@@ -948,15 +976,36 @@ class SemanticAnalyzer(NodeVisitor):
         var_name = var.value
         var_sym = VarSymbol(var_name, cast(BuiltinTypeSymbol, type_sym))
 
-        if self.scope.lookup(var_sym.name) is not None:
-            linenum = node.var.linenum
-            raise NameError(
-                f"duplicate identifier {var_sym.name} found at line {linenum}")
+        # if self.current_scope.lookup(var_sym.name) is not None:
+        #     linenum = node.var.linenum
+        #     raise NameError(
+        #         f"duplicate identifier {var_sym.name} found at line {linenum}")
 
-        self.scope.insert(var_sym)
+        self.current_scope.insert(var_sym)
 
     def _visit_procdecl(self, node: ProcDecl) -> None:
-        pass
+        proc_name = node.name
+        proc_symbol = ProcSymbol(proc_name)
+        self.current_scope.insert(proc_symbol)
+
+        scope_name = proc_name
+        logging.info(f"ENTER scope {scope_name}")
+        proc_scope = ScopedSymbolTable(scope_name, self.current_scope.level + 1)
+        self.current_scope = proc_scope
+
+        for param in node.params:
+            param_name = param.var.value
+            param_ty = self.current_scope.lookup(param.type.value)
+            assert param_ty is not None
+            assert isinstance(param_ty, BuiltinTypeSymbol)
+            var_sym = VarSymbol(param_name, cast(BuiltinTypeSymbol, param_ty))
+            proc_symbol.params.append(var_sym)
+            self.current_scope.insert(var_sym)
+
+        self.visit(node.block_node)
+
+        logging.info(proc_scope)
+        logging.info(f"LEAVE scope {proc_scope.name}")
 
     def _visit_type(self, node: Type) -> None:
         raise NotImplementedError()
@@ -1038,7 +1087,9 @@ class Interpreter(NodeVisitor):
         pass
 
     def interpret(self, ast: AST) -> Union[int, float, None]:
-        return self.visit(ast)
+        val = self.visit(ast)
+        logging.info(self.GLOBAL_SCOPE)
+        return val
 
 
 def any_of(vals: Iterable[T], pred: Callable[[T], bool]):
@@ -1047,10 +1098,24 @@ def any_of(vals: Iterable[T], pred: Callable[[T], bool]):
             return True
     return False
 
+def setup_logging(verbose: bool) -> None:
+    logging.disable(logging.NOTSET)
+    logging.basicConfig(format="{message}", style="{")
+    if verbose:
+        root_logger = logging.getLogger()
+        root_logger.setLevel(logging.INFO)
+
 def main() -> None:
     argparser = argparse.ArgumentParser(description="simple pascal interpreter")
+    argparser.add_argument(
+        "-v", "--verbose", 
+        action="store_true", 
+        help="verbose debugging output"
+    )
     argparser.add_argument("FILE", help="pascal file")
     args = argparser.parse_args()
+
+    setup_logging(args.verbose)
 
     with open(args.FILE) as pascal_file:
         text = pascal_file.read()
@@ -1061,12 +1126,10 @@ def main() -> None:
 
     st_bldr: SemanticAnalyzer = SemanticAnalyzer()
     st_bldr.analyze(ast)
-    print(st_bldr.scope)
 
     interpreter: Interpreter = Interpreter()
     interpreter.interpret(ast)
-    print(interpreter.GLOBAL_SCOPE)  
 
-
+logging.disable(logging.CRITICAL)
 if __name__ == '__main__':
     main()

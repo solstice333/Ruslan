@@ -485,7 +485,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         lyz.visit(ast)
 
         self.assertEqual(
-            str(lyz.scope), 
+            str(lyz.current_scope), 
             "(" + \
                 "name: global, " + \
                 "level: 1, " + \
@@ -514,7 +514,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         lyz = SemanticAnalyzer()
         lyz.analyze(ast)
         self.assertEqual(
-            str(lyz.scope),
+            str(lyz.current_scope),
             "(" + \
                 "name: global, " + \
                 "level: 1, " + \
@@ -530,6 +530,15 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             lyz.analyze(ast)
         self.assertEqual(
             e.exception.args[0], "duplicate identifier y found at line 3")
+
+    def test_part14_decl_only(self):
+        print()
+        
+        ast = make_prog_ast_from_file("tests/part14_decl_only.pas")
+        lyz = SemanticAnalyzer()
+        lyz.analyze(ast)
+
+        print(f"\n{RenderTree(ast)}")
 
 
 def make_parser(text):
