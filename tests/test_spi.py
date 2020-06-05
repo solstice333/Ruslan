@@ -2,6 +2,10 @@ import sys
 import os
 import os.path
 import unittest
+import logging
+import io
+import re
+
 from anytree import PostOrderIter, RenderTree
 
 sys.path.append(os.path.realpath(".."))
@@ -16,6 +20,44 @@ class Float:
         if isinstance(other, float):
             other = Float(other)
         return abs(self.val - other.val) < eps  
+
+
+class LoggingToStrBuf():
+    _initd: bool = False
+    _sb = io.StringIO()
+    _sh = logging.StreamHandler(_sb)
+
+    @classmethod
+    def _update_handler(cls):
+        root_logger = logging.getLogger()
+        root_logger.removeHandler(cls._sh)
+        cls._sb = io.StringIO()
+        cls._sh = logging.StreamHandler(cls._sb)
+        root_logger.addHandler(cls._sh)
+
+    @classmethod
+    def _basic_config(cls):
+        logging.basicConfig(
+            format="{message}", 
+            style="{", 
+            level=logging.INFO, 
+            handlers=[cls._sh]
+        )
+        cls._initd = True
+
+    def __enter__(self):
+        cls = type(self)
+        logging.disable(logging.NOTSET)
+
+        if cls._initd:
+            cls._update_handler()
+        else:
+            cls._basic_config()
+
+        return cls._sb
+
+    def __exit__(self, exc_ty, exc_val, tb):
+        logging.disable()
 
 
 class LexerTestCase(unittest.TestCase):
@@ -291,10 +333,10 @@ class ParserTestCase(unittest.TestCase):
                 "Type(Token(TypeId.REAL, [rR][eE][aA][lL])), " + \
                 "VarDecl(Token(TypeId.EOF, None)), " + \
                 "Var(Token(TypeId.ID, a)), " + \
-                "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
+                "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " +\
                 "Param(Token(TypeId.EOF, None)), " + \
                 "Var(Token(TypeId.ID, y)), " + \
-                "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
+                "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " +\
                 "VarDecl(Token(TypeId.EOF, None)), " + \
                 "Var(Token(TypeId.ID, x)), " + \
                 "Var(Token(TypeId.ID, a)), " + \
@@ -328,16 +370,16 @@ class ParserTestCase(unittest.TestCase):
                 "Type(Token(TypeId.REAL, [rR][eE][aA][lL])), " + \
                 "VarDecl(Token(TypeId.EOF, None)), " + \
                 "Var(Token(TypeId.ID, a)), " + \
-                "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
+                "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " +\
                 "Param(Token(TypeId.EOF, None)), " + \
                 "Var(Token(TypeId.ID, b)), " + \
-                "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
+                "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " +\
                 "Param(Token(TypeId.EOF, None)), " + \
                 "Var(Token(TypeId.ID, c)), " + \
                 "Type(Token(TypeId.REAL, [rR][eE][aA][lL])), " + \
                 "Param(Token(TypeId.EOF, None)), " + \
                 "Var(Token(TypeId.ID, y)), " + \
-                "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
+                "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " +\
                 "VarDecl(Token(TypeId.EOF, None)), " + \
                 "Var(Token(TypeId.ID, x)), " + \
                 "Var(Token(TypeId.ID, a)), " + \
@@ -479,16 +521,24 @@ class InterpreterTestCase(unittest.TestCase):
 
 
 class SemanticAnalyzerTestCase(unittest.TestCase):
+    def _get_scopes_from_str(self, s):
+        return [el for el in s.splitlines() if re.match(r"\s*\(name", el)]
+
     def test_builder(self):
         ast = make_prog_ast_from_file("tests/part11.pas")
         lyz = SemanticAnalyzer()
-        lyz.visit(ast)
 
+        with LoggingToStrBuf() as sb:
+            lyz.visit(ast)
+
+        scopes = self._get_scopes_from_str(sb.getvalue())
+        self.assertEqual(len(scopes), 1)
         self.assertEqual(
-            str(lyz.current_scope), 
+            scopes[0], 
             "(" + \
                 "name: global, " + \
                 "level: 1, " + \
+                "encl_scope: None, " + \
                 "symbols: ['INTEGER', 'REAL', '<x:INTEGER>', '<y:REAL>']" + \
             ")"
         )
@@ -512,15 +562,48 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
     def test_builder_part12(self):
         ast = make_prog_ast_from_file("tests/part12.pas")
         lyz = SemanticAnalyzer()
-        lyz.analyze(ast)
+
+        with LoggingToStrBuf() as sb:
+            lyz.analyze(ast)
+
+        scopes = self._get_scopes_from_str(sb.getvalue())
+
+        self.assertEqual(len(scopes), 3)
         self.assertEqual(
-            str(lyz.current_scope),
+            scopes[0], 
+            "(" + \
+                "name: p2, " + \
+                "level: 3, " + \
+                "encl_scope: p1, " + \
+                "symbols: ['INTEGER', 'REAL', '<a:INTEGER>', '<z:INTEGER>']" + \
+            ")"
+        )
+        self.assertEqual(
+            scopes[1],
+            "(" + \
+                "name: p1, " + \
+                "level: 2, " + \
+                "encl_scope: global, " + \
+                "symbols: [" + \
+                    "'INTEGER', " + \
+                    "'REAL', " + \
+                    "'<a:REAL>', " + \
+                    "'<k:INTEGER>', " + \
+                    "'ProcSymbol(name=p2, params=[])'" + \
+                "]" + \
+            ")"
+        )
+        self.assertEqual(
+            scopes[2],
             "(" + \
                 "name: global, " + \
                 "level: 1, " + \
+                "encl_scope: None, " + \
                 "symbols: [" + \
-                    "'INTEGER', 'REAL', " + \
-                    "'<a:INTEGER>', 'ProcSymbol(name=p1, params=[])'" + \
+                    "'INTEGER', " + \
+                    "'REAL', " + \
+                    "'<a:INTEGER>', " + \
+                    "'ProcSymbol(name=p1, params=[])'" + \
                 "]" + \
             ")"
         )
@@ -534,16 +617,100 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         self.assertEqual(
             e.exception.args[0], "duplicate identifier y found at line 3")
 
-    # TODO
-    def test_part14_decl_only(self):
-        # print()
-
+    def test_part14_decl_only_chained_scope(self):
         ast = make_prog_ast_from_file("tests/part14_decl_only.pas")
         lyz = SemanticAnalyzer()
-        lyz.analyze(ast)
 
-        # print(f"\n{RenderTree(ast)}")
+        with LoggingToStrBuf() as sb:
+            lyz.analyze(ast)
 
+        actual = listify_str_buf_val(sb)
+
+        expected = [
+            "ENTER scope global",
+            "Insert: INTEGER",
+            "Insert: REAL",
+            "Lookup: REAL",
+            "Lookup: x",
+            "Insert: x",
+            "Lookup: REAL",
+            "Lookup: y",
+            "Insert: y",
+            "Insert: alpha",
+            "ENTER scope alpha",
+            "Insert: INTEGER",
+            "Insert: REAL",
+            "Lookup: INTEGER",
+            "Lookup: a",
+            "Insert: a",
+            "Lookup: INTEGER",
+            "Lookup: y",
+            "Insert: y",
+            "(name: alpha, level: 2, encl_scope: global, " + \
+                "symbols: ['INTEGER', 'REAL', '<a:INTEGER>', '<y:INTEGER>'])",
+            "LEAVE scope alpha",
+            "(name: global, level: 1, encl_scope: None, " + \
+                "symbols: [" + \
+                    "'INTEGER', " + \
+                    "'REAL', " + \
+                    "'<x:REAL>', " + \
+                    "'<y:REAL>', " + \
+                    "\"ProcSymbol(" + \
+                        "name=alpha, " + \
+                        "params=[VarSymbol(name='a', type='INTEGER')]" + \
+                    ")\"" + \
+                "]" + \
+            ")",
+            "LEAVE scope global"
+        ]
+
+        self.assertEqual(actual, expected)
+
+
+    def test_part14_dup_param(self):
+        ast = make_prog_ast_from_file("tests/part14_dup_param.pas")
+        lyz = SemanticAnalyzer()
+
+        with self.assertRaises(NameError) as e:
+            lyz.analyze(ast)
+        self.assertEqual(
+            e.exception.args[0], "duplicate identifier a found at line 4")
+
+
+class Foo(unittest.TestCase):
+    def test_foo(self):
+        with open("tests/part12.pas") as f:
+            txt = f.read()
+
+        lexer = Lexer(txt)
+        for tok in lexer:
+            print(tok)
+
+        print()
+
+        parser = Parser(lexer)
+        ast = parser.parse()
+        print(RenderTree(ast))
+
+        print()
+
+        lyz = SemanticAnalyzer()
+        with LoggingToStrBuf() as sb:
+            lyz.analyze(ast)
+        print(sb.getvalue())
+
+
+def listify_str_buf_val(sb):
+    return sb.getvalue().strip().splitlines()
+
+def print_str_as_list_of_str(s):
+    ls = s.strip().split("\n")
+    print("[")
+    for i, elem in enumerate(ls):
+        comma = "" if i >= len(ls) - 1 else ","
+        elem = re.sub(r"\"", "\\\"", elem)
+        print(f"    \"{elem}\"{comma}")
+    print("]")
 
 def make_parser(text):
     lexer = Lexer(text)

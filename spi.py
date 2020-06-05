@@ -476,20 +476,29 @@ class ProcSymbol(Symbol):
         return f"{type(self).__name__}(name={self.name}, params={self.params})"
 
 class ScopedSymbolTable:
-    def __init__(self, name: str, level: int) -> None:
+    def __init__(
+        self, 
+        name: str, 
+        level: int, 
+        encl_scope: Optional['ScopedSymbolTable']=None
+    ) -> None:
         self._symbols: Dict[str, Symbol] = {}
         self.name: str = name
         self.level: int = level
+        self.encl_scope: Optional[ScopedSymbolTable] = encl_scope
 
         self.insert(BuiltinTypeSymbol(TypeId.INTEGER.name))
         self.insert(BuiltinTypeSymbol(TypeId.REAL.name))
 
     def __str__(self) -> str:
+        encl_scope_name = self.encl_scope.name \
+            if self.encl_scope is not None else str(None) 
         return f"(" + \
             f"name: {self.name}, " + \
             f"level: {self.level}, " + \
+            f"encl_scope: {encl_scope_name}, " + \
             f"symbols: {[str(sym) for sym in self._symbols.values()]}" + \
-            ")"
+        ")"
 
     def __repr__(self) -> str:
         header = "Symbol Table Contents"
@@ -887,16 +896,12 @@ class NodeVisitor(ABC):
 
 class SemanticAnalyzer(NodeVisitor):
     def __init__(self):
-        self._current_scope: Optional[ScopedSymbolTable] = None
+        self.current_scope: Optional[ScopedSymbolTable] = None
 
     @property
-    def current_scope(self) -> ScopedSymbolTable:
-        assert self._current_scope is not None
-        return cast(ScopedSymbolTable, self._current_scope)
-
-    @current_scope.setter
-    def current_scope(self, scope: ScopedSymbolTable) -> None:
-        self._current_scope = scope
+    def safe_current_scope(self) -> ScopedSymbolTable:
+        assert self.current_scope is not None
+        return cast(ScopedSymbolTable, self.current_scope)
 
     def _visit_binop(self, node: AST) -> None:
         self.visit(node.left)
@@ -942,7 +947,7 @@ class SemanticAnalyzer(NodeVisitor):
 
     def _visit_var(self, node: Var) -> None:
         var_name = node.value
-        if self.current_scope.lookup(var_name) is None:
+        if self.safe_current_scope.lookup(var_name) is None:
             linenum = node.linenum
             raise NameError(
                 f"{var_name}" + (f" at line {linenum}" if linenum else ""))
@@ -950,14 +955,14 @@ class SemanticAnalyzer(NodeVisitor):
     def _visit_program(self, node: Program) -> None:
         scope_name = "global"
         logging.info(f"ENTER scope {scope_name}")
-        global_scope: ScopedSymbolTable = ScopedSymbolTable(scope_name, 1)
+        global_scope = ScopedSymbolTable(scope_name, 1, self.current_scope)
         self.current_scope = global_scope
 
         self.visit(node.block)
 
         logging.info(global_scope)
+        self.current_scope = self.current_scope.encl_scope
         logging.info(f"LEAVE scope {global_scope.name}")
-        self.current_scope = global_scope
 
     def _visit_block(self, node: Block) -> None:
         for n in node.children:
@@ -968,7 +973,7 @@ class SemanticAnalyzer(NodeVisitor):
         ty = node.type
 
         type_name = ty.value
-        type_sym = self.current_scope.lookup(type_name)
+        type_sym = self.safe_current_scope.lookup(type_name)
 
         if type_sym is None:
             raise TypeError(
@@ -977,28 +982,40 @@ class SemanticAnalyzer(NodeVisitor):
         var_name = var.value
         var_sym = VarSymbol(var_name, cast(BuiltinTypeSymbol, type_sym))
 
-        if self.current_scope.lookup(var_sym.name) is not None:
+        if self.safe_current_scope.lookup(var_sym.name) is not None:
             linenum = node.var.linenum
             raise NameError(
-                f"duplicate identifier {var_sym.name} found at line {linenum}")
+                f"duplicate identifier {var_sym.name} " + \
+                f"found at line {linenum}"
+            )
 
-        self.current_scope.insert(var_sym)
+        self.safe_current_scope.insert(var_sym)
 
     def _visit_procdecl(self, node: ProcDecl) -> None:
         proc_name = node.name
         proc_symbol = ProcSymbol(proc_name)
-        self.current_scope.insert(proc_symbol)
+        self.safe_current_scope.insert(proc_symbol)
 
         scope_name = proc_name
         logging.info(f"ENTER scope {scope_name}")
-        proc_scope = ScopedSymbolTable(scope_name, self.current_scope.level + 1)
+        proc_scope = ScopedSymbolTable(
+            scope_name, self.safe_current_scope.level + 1, self.current_scope)
         self.current_scope = proc_scope
 
         for param in node.params:
             param_name = param.var.value
             param_ty = self.current_scope.lookup(param.type.value)
+
             assert param_ty is not None
             assert isinstance(param_ty, BuiltinTypeSymbol)
+
+            if self.safe_current_scope.lookup(param_name) is not None:
+                linenum = param.var.linenum
+                raise NameError(
+                    f"duplicate identifier {param_name} " + \
+                    f"found at line {linenum}"
+                )
+
             var_sym = VarSymbol(param_name, cast(BuiltinTypeSymbol, param_ty))
             proc_symbol.params.append(var_sym)
             self.current_scope.insert(var_sym)
@@ -1006,8 +1023,8 @@ class SemanticAnalyzer(NodeVisitor):
         self.visit(node.block_node)
 
         logging.info(proc_scope)
+        self.current_scope = self.current_scope.encl_scope
         logging.info(f"LEAVE scope {proc_scope.name}")
-        self.current_scope = proc_scope
 
     def _visit_type(self, node: Type) -> None:
         raise NotImplementedError()
