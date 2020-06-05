@@ -676,6 +676,58 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         self.assertEqual(
             e.exception.args[0], "duplicate identifier a found at line 4")
 
+    def test_part14_sibling_scopes(self):
+        ast = make_prog_ast_from_file(
+            "tests/part14_decl_only_sibling_scopes.pas")
+        lyz = SemanticAnalyzer()
+
+        with LoggingToStrBuf() as sb:
+            lyz.analyze(ast)
+
+        scopes = self._get_scopes_from_str(sb.getvalue())
+
+        self.assertEqual(len(scopes), 3)
+        self.assertEqual(
+            scopes[0], 
+            "(" + \
+                "name: alphaa, " + \
+                "level: 2, " + \
+                "encl_scope: global, " + \
+                "symbols: ['INTEGER', 'REAL', '<a:INTEGER>', '<y:INTEGER>']" + \
+            ")"
+        )
+        self.assertEqual(
+            scopes[1], 
+            "(" + \
+                "name: alphab, " + \
+                "level: 2, " + \
+                "encl_scope: global, " + \
+                "symbols: ['INTEGER', 'REAL', '<a:INTEGER>', '<b:INTEGER>']" + \
+            ")"
+        )
+        self.assertEqual(
+            scopes[2], 
+            "(" + \
+                "name: global, " + \
+                "level: 1, " + \
+                "encl_scope: None, " + \
+                "symbols: [" + \
+                    "'INTEGER', " + \
+                    "'REAL', " + \
+                    "'<x:REAL>', " + \
+                    "'<y:REAL>', " + \
+                    "\"ProcSymbol(" + \
+                        "name=alphaa, " + \
+                        "params=[VarSymbol(name='a', type='INTEGER')]" + \
+                    ")\", " + \
+                    "\"ProcSymbol(" + \
+                        "name=alphab, " + \
+                        "params=[VarSymbol(name='a', type='INTEGER')]" + \
+                    ")\"" + \
+                "]" + \
+            ")"
+        )
+
 
 class Foo(unittest.TestCase):
     def test_foo(self):
