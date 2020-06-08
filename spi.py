@@ -487,9 +487,6 @@ class ScopedSymbolTable:
         self.level: int = level
         self.encl_scope: Optional[ScopedSymbolTable] = encl_scope
 
-        self.insert(BuiltinTypeSymbol(TypeId.INTEGER.name))
-        self.insert(BuiltinTypeSymbol(TypeId.REAL.name))
-
     def __str__(self) -> str:
         encl_scope_name = self.encl_scope.name \
             if self.encl_scope is not None else str(None) 
@@ -531,9 +528,15 @@ class ScopedSymbolTable:
     def __len__(self) -> int:
         return len(self._symbols)
 
-    def lookup(self, name: str) -> Optional[Symbol]:
-        logging.info(f"Lookup: {name}")
+    def lookup_this_scope(self, name: str) -> Optional[Symbol]:
+        logging.info(f"Lookup: {name}. (Scope name: {self.name})")
         return self._symbols.get(name)
+
+    def lookup(self, name: str) -> Optional[Symbol]:
+        sym = self.lookup_this_scope(name)
+        if sym is None and self.encl_scope is not None:
+            return self.encl_scope.lookup(name)
+        return sym
 
     def insert(self, sym: Symbol) -> None:
         logging.info(f"Insert: {sym.name}")
@@ -942,8 +945,8 @@ class SemanticAnalyzer(NodeVisitor):
         return None
 
     def _visit_assign(self, node: Assign) -> None:
-        self.visit(node.left)
         self.visit(node.right)
+        self.visit(node.left)
 
     def _visit_var(self, node: Var) -> None:
         var_name = node.value
@@ -956,6 +959,8 @@ class SemanticAnalyzer(NodeVisitor):
         scope_name = "global"
         logging.info(f"ENTER scope {scope_name}")
         global_scope = ScopedSymbolTable(scope_name, 1, self.current_scope)
+        global_scope.insert(BuiltinTypeSymbol(TypeId.INTEGER.name))
+        global_scope.insert(BuiltinTypeSymbol(TypeId.REAL.name))
         self.current_scope = global_scope
 
         self.visit(node.block)
@@ -982,7 +987,7 @@ class SemanticAnalyzer(NodeVisitor):
         var_name = var.value
         var_sym = VarSymbol(var_name, cast(BuiltinTypeSymbol, type_sym))
 
-        if self.safe_current_scope.lookup(var_sym.name) is not None:
+        if self.safe_current_scope.lookup_this_scope(var_sym.name) is not None:
             linenum = node.var.linenum
             raise NameError(
                 f"duplicate identifier {var_sym.name} " + \
@@ -1009,7 +1014,8 @@ class SemanticAnalyzer(NodeVisitor):
             assert param_ty is not None
             assert isinstance(param_ty, BuiltinTypeSymbol)
 
-            if self.safe_current_scope.lookup(param_name) is not None:
+            param_sym = self.safe_current_scope.lookup_this_scope(param_name)
+            if param_sym is not None:
                 linenum = param.var.linenum
                 raise NameError(
                     f"duplicate identifier {param_name} " + \

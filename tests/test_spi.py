@@ -575,7 +575,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
                 "name: p2, " + \
                 "level: 3, " + \
                 "encl_scope: p1, " + \
-                "symbols: ['INTEGER', 'REAL', '<a:INTEGER>', '<z:INTEGER>']" + \
+                "symbols: ['<a:INTEGER>', '<z:INTEGER>']" + \
             ")"
         )
         self.assertEqual(
@@ -585,8 +585,6 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
                 "level: 2, " + \
                 "encl_scope: global, " + \
                 "symbols: [" + \
-                    "'INTEGER', " + \
-                    "'REAL', " + \
                     "'<a:REAL>', " + \
                     "'<k:INTEGER>', " + \
                     "'ProcSymbol(name=p2, params=[])'" + \
@@ -624,30 +622,30 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         with LoggingToStrBuf() as sb:
             lyz.analyze(ast)
 
-        actual = listify_str_buf_val(sb)
+        actual = listify_str(sb.getvalue())
 
         expected = [
             "ENTER scope global",
             "Insert: INTEGER",
             "Insert: REAL",
-            "Lookup: REAL",
-            "Lookup: x",
+            "Lookup: REAL. (Scope name: global)",
+            "Lookup: x. (Scope name: global)",
             "Insert: x",
-            "Lookup: REAL",
-            "Lookup: y",
+            "Lookup: REAL. (Scope name: global)",
+            "Lookup: y. (Scope name: global)",
             "Insert: y",
             "Insert: alpha",
             "ENTER scope alpha",
-            "Insert: INTEGER",
-            "Insert: REAL",
-            "Lookup: INTEGER",
-            "Lookup: a",
+            "Lookup: INTEGER. (Scope name: alpha)",
+            "Lookup: INTEGER. (Scope name: global)",
+            "Lookup: a. (Scope name: alpha)",
             "Insert: a",
-            "Lookup: INTEGER",
-            "Lookup: y",
+            "Lookup: INTEGER. (Scope name: alpha)",
+            "Lookup: INTEGER. (Scope name: global)",
+            "Lookup: y. (Scope name: alpha)",
             "Insert: y",
             "(name: alpha, level: 2, encl_scope: global, " + \
-                "symbols: ['INTEGER', 'REAL', '<a:INTEGER>', '<y:INTEGER>'])",
+                "symbols: ['<a:INTEGER>', '<y:INTEGER>'])",
             "LEAVE scope alpha",
             "(name: global, level: 1, encl_scope: None, " + \
                 "symbols: [" + \
@@ -693,7 +691,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
                 "name: alphaa, " + \
                 "level: 2, " + \
                 "encl_scope: global, " + \
-                "symbols: ['INTEGER', 'REAL', '<a:INTEGER>', '<y:INTEGER>']" + \
+                "symbols: ['<a:INTEGER>', '<y:INTEGER>']" + \
             ")"
         )
         self.assertEqual(
@@ -702,7 +700,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
                 "name: alphab, " + \
                 "level: 2, " + \
                 "encl_scope: global, " + \
-                "symbols: ['INTEGER', 'REAL', '<a:INTEGER>', '<b:INTEGER>']" + \
+                "symbols: ['<a:INTEGER>', '<b:INTEGER>']" + \
             ")"
         )
         self.assertEqual(
@@ -728,6 +726,49 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             ")"
         )
 
+    def test_part14_var_ref(self):
+        ast = make_prog_ast_from_file("tests/part14_var_ref.pas")
+
+        lyz = SemanticAnalyzer()
+        with LoggingToStrBuf() as sb:
+            lyz.analyze(ast)
+
+        actual = listify_str(sb.getvalue())
+
+        expect = [
+            "ENTER scope global",
+            "Insert: INTEGER",
+            "Insert: REAL",
+            "Lookup: REAL. (Scope name: global)",
+            "Lookup: x. (Scope name: global)",
+            "Insert: x",
+            "Lookup: REAL. (Scope name: global)",
+            "Lookup: y. (Scope name: global)",
+            "Insert: y",
+            "Insert: alpha",
+            "ENTER scope alpha",
+            "Lookup: INTEGER. (Scope name: alpha)",
+            "Lookup: INTEGER. (Scope name: global)",
+            "Lookup: a. (Scope name: alpha)",
+            "Insert: a",
+            "Lookup: INTEGER. (Scope name: alpha)",
+            "Lookup: INTEGER. (Scope name: global)",
+            "Lookup: y. (Scope name: alpha)",
+            "Insert: y",
+            "Lookup: a. (Scope name: alpha)",
+            "Lookup: x. (Scope name: alpha)",
+            "Lookup: x. (Scope name: global)",
+            "Lookup: y. (Scope name: alpha)",
+            "Lookup: x. (Scope name: alpha)",
+            "Lookup: x. (Scope name: global)",
+            "(name: alpha, level: 2, encl_scope: global, symbols: ['<a:INTEGER>', '<y:INTEGER>'])",
+            "LEAVE scope alpha",
+            "(name: global, level: 1, encl_scope: None, symbols: ['INTEGER', 'REAL', '<x:REAL>', '<y:REAL>', \"ProcSymbol(name=alpha, params=[VarSymbol(name='a', type='INTEGER')])\"])",
+            "LEAVE scope global"
+        ]
+
+        self.assertEqual(actual, expect)
+
 
 class Foo(unittest.TestCase):
     def test_foo(self):
@@ -752,8 +793,8 @@ class Foo(unittest.TestCase):
         print(sb.getvalue())
 
 
-def listify_str_buf_val(sb):
-    return sb.getvalue().strip().splitlines()
+def listify_str(s):
+    return s.strip().splitlines()
 
 def print_str_as_list_of_str(s):
     ls = s.strip().split("\n")
