@@ -819,6 +819,32 @@ class DecoSrcBuilderTestCase(unittest.TestCase):
             'var b2 : INTEGER;\n      begin\n      ' + \
             'end;    {END OF alphab}\n   begin\n   ' + \
             'end.    {END OF main}'
+        self.assertEqual(lyz.deco_src(), expect)
+
+    def test_deco_src_part14_3(self):
+        ast = make_prog_ast_from_file("tests/part14_s2s_3.pas")
+        lyz = SemanticAnalyzer(s2s=True)
+        lyz.analyze(ast)
+        expect = 'program main0;\n   var b1 : REAL;\n   ' + \
+            'var x1 : REAL;\n   var y1 : REAL;\n   ' + \
+            'var z1 : INTEGER;\n   procedure ' + \
+            'alphaa1(a2 : INTEGER);\n      ' + \
+            'var b2 : INTEGER;\n      ' + \
+            'procedure beta2(c3 : INTEGER);\n         ' + \
+            'var y3 : INTEGER;\n         ' + \
+            'procedure gamma3(c4 : INTEGER);\n            ' + \
+            'var x4 : INTEGER;\n            begin\n            ' + \
+            '<x4:INTEGER> := <a2:INTEGER> + <b2:INTEGER> + ' + \
+            '<c4:INTEGER> + <x4:INTEGER> + <y3:INTEGER> + ' + \
+            '<z1:INTEGER>\n            end;    ' + \
+            '{END OF gamma}\n         begin\n         end;    ' + \
+            '{END OF beta}\n      begin\n      end;    ' + \
+            '{END OF alphaa}\n   procedure ' + \
+            'alphab1(a2 : INTEGER);\n      var c2 : REAL;\n      ' + \
+            'begin\n      <c2:REAL> := <a2:INTEGER> + <b1:REAL>\n      ' + \
+            'end;    {END OF alphab}\n   begin\n   end.    {END OF main}'
+        self.assertEqual(lyz.deco_src(), expect)
+
 
 class Foo(unittest.TestCase):
     def test_foo(self):
