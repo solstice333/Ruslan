@@ -9,7 +9,7 @@ import re
 from anytree import PostOrderIter, RenderTree
 
 sys.path.append(os.path.realpath(".."))
-from spi import TypeId, Token, Lexer, Parser, Interpreter, SemanticAnalyzer
+from spi import TokenType, Token, Lexer, Parser, Interpreter, SemanticAnalyzer
 
 
 class Float:
@@ -68,43 +68,43 @@ class LexerTestCase(unittest.TestCase):
     def test_lexer_integer(self):
         lexer = self.makeLexer('234')
         token = next(iter(lexer))
-        self.assertEqual(token.type, TypeId.INT_CONST)
+        self.assertEqual(token.type, TokenType.INT_CONST)
         self.assertEqual(token.value, 234)
 
     def test_lexer_mul(self):
         lexer = self.makeLexer('*')
         token = next(iter(lexer))
-        self.assertEqual(token.type, TypeId.MUL)
+        self.assertEqual(token.type, TokenType.MUL)
         self.assertEqual(token.value, '*')
 
     def test_lexer_div(self):
         lexer = self.makeLexer(' dIv ')
         token = next(iter(lexer))
-        self.assertEqual(token.type, TypeId.INT_DIV)
+        self.assertEqual(token.type, TokenType.INT_DIV)
         self.assertEqual(token.value, '[dD][iI][vV]')
 
     def test_lexer_plus(self):
         lexer = self.makeLexer('+')
         token = next(iter(lexer))
-        self.assertEqual(token.type, TypeId.ADD)
+        self.assertEqual(token.type, TokenType.ADD)
         self.assertEqual(token.value, '+')
 
     def test_lexer_minus(self):
         lexer = self.makeLexer('-')
         token = next(iter(lexer))
-        self.assertEqual(token.type, TypeId.SUB)
+        self.assertEqual(token.type, TokenType.SUB)
         self.assertEqual(token.value, '-')
 
     def test_lexer_lparen(self):
         lexer = self.makeLexer('(')
         token = next(iter(lexer))
-        self.assertEqual(token.type, TypeId.LPAR)
+        self.assertEqual(token.type, TokenType.LPAR)
         self.assertEqual(token.value, '(')
 
     def test_lexer_rparen(self):
         lexer = self.makeLexer(')')
         token = next(iter(lexer))
-        self.assertEqual(token.type, TypeId.RPAR)
+        self.assertEqual(token.type, TokenType.RPAR)
         self.assertEqual(token.value, ')')
 
     def test_lexer_ident(self):
@@ -117,15 +117,16 @@ class LexerTestCase(unittest.TestCase):
 
         self.assertEqual(len(tokens), 9)
 
-        self.assertEqual(tokens[0], Token(TypeId.BEGIN, "[bB][eE][gG][iI][nN]"))
-        self.assertEqual(tokens[1], Token(TypeId.ID, "a"))
-        self.assertEqual(tokens[2], Token(TypeId.ASSIGN, ":="))
-        self.assertEqual(tokens[3], Token(TypeId.INT_CONST, 0))
-        self.assertEqual(tokens[4], Token(TypeId.SEMI, ";"))
-        self.assertEqual(tokens[5], Token(TypeId.END, "[eE][nN][dD]"))
-        self.assertEqual(tokens[6], Token(TypeId.DOT, "."))
-        self.assertEqual(tokens[7], Token(TypeId.EOF, ""))
-        self.assertEqual(tokens[8], Token(TypeId.EOF, None))
+        self.assertEqual(
+            tokens[0], Token(TokenType.BEGIN, "[bB][eE][gG][iI][nN]"))
+        self.assertEqual(tokens[1], Token(TokenType.ID, "a"))
+        self.assertEqual(tokens[2], Token(TokenType.ASSIGN, ":="))
+        self.assertEqual(tokens[3], Token(TokenType.INT_CONST, 0))
+        self.assertEqual(tokens[4], Token(TokenType.SEMI, ";"))
+        self.assertEqual(tokens[5], Token(TokenType.END, "[eE][nN][dD]"))
+        self.assertEqual(tokens[6], Token(TokenType.DOT, "."))
+        self.assertEqual(tokens[7], Token(TokenType.EOF, ""))
+        self.assertEqual(tokens[8], Token(TokenType.EOF, None))
 
         self.assertIs(tokens[0], res_kw_dict['BEGIN'].token)
         self.assertIs(tokens[5], res_kw_dict['END'].token)
@@ -137,15 +138,16 @@ class LexerTestCase(unittest.TestCase):
 
         self.assertEqual(len(tokens), 9)
 
-        self.assertEqual(tokens[0], Token(TypeId.BEGIN, "[bB][eE][gG][iI][nN]"))
-        self.assertEqual(tokens[1], Token(TypeId.ID, "foo_bar123"))
-        self.assertEqual(tokens[2], Token(TypeId.ASSIGN, ":="))
-        self.assertEqual(tokens[3], Token(TypeId.INT_CONST, 0))
-        self.assertEqual(tokens[4], Token(TypeId.SEMI, ";"))
-        self.assertEqual(tokens[5], Token(TypeId.END, "[eE][nN][dD]"))
-        self.assertEqual(tokens[6], Token(TypeId.DOT, "."))
-        self.assertEqual(tokens[7], Token(TypeId.EOF, ""))
-        self.assertEqual(tokens[8], Token(TypeId.EOF, None))
+        self.assertEqual(
+            tokens[0], Token(TokenType.BEGIN, "[bB][eE][gG][iI][nN]"))
+        self.assertEqual(tokens[1], Token(TokenType.ID, "foo_bar123"))
+        self.assertEqual(tokens[2], Token(TokenType.ASSIGN, ":="))
+        self.assertEqual(tokens[3], Token(TokenType.INT_CONST, 0))
+        self.assertEqual(tokens[4], Token(TokenType.SEMI, ";"))
+        self.assertEqual(tokens[5], Token(TokenType.END, "[eE][nN][dD]"))
+        self.assertEqual(tokens[6], Token(TokenType.DOT, "."))
+        self.assertEqual(tokens[7], Token(TokenType.EOF, ""))
+        self.assertEqual(tokens[8], Token(TokenType.EOF, None))
 
         self.assertIs(tokens[0], res_kw_dict['BEGIN'].token)
         self.assertIs(tokens[5], res_kw_dict['END'].token)
@@ -160,15 +162,15 @@ class ParserTestCase(unittest.TestCase):
         ast = p.parse_compound()
         act = str(list(PostOrderIter(ast)))
         exp = "[" + \
-            "Var(Token(TypeId.ID, x)), " + \
-            "Num(Token(TypeId.INT_CONST, 11)), " + \
-            "Assign(Token(TypeId.ASSIGN, :=)), " +\
-            "Var(Token(TypeId.ID, y)), " + \
-            "Num(Token(TypeId.INT_CONST, 2)), " + \
-            "Var(Token(TypeId.ID, x)), " + \
-            "Add(Token(TypeId.ADD, +)), " +\
-            "Assign(Token(TypeId.ASSIGN, :=)), " +\
-            "Compound(Token(TypeId.EOF, None))" +\
+            "Var(Token(TokenType.ID, x)), " + \
+            "Num(Token(TokenType.INT_CONST, 11)), " + \
+            "Assign(Token(TokenType.ASSIGN, :=)), " +\
+            "Var(Token(TokenType.ID, y)), " + \
+            "Num(Token(TokenType.INT_CONST, 2)), " + \
+            "Var(Token(TokenType.ID, x)), " + \
+            "Add(Token(TokenType.ADD, +)), " +\
+            "Assign(Token(TokenType.ASSIGN, :=)), " +\
+            "Compound(Token(TokenType.EOF, None))" +\
         "]"
         self.assertEqual(act, exp)
 
@@ -187,35 +189,35 @@ class ParserTestCase(unittest.TestCase):
         ast = p.parse_compound()
         act = str(list(PostOrderIter(ast)))
         exp = "[" + \
-            "Var(Token(TypeId.ID, number)), " + \
-            "Num(Token(TypeId.INT_CONST, 2)), " + \
-            "Assign(Token(TypeId.ASSIGN, :=)), " + \
-            "Var(Token(TypeId.ID, a)), " + \
-            "Var(Token(TypeId.ID, number)), " + \
-            "Assign(Token(TypeId.ASSIGN, :=)), " + \
-            "Var(Token(TypeId.ID, b)), " + \
-            "Num(Token(TypeId.INT_CONST, 10)), " + \
-            "Var(Token(TypeId.ID, a)), " + \
-            "Mul(Token(TypeId.MUL, *)), " + \
-            "Num(Token(TypeId.INT_CONST, 10)), " + \
-            "Var(Token(TypeId.ID, number)), " + \
-            "Mul(Token(TypeId.MUL, *)), " + \
-            "Num(Token(TypeId.INT_CONST, 4)), " + \
-            "IntDiv(Token(TypeId.INT_DIV, [dD][iI][vV])), " + \
-            "Add(Token(TypeId.ADD, +)), " + \
-            "Assign(Token(TypeId.ASSIGN, :=)), " + \
-            "Var(Token(TypeId.ID, c)), " + \
-            "Var(Token(TypeId.ID, a)), " + \
-            "Var(Token(TypeId.ID, b)), " + \
-            "Neg(Token(TypeId.SUB, -)), " + \
-            "Sub(Token(TypeId.SUB, -)), " + \
-            "Assign(Token(TypeId.ASSIGN, :=)), " + \
-            "Compound(Token(TypeId.EOF, None)), " + \
-            "Var(Token(TypeId.ID, x)), " + \
-            "Num(Token(TypeId.INT_CONST, 11)), " + \
-            "Assign(Token(TypeId.ASSIGN, :=)), " + \
-            "NoOp(Token(TypeId.EOF, None)), " + \
-            "Compound(Token(TypeId.EOF, None))" + \
+            "Var(Token(TokenType.ID, number)), " + \
+            "Num(Token(TokenType.INT_CONST, 2)), " + \
+            "Assign(Token(TokenType.ASSIGN, :=)), " + \
+            "Var(Token(TokenType.ID, a)), " + \
+            "Var(Token(TokenType.ID, number)), " + \
+            "Assign(Token(TokenType.ASSIGN, :=)), " + \
+            "Var(Token(TokenType.ID, b)), " + \
+            "Num(Token(TokenType.INT_CONST, 10)), " + \
+            "Var(Token(TokenType.ID, a)), " + \
+            "Mul(Token(TokenType.MUL, *)), " + \
+            "Num(Token(TokenType.INT_CONST, 10)), " + \
+            "Var(Token(TokenType.ID, number)), " + \
+            "Mul(Token(TokenType.MUL, *)), " + \
+            "Num(Token(TokenType.INT_CONST, 4)), " + \
+            "IntDiv(Token(TokenType.INT_DIV, [dD][iI][vV])), " + \
+            "Add(Token(TokenType.ADD, +)), " + \
+            "Assign(Token(TokenType.ASSIGN, :=)), " + \
+            "Var(Token(TokenType.ID, c)), " + \
+            "Var(Token(TokenType.ID, a)), " + \
+            "Var(Token(TokenType.ID, b)), " + \
+            "Neg(Token(TokenType.SUB, -)), " + \
+            "Sub(Token(TokenType.SUB, -)), " + \
+            "Assign(Token(TokenType.ASSIGN, :=)), " + \
+            "Compound(Token(TokenType.EOF, None)), " + \
+            "Var(Token(TokenType.ID, x)), " + \
+            "Num(Token(TokenType.INT_CONST, 11)), " + \
+            "Assign(Token(TokenType.ASSIGN, :=)), " + \
+            "NoOp(Token(TokenType.EOF, None)), " + \
+            "Compound(Token(TokenType.EOF, None))" + \
         "]"
 
         self.assertEqual(act, exp)
@@ -226,40 +228,40 @@ class ParserTestCase(unittest.TestCase):
         ast = p.parse()
         act = str(list(PostOrderIter(ast)))
         exp = "[" + \
-            "Var(Token(TypeId.ID, a)), " + \
-            "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
-            "VarDecl(Token(TypeId.EOF, None)), " + \
-            "Var(Token(TypeId.ID, b)), " + \
-            "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
-            "VarDecl(Token(TypeId.EOF, None)), " + \
-            "Var(Token(TypeId.ID, y)), " + \
-            "Type(Token(TypeId.REAL, [rR][eE][aA][lL])), " + \
-            "VarDecl(Token(TypeId.EOF, None)), " + \
-            "Var(Token(TypeId.ID, a)), " + \
-            "Num(Token(TypeId.INT_CONST, 2)), " + \
-            "Assign(Token(TypeId.ASSIGN, :=)), " + \
-            "Var(Token(TypeId.ID, b)), " + \
-            "Num(Token(TypeId.INT_CONST, 10)), " + \
-            "Var(Token(TypeId.ID, a)), " + \
-            "Mul(Token(TypeId.MUL, *)), " + \
-            "Num(Token(TypeId.INT_CONST, 10)), " + \
-            "Var(Token(TypeId.ID, a)), " + \
-            "Mul(Token(TypeId.MUL, *)), " + \
-            "Num(Token(TypeId.INT_CONST, 4)), " + \
-            "IntDiv(Token(TypeId.INT_DIV, [dD][iI][vV])), " + \
-            "Add(Token(TypeId.ADD, +)), " + \
-            "Assign(Token(TypeId.ASSIGN, :=)), " + \
-            "Var(Token(TypeId.ID, y)), " + \
-            "Num(Token(TypeId.INT_CONST, 20)), " + \
-            "Num(Token(TypeId.INT_CONST, 7)), " + \
-            "FloatDiv(Token(TypeId.FLOAT_DIV, /)), " + \
-            "Num(Token(TypeId.REAL_CONST, 3.14)), " + \
-            "Add(Token(TypeId.ADD, +)), " + \
-            "Assign(Token(TypeId.ASSIGN, :=)), " + \
-            "NoOp(Token(TypeId.EOF, None)), " + \
-            "Compound(Token(TypeId.EOF, None)), " + \
-            "Block(Token(TypeId.EOF, None)), " + \
-            "Program(Token(TypeId.EOF, None))" + \
+            "Var(Token(TokenType.ID, a)), " + \
+            "Type(Token(TokenType.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
+            "VarDecl(Token(TokenType.EOF, None)), " + \
+            "Var(Token(TokenType.ID, b)), " + \
+            "Type(Token(TokenType.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
+            "VarDecl(Token(TokenType.EOF, None)), " + \
+            "Var(Token(TokenType.ID, y)), " + \
+            "Type(Token(TokenType.REAL, [rR][eE][aA][lL])), " + \
+            "VarDecl(Token(TokenType.EOF, None)), " + \
+            "Var(Token(TokenType.ID, a)), " + \
+            "Num(Token(TokenType.INT_CONST, 2)), " + \
+            "Assign(Token(TokenType.ASSIGN, :=)), " + \
+            "Var(Token(TokenType.ID, b)), " + \
+            "Num(Token(TokenType.INT_CONST, 10)), " + \
+            "Var(Token(TokenType.ID, a)), " + \
+            "Mul(Token(TokenType.MUL, *)), " + \
+            "Num(Token(TokenType.INT_CONST, 10)), " + \
+            "Var(Token(TokenType.ID, a)), " + \
+            "Mul(Token(TokenType.MUL, *)), " + \
+            "Num(Token(TokenType.INT_CONST, 4)), " + \
+            "IntDiv(Token(TokenType.INT_DIV, [dD][iI][vV])), " + \
+            "Add(Token(TokenType.ADD, +)), " + \
+            "Assign(Token(TokenType.ASSIGN, :=)), " + \
+            "Var(Token(TokenType.ID, y)), " + \
+            "Num(Token(TokenType.INT_CONST, 20)), " + \
+            "Num(Token(TokenType.INT_CONST, 7)), " + \
+            "FloatDiv(Token(TokenType.FLOAT_DIV, /)), " + \
+            "Num(Token(TokenType.REAL_CONST, 3.14)), " + \
+            "Add(Token(TokenType.ADD, +)), " + \
+            "Assign(Token(TokenType.ASSIGN, :=)), " + \
+            "NoOp(Token(TokenType.EOF, None)), " + \
+            "Compound(Token(TokenType.EOF, None)), " + \
+            "Block(Token(TokenType.EOF, None)), " + \
+            "Program(Token(TokenType.EOF, None))" + \
         "]"
 
         self.assertEqual(act, exp)
@@ -271,39 +273,39 @@ class ParserTestCase(unittest.TestCase):
         ast = p.parse()
         act = str(list(PostOrderIter(ast)))
         exp = "[" + \
-            "Var(Token(TypeId.ID, a)), " + \
-            "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
-            "VarDecl(Token(TypeId.EOF, None)), " + \
-            "Var(Token(TypeId.ID, a)), " + \
-            "Type(Token(TypeId.REAL, [rR][eE][aA][lL])), " + \
-            "VarDecl(Token(TypeId.EOF, None)), " + \
-            "Var(Token(TypeId.ID, k)), " + \
-            "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
-            "VarDecl(Token(TypeId.EOF, None)), " + \
-            "Var(Token(TypeId.ID, a)), " + \
-            "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
-            "VarDecl(Token(TypeId.EOF, None)), " + \
-            "Var(Token(TypeId.ID, z)), " + \
-            "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
-            "VarDecl(Token(TypeId.EOF, None)), " + \
-            "Var(Token(TypeId.ID, z)), " + \
-            "Num(Token(TypeId.INT_CONST, 777)), " + \
-            "Assign(Token(TypeId.ASSIGN, :=)), "  + \
-            "NoOp(Token(TypeId.EOF, None)), " + \
-            "Compound(Token(TypeId.EOF, None)), " + \
-            "Block(Token(TypeId.EOF, None)), " + \
-            "ProcDecl(Token(TypeId.EOF, p2)), " + \
-            "NoOp(Token(TypeId.EOF, None)), " + \
-            "Compound(Token(TypeId.EOF, None)), " + \
-            "Block(Token(TypeId.EOF, None)), " + \
-            "ProcDecl(Token(TypeId.EOF, p1)), " + \
-            "Var(Token(TypeId.ID, a)), " + \
-            "Num(Token(TypeId.INT_CONST, 10)), " + \
-            "Assign(Token(TypeId.ASSIGN, :=)), " + \
-            "NoOp(Token(TypeId.EOF, None)), " + \
-            "Compound(Token(TypeId.EOF, None)), " + \
-            "Block(Token(TypeId.EOF, None)), " + \
-            "Program(Token(TypeId.EOF, None))" + \
+            "Var(Token(TokenType.ID, a)), " + \
+            "Type(Token(TokenType.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
+            "VarDecl(Token(TokenType.EOF, None)), " + \
+            "Var(Token(TokenType.ID, a)), " + \
+            "Type(Token(TokenType.REAL, [rR][eE][aA][lL])), " + \
+            "VarDecl(Token(TokenType.EOF, None)), " + \
+            "Var(Token(TokenType.ID, k)), " + \
+            "Type(Token(TokenType.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
+            "VarDecl(Token(TokenType.EOF, None)), " + \
+            "Var(Token(TokenType.ID, a)), " + \
+            "Type(Token(TokenType.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
+            "VarDecl(Token(TokenType.EOF, None)), " + \
+            "Var(Token(TokenType.ID, z)), " + \
+            "Type(Token(TokenType.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
+            "VarDecl(Token(TokenType.EOF, None)), " + \
+            "Var(Token(TokenType.ID, z)), " + \
+            "Num(Token(TokenType.INT_CONST, 777)), " + \
+            "Assign(Token(TokenType.ASSIGN, :=)), "  + \
+            "NoOp(Token(TokenType.EOF, None)), " + \
+            "Compound(Token(TokenType.EOF, None)), " + \
+            "Block(Token(TokenType.EOF, None)), " + \
+            "ProcDecl(Token(TokenType.EOF, p2)), " + \
+            "NoOp(Token(TokenType.EOF, None)), " + \
+            "Compound(Token(TokenType.EOF, None)), " + \
+            "Block(Token(TokenType.EOF, None)), " + \
+            "ProcDecl(Token(TokenType.EOF, p1)), " + \
+            "Var(Token(TokenType.ID, a)), " + \
+            "Num(Token(TokenType.INT_CONST, 10)), " + \
+            "Assign(Token(TokenType.ASSIGN, :=)), " + \
+            "NoOp(Token(TokenType.EOF, None)), " + \
+            "Compound(Token(TokenType.EOF, None)), " + \
+            "Block(Token(TokenType.EOF, None)), " + \
+            "Program(Token(TokenType.EOF, None))" + \
         "]"
         self.assertEqual(act, exp)
 
@@ -314,7 +316,7 @@ class ParserTestCase(unittest.TestCase):
             p.parse_compound()
 
         exp_msg = \
-            "Invalid syntax: found Token(TypeId.ID, _a). " + \
+            "Invalid syntax: found Token(TokenType.ID, _a). " + \
             "Expected semi-colon, line 6"
         act_msg = e.exception.args[0]
         self.assertEqual(act_msg, exp_msg)
@@ -326,33 +328,35 @@ class ParserTestCase(unittest.TestCase):
         self.assertEqual(
             actual,
             "[" + \
-                "Var(Token(TypeId.ID, x)), " + \
-                "Type(Token(TypeId.REAL, [rR][eE][aA][lL])), " + \
-                "VarDecl(Token(TypeId.EOF, None)), " + \
-                "Var(Token(TypeId.ID, y)), " + \
-                "Type(Token(TypeId.REAL, [rR][eE][aA][lL])), " + \
-                "VarDecl(Token(TypeId.EOF, None)), " + \
-                "Var(Token(TypeId.ID, a)), " + \
-                "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " +\
-                "Param(Token(TypeId.EOF, None)), " + \
-                "Var(Token(TypeId.ID, y)), " + \
-                "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " +\
-                "VarDecl(Token(TypeId.EOF, None)), " + \
-                "Var(Token(TypeId.ID, x)), " + \
-                "Var(Token(TypeId.ID, a)), " + \
-                "Var(Token(TypeId.ID, x)), " + \
-                "Add(Token(TypeId.ADD, +)), " + \
-                "Var(Token(TypeId.ID, y)), " + \
-                "Add(Token(TypeId.ADD, +)), " + \
-                "Assign(Token(TypeId.ASSIGN, :=)), " + \
-                "NoOp(Token(TypeId.EOF, None)), " + \
-                "Compound(Token(TypeId.EOF, None)), " + \
-                "Block(Token(TypeId.EOF, None)), " + \
-                "ProcDecl(Token(TypeId.EOF, alpha)), " + \
-                "NoOp(Token(TypeId.EOF, None)), " + \
-                "Compound(Token(TypeId.EOF, None)), " + \
-                "Block(Token(TypeId.EOF, None)), " + \
-                "Program(Token(TypeId.EOF, None))" + \
+                "Var(Token(TokenType.ID, x)), " + \
+                "Type(Token(TokenType.REAL, [rR][eE][aA][lL])), " + \
+                "VarDecl(Token(TokenType.EOF, None)), " + \
+                "Var(Token(TokenType.ID, y)), " + \
+                "Type(Token(TokenType.REAL, [rR][eE][aA][lL])), " + \
+                "VarDecl(Token(TokenType.EOF, None)), " + \
+                "Var(Token(TokenType.ID, a)), " + \
+                "Type(Token(TokenType.INTEGER, " + \
+                    "[iI][nN][tT][eE][gG][eE][rR])), " +\
+                "Param(Token(TokenType.EOF, None)), " + \
+                "Var(Token(TokenType.ID, y)), " + \
+                "Type(Token(TokenType.INTEGER, " + \
+                    "[iI][nN][tT][eE][gG][eE][rR])), " +\
+                "VarDecl(Token(TokenType.EOF, None)), " + \
+                "Var(Token(TokenType.ID, x)), " + \
+                "Var(Token(TokenType.ID, a)), " + \
+                "Var(Token(TokenType.ID, x)), " + \
+                "Add(Token(TokenType.ADD, +)), " + \
+                "Var(Token(TokenType.ID, y)), " + \
+                "Add(Token(TokenType.ADD, +)), " + \
+                "Assign(Token(TokenType.ASSIGN, :=)), " + \
+                "NoOp(Token(TokenType.EOF, None)), " + \
+                "Compound(Token(TokenType.EOF, None)), " + \
+                "Block(Token(TokenType.EOF, None)), " + \
+                "ProcDecl(Token(TokenType.EOF, alpha)), " + \
+                "NoOp(Token(TokenType.EOF, None)), " + \
+                "Compound(Token(TokenType.EOF, None)), " + \
+                "Block(Token(TokenType.EOF, None)), " + \
+                "Program(Token(TokenType.EOF, None))" + \
             "]"
         )
 
@@ -363,39 +367,42 @@ class ParserTestCase(unittest.TestCase):
         self.assertEqual(
             actual,
             "[" + \
-                "Var(Token(TypeId.ID, x)), " + \
-                "Type(Token(TypeId.REAL, [rR][eE][aA][lL])), " + \
-                "VarDecl(Token(TypeId.EOF, None)), " + \
-                "Var(Token(TypeId.ID, y)), " + \
-                "Type(Token(TypeId.REAL, [rR][eE][aA][lL])), " + \
-                "VarDecl(Token(TypeId.EOF, None)), " + \
-                "Var(Token(TypeId.ID, a)), " + \
-                "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " +\
-                "Param(Token(TypeId.EOF, None)), " + \
-                "Var(Token(TypeId.ID, b)), " + \
-                "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " +\
-                "Param(Token(TypeId.EOF, None)), " + \
-                "Var(Token(TypeId.ID, c)), " + \
-                "Type(Token(TypeId.REAL, [rR][eE][aA][lL])), " + \
-                "Param(Token(TypeId.EOF, None)), " + \
-                "Var(Token(TypeId.ID, y)), " + \
-                "Type(Token(TypeId.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " +\
-                "VarDecl(Token(TypeId.EOF, None)), " + \
-                "Var(Token(TypeId.ID, x)), " + \
-                "Var(Token(TypeId.ID, a)), " + \
-                "Var(Token(TypeId.ID, x)), " + \
-                "Add(Token(TypeId.ADD, +)), " + \
-                "Var(Token(TypeId.ID, y)), " + \
-                "Add(Token(TypeId.ADD, +)), " + \
-                "Assign(Token(TypeId.ASSIGN, :=)), " + \
-                "NoOp(Token(TypeId.EOF, None)), " + \
-                "Compound(Token(TypeId.EOF, None)), " + \
-                "Block(Token(TypeId.EOF, None)), " + \
-                "ProcDecl(Token(TypeId.EOF, alpha)), " + \
-                "NoOp(Token(TypeId.EOF, None)), " + \
-                "Compound(Token(TypeId.EOF, None)), " + \
-                "Block(Token(TypeId.EOF, None)), " + \
-                "Program(Token(TypeId.EOF, None))" + \
+                "Var(Token(TokenType.ID, x)), " + \
+                "Type(Token(TokenType.REAL, [rR][eE][aA][lL])), " + \
+                "VarDecl(Token(TokenType.EOF, None)), " + \
+                "Var(Token(TokenType.ID, y)), " + \
+                "Type(Token(TokenType.REAL, [rR][eE][aA][lL])), " + \
+                "VarDecl(Token(TokenType.EOF, None)), " + \
+                "Var(Token(TokenType.ID, a)), " + \
+                "Type(Token(TokenType.INTEGER, " + \
+                    "[iI][nN][tT][eE][gG][eE][rR])), " +\
+                "Param(Token(TokenType.EOF, None)), " + \
+                "Var(Token(TokenType.ID, b)), " + \
+                "Type(Token(TokenType.INTEGER, " + 
+                    "[iI][nN][tT][eE][gG][eE][rR])), " +\
+                "Param(Token(TokenType.EOF, None)), " + \
+                "Var(Token(TokenType.ID, c)), " + \
+                "Type(Token(TokenType.REAL, [rR][eE][aA][lL])), " + \
+                "Param(Token(TokenType.EOF, None)), " + \
+                "Var(Token(TokenType.ID, y)), " + \
+                "Type(Token(TokenType.INTEGER, " + \
+                    "[iI][nN][tT][eE][gG][eE][rR])), " +\
+                "VarDecl(Token(TokenType.EOF, None)), " + \
+                "Var(Token(TokenType.ID, x)), " + \
+                "Var(Token(TokenType.ID, a)), " + \
+                "Var(Token(TokenType.ID, x)), " + \
+                "Add(Token(TokenType.ADD, +)), " + \
+                "Var(Token(TokenType.ID, y)), " + \
+                "Add(Token(TokenType.ADD, +)), " + \
+                "Assign(Token(TokenType.ASSIGN, :=)), " + \
+                "NoOp(Token(TokenType.EOF, None)), " + \
+                "Compound(Token(TokenType.EOF, None)), " + \
+                "Block(Token(TokenType.EOF, None)), " + \
+                "ProcDecl(Token(TokenType.EOF, alpha)), " + \
+                "NoOp(Token(TokenType.EOF, None)), " + \
+                "Compound(Token(TokenType.EOF, None)), " + \
+                "Block(Token(TokenType.EOF, None)), " + \
+                "Program(Token(TokenType.EOF, None))" + \
             "]"
         )
 
@@ -471,7 +478,8 @@ class InterpreterTestCase(unittest.TestCase):
         msg = e.exception.args[0]
         self.assertEqual(
             msg, 
-            "Invalid syntax: was expecting TypeId.ID, got TypeId.EOF, line 1"
+            "Invalid syntax: was expecting TokenType.ID, " + \
+            "got TokenType.EOF, line 1"
         )
 
     def test_expression_invalid_syntax1(self):
@@ -762,9 +770,13 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "Lookup: y. (Scope name: alpha)",
             "Lookup: x. (Scope name: alpha)",
             "Lookup: x. (Scope name: global)",
-            "(name: alpha, level: 2, encl_scope: global, symbols: ['<a:INTEGER>', '<y:INTEGER>'])",
+            "(name: alpha, level: 2, encl_scope: global, " + \
+                "symbols: ['<a:INTEGER>', '<y:INTEGER>'])",
             "LEAVE scope alpha",
-            "(name: global, level: 1, encl_scope: None, symbols: ['INTEGER', 'REAL', '<x:REAL>', '<y:REAL>', \"ProcSymbol(name=alpha, params=[VarSymbol(name='a', type='INTEGER')])\"])",
+            "(name: global, level: 1, encl_scope: None, " + \
+                "symbols: ['INTEGER', 'REAL', '<x:REAL>', " + \
+                "'<y:REAL>', \"ProcSymbol(name=alpha, " + \
+                "params=[VarSymbol(name='a', type='INTEGER')])\"])",
             "LEAVE scope global"
         ]
 
