@@ -538,6 +538,14 @@ class ScopedSymbolTable:
             return self.encl_scope.lookup(name)
         return sym
 
+    def lookup_level(self, name: str) -> Optional[int]:
+        if self._symbols.get(name) is not None:
+            return self.level
+        elif self.encl_scope is not None:
+            return self.encl_scope.lookup_level(name)
+        else:
+            return None
+
     def insert(self, sym: Symbol) -> None:
         logging.info(f"Insert: {sym.name}")
         self._symbols[sym.name] = sym
@@ -837,23 +845,23 @@ class NodeVisitor(ABC):
         pass
 
     @abstractmethod
-    def _visit_add(self, node: AST) -> Union[int, float, None]:
+    def _visit_add(self, node: Add) -> Union[int, float, None]:
         pass
 
     @abstractmethod
-    def _visit_sub(self, node: AST) -> Union[int, float, None]:
+    def _visit_sub(self, node: Sub) -> Union[int, float, None]:
         pass
 
     @abstractmethod
-    def _visit_mul(self, node: AST) -> Union[int, float, None]:
+    def _visit_mul(self, node: Mul) -> Union[int, float, None]:
         pass
 
     @abstractmethod
-    def _visit_intdiv(self, node: AST) -> Union[int, float, None]:
+    def _visit_intdiv(self, node: IntDiv) -> Union[int, float, None]:
         pass
 
     @abstractmethod
-    def _visit_floatdiv(self, node: AST) -> Union[int, float, None]:
+    def _visit_floatdiv(self, node: FloatDiv) -> Union[int, float, None]:
         pass
 
     @abstractmethod
@@ -897,17 +905,477 @@ class NodeVisitor(ABC):
         pass
 
 
-class SemanticAnalyzer(NodeVisitor):
+class IDecoSrcBuilder(ABC):
+    @property # type:ignore
+    @abstractmethod
+    def value(self) -> str:
+        pass
+
+    def build_pre_visit(
+        self, scope: Optional[ScopedSymbolTable], node: AST) -> None:
+        methname = f"_build_pre_visit_{type(node).__name__.lower()}"
+        getattr(self, methname)(scope, node)
+
+    def build_post_visit(
+        self, scope: Optional[ScopedSymbolTable], node: AST) -> None:
+        methname = f"_build_post_visit_{type(node).__name__.lower()}"
+        getattr(self, methname)(scope, node)
+
+    def build_in_visit(
+        self, scope: Optional[ScopedSymbolTable], node: AST) -> None:
+        methname = f"_build_in_visit_{type(node).__name__.lower()}"
+        getattr(self, methname)(scope, node)
+
+    @abstractmethod
+    def _build_pre_visit_pos(
+        self, scope: Optional[ScopedSymbolTable], node: Pos) -> None:
+        pass
+
+    @abstractmethod
+    def _build_post_visit_pos(
+        self, scope: Optional[ScopedSymbolTable], node: Pos) -> None:
+        pass
+
+    @abstractmethod
+    def _build_pre_visit_neg(
+        self, scope: Optional[ScopedSymbolTable], node: Neg) -> None:
+        pass
+
+    @abstractmethod
+    def _build_post_visit_neg(
+        self, scope: Optional[ScopedSymbolTable], node: Neg) -> None:
+        pass
+
+    @abstractmethod
+    def _build_pre_visit_add(
+        self, scope: Optional[ScopedSymbolTable], node: Add) -> None:
+        pass
+
+    @abstractmethod
+    def _build_in_visit_add(
+        self, scope: Optional[ScopedSymbolTable], node: Add) -> None:
+        pass
+
+    @abstractmethod
+    def _build_post_visit_add(
+        self, scope: Optional[ScopedSymbolTable], node: Add) -> None:
+        pass
+
+    @abstractmethod
+    def _build_pre_visit_sub(
+        self, scope: Optional[ScopedSymbolTable], node: Sub) -> None:
+        pass
+
+    @abstractmethod
+    def _build_in_visit_sub(
+        self, scope: Optional[ScopedSymbolTable], node: Sub) -> None:
+        pass
+
+    @abstractmethod
+    def _build_post_visit_sub(
+        self, scope: Optional[ScopedSymbolTable], node: Sub) -> None:
+        pass
+
+    @abstractmethod
+    def _build_pre_visit_mul(
+        self, scope: Optional[ScopedSymbolTable], node: Mul) -> None:
+        pass
+
+    @abstractmethod
+    def _build_in_visit_mul(
+        self, scope: Optional[ScopedSymbolTable], node: Mul) -> None:
+        pass
+
+    @abstractmethod
+    def _build_post_visit_mul(
+        self, scope: Optional[ScopedSymbolTable], node: Mul) -> None:
+        pass
+
+    @abstractmethod
+    def _build_pre_visit_intdiv(
+        self, scope: Optional[ScopedSymbolTable], node: IntDiv) -> None:
+        pass
+
+    @abstractmethod
+    def _build_in_visit_intdiv(
+        self, scope: Optional[ScopedSymbolTable], node: IntDiv) -> None:
+        pass
+
+    @abstractmethod
+    def _build_post_visit_intdiv(
+        self, scope: Optional[ScopedSymbolTable], node: IntDiv) -> None:
+        pass
+
+    @abstractmethod
+    def _build_pre_visit_floatdiv(
+        self, scope: Optional[ScopedSymbolTable], node: FloatDiv) -> None:
+        pass
+
+    @abstractmethod
+    def _build_in_visit_floatdiv(
+        self, scope: Optional[ScopedSymbolTable], node: FloatDiv) -> None:
+        pass
+
+    @abstractmethod
+    def _build_post_visit_floatdiv(
+        self, scope: Optional[ScopedSymbolTable], node: FloatDiv) -> None:
+        pass
+
+    @abstractmethod
+    def _build_pre_visit_num(
+        self, scope: Optional[ScopedSymbolTable], node: Num) -> None:
+        pass
+
+    @abstractmethod
+    def _build_post_visit_num(
+        self, scope: Optional[ScopedSymbolTable], node: Num) -> None:
+        pass
+
+    @abstractmethod
+    def _build_pre_visit_compound(
+        self, scope: Optional[ScopedSymbolTable], node: Compound) -> None:
+        pass
+
+    @abstractmethod
+    def _build_post_visit_compound(
+        self, scope: Optional[ScopedSymbolTable], node: Compound) -> None:
+        pass
+
+    @abstractmethod
+    def _build_pre_visit_noop(
+        self, scope: Optional[ScopedSymbolTable], node: NoOp) -> None:
+        pass
+
+    @abstractmethod
+    def _build_post_visit_noop(
+        self, scope: Optional[ScopedSymbolTable], node: NoOp) -> None:
+        pass
+
+    @abstractmethod
+    def _build_pre_visit_assign(
+        self, scope: Optional[ScopedSymbolTable], node: Assign) -> None:
+        pass
+
+    @abstractmethod
+    def _build_in_visit_assign(
+        self, scope: Optional[ScopedSymbolTable], node: Assign) -> None:
+        pass
+
+    @abstractmethod
+    def _build_post_visit_assign(
+        self, scope: Optional[ScopedSymbolTable], node: Assign) -> None:
+        pass
+
+    @abstractmethod
+    def _build_pre_visit_var(
+        self, scope: Optional[ScopedSymbolTable], node: Var) -> None:
+        pass
+
+    @abstractmethod
+    def _build_post_visit_var(
+        self, scope: Optional[ScopedSymbolTable], node: Var) -> None:
+        pass
+
+    @abstractmethod
+    def _build_pre_visit_program(
+        self, scope: Optional[ScopedSymbolTable], node: Program) -> None:
+        pass
+
+    @abstractmethod
+    def _build_in_visit_program(
+        self, scope: Optional[ScopedSymbolTable], node: Program) -> None:
+        pass
+
+    @abstractmethod
+    def _build_post_visit_program(
+        self, scope: Optional[ScopedSymbolTable], node: Program) -> None:
+        pass
+
+    @abstractmethod
+    def _build_pre_visit_block(
+        self, scope: Optional[ScopedSymbolTable], node: Block) -> None:
+        pass
+
+    @abstractmethod
+    def _build_post_visit_block(
+        self, scope: Optional[ScopedSymbolTable], node: Block) -> None:
+        pass
+
+    @abstractmethod
+    def _build_pre_visit_vardecl(
+        self, scope: Optional[ScopedSymbolTable], node: VarDecl) -> None:
+        pass
+
+    @abstractmethod
+    def _build_post_visit_vardecl(
+        self, scope: Optional[ScopedSymbolTable], node: VarDecl) -> None:
+        pass
+
+    @abstractmethod
+    def _build_pre_visit_procdecl(
+        self, scope: Optional[ScopedSymbolTable], node: ProcDecl) -> None:
+        pass
+
+    @abstractmethod
+    def _build_post_visit_procdecl(
+        self, scope: Optional[ScopedSymbolTable], node: ProcDecl) -> None:
+        pass
+
+    @abstractmethod
+    def _build_pre_visit_type(
+        self, scope: Optional[ScopedSymbolTable], node: Type) -> None:
+        pass
+
+    @abstractmethod
+    def _build_post_visit_type(
+        self, scope: Optional[ScopedSymbolTable], node: Type) -> None:
+        pass
+
+
+class DecoSrcBuilder(IDecoSrcBuilder):
     def __init__(self):
+        self._value: str = ""
+        self._expr: List[str] = [] 
+        self._lvalue: List[str] = []
+        self._statement: List[str] = []
+        self._global_name: str = ""
+
+    @property
+    def value(self) -> str:
+        return self._value
+
+    def _indent(self, scope: Optional[ScopedSymbolTable]) -> str:
+        level = scope.level if scope is not None else 0
+        return " " * 3 * level
+
+    def _writeinl(self, s: str) -> None:
+        self._value += s
+
+    def _write(self, scope: Optional[ScopedSymbolTable], s: str) -> None:
+        self._writeinl(f"{self._indent(scope)}{s}")
+
+    def _writeln(self, scope: Optional[ScopedSymbolTable], s: str) -> None:
+        self._write(scope, f"{s}\n")
+
+    def _build_pre_visit_pos(
+        self, scope: Optional[ScopedSymbolTable], node: Pos) -> None:
+        self._statement.append("+")
+
+    def _build_post_visit_pos(
+        self, scope: Optional[ScopedSymbolTable], node: Pos) -> None:
+        pass
+
+    def _build_pre_visit_neg(
+        self, scope: Optional[ScopedSymbolTable], node: Neg) -> None:
+        self._statement.append("-")
+
+    def _build_post_visit_neg(
+        self, scope: Optional[ScopedSymbolTable], node: Neg) -> None:
+        pass
+
+    def _build_pre_visit_add(
+        self, scope: Optional[ScopedSymbolTable], node: Add) -> None:
+        pass
+
+    def _build_in_visit_add(
+        self, scope: Optional[ScopedSymbolTable], node: Add) -> None:
+        self._statement.append("+") 
+
+    def _build_post_visit_add(
+        self, scope: Optional[ScopedSymbolTable], node: Add) -> None:
+        pass
+
+    def _build_pre_visit_sub(
+        self, scope: Optional[ScopedSymbolTable], node: Sub) -> None:
+        pass
+
+    def _build_in_visit_sub(
+        self, scope: Optional[ScopedSymbolTable], node: Sub) -> None:
+        self._statement.append("-")
+
+    def _build_post_visit_sub(
+        self, scope: Optional[ScopedSymbolTable], node: Sub) -> None:
+        pass
+
+    def _build_pre_visit_mul(
+        self, scope: Optional[ScopedSymbolTable], node: Mul) -> None:
+        pass
+
+    def _build_in_visit_mul(
+        self, scope: Optional[ScopedSymbolTable], node: Mul) -> None:
+        self._statement.append("*")
+
+    def _build_post_visit_mul(
+        self, scope: Optional[ScopedSymbolTable], node: Mul) -> None:
+        pass
+
+    def _build_pre_visit_intdiv(
+        self, scope: Optional[ScopedSymbolTable], node: IntDiv) -> None:
+        pass
+
+    def _build_in_visit_intdiv(
+        self, scope: Optional[ScopedSymbolTable], node: IntDiv) -> None:
+        self._statement.append("DIV")
+
+    def _build_post_visit_intdiv(
+        self, scope: Optional[ScopedSymbolTable], node: IntDiv) -> None:
+        pass
+
+    def _build_pre_visit_floatdiv(
+        self, scope: Optional[ScopedSymbolTable], node: FloatDiv) -> None:
+        pass
+
+    def _build_in_visit_floatdiv(
+        self, scope: Optional[ScopedSymbolTable], node: FloatDiv) -> None:
+        self._statement.append("/")
+
+    def _build_post_visit_floatdiv(
+        self, scope: Optional[ScopedSymbolTable], node: FloatDiv) -> None:
+        pass
+
+    def _build_pre_visit_num(
+        self, scope: Optional[ScopedSymbolTable], node: Num) -> None:
+        pass
+
+    def _build_post_visit_num(
+        self, scope: Optional[ScopedSymbolTable], node: Num) -> None:
+        pass
+
+    def _build_pre_visit_compound(
+        self, scope: Optional[ScopedSymbolTable], node: Compound) -> None:
+        self._writeln(scope, f"begin")
+
+    def _build_post_visit_compound(
+        self, scope: Optional[ScopedSymbolTable], node: Compound) -> None:
+        s = f"end;" if scope is not None and scope.level > 1 else f"end"
+        self._write(scope, s)
+
+    def _build_pre_visit_noop(
+        self, scope: Optional[ScopedSymbolTable], node: NoOp) -> None:
+        pass
+
+    def _build_post_visit_noop(
+        self, scope: Optional[ScopedSymbolTable], node: NoOp) -> None:
+        pass
+
+    def _build_pre_visit_assign(
+        self, scope: Optional[ScopedSymbolTable], node: Assign) -> None:
+        self._expr = []
+        self._lvalue = []
+        self._statement = []
+
+    def _build_in_visit_assign(
+        self, scope: Optional[ScopedSymbolTable], node: Assign) -> None:
+        self._expr = self._statement
+        self._statement = []
+
+    def _build_post_visit_assign(
+        self, scope: Optional[ScopedSymbolTable], node: Assign) -> None:
+        self._lvalue = self._statement
+        self._statement = []
+        lvalue = " ".join(self._lvalue)
+        expr = " ".join(self._expr)
+        self._writeln(scope, f"{lvalue} := {expr}")
+
+    def _build_pre_visit_var(
+        self, scope: Optional[ScopedSymbolTable], node: Var) -> None:
+        var_name = node.value
+        assert scope is not None
+        sym = scope.lookup(var_name)
+        type_name = f":{sym.type.name}" if isinstance(sym, VarSymbol) else ""
+        lv = scope.lookup_level(var_name) or ""
+        self._statement.append(f"<{var_name}{lv}{type_name}>")
+
+    def _build_post_visit_var(
+        self, scope: Optional[ScopedSymbolTable], node: Var) -> None:
+        pass
+
+    def _build_pre_visit_program(
+        self, scope: Optional[ScopedSymbolTable], node: Program) -> None:
+        lv = scope.level if scope else 0
+        self._global_name = node.name
+        self._writeln(scope, f"program {node.name}{lv};")
+
+    def _build_in_visit_program(
+        self, scope: Optional[ScopedSymbolTable], node: Program) -> None:
+        pass
+
+    def _build_post_visit_program(
+        self, scope: Optional[ScopedSymbolTable], node: Program) -> None:
+        self._writeinl(f".    {{END OF {self._global_name}}}")
+
+    def _build_pre_visit_block(
+        self, scope: Optional[ScopedSymbolTable], node: Block) -> None:
+        pass
+
+    def _build_post_visit_block(
+        self, scope: Optional[ScopedSymbolTable], node: Block) -> None:
+        pass
+
+    def _build_pre_visit_vardecl(
+        self, scope: Optional[ScopedSymbolTable], node: VarDecl) -> None:
+        assert scope is not None
+        lv = cast(ScopedSymbolTable, scope).level
+        self._writeln(scope, f"var {node.var.value}{lv} : {node.type.value};")
+
+    def _build_post_visit_vardecl(
+        self, scope: Optional[ScopedSymbolTable], node: VarDecl) -> None:
+        pass
+
+    def _build_pre_visit_procdecl(
+        self, scope: Optional[ScopedSymbolTable], node: ProcDecl) -> None:
+        assert scope is not None
+        s = f"procedure {node.name}{scope.level}"
+        lv = cast(ScopedSymbolTable, scope).level + 1
+        args = ""
+        if node.params:
+            args += "("
+            for param in node.params:
+                varname = param.var.value
+                vartype = param.type.value
+                args += f"{varname}{lv} : {vartype}"
+            args += ")"
+        self._writeln(scope, f"{s}{args};")
+
+    def _build_post_visit_procdecl(
+        self, scope: Optional[ScopedSymbolTable], node: ProcDecl) -> None:
+        self._writeinl(f"    {{END OF {node.name}}}\n")
+
+    def _build_pre_visit_type(
+        self, scope: Optional[ScopedSymbolTable], node: Type) -> None:
+        pass
+
+    def _build_post_visit_type(
+        self, scope: Optional[ScopedSymbolTable], node: Type) -> None:
+        pass
+
+
+class SemanticAnalyzer(NodeVisitor):
+    def __init__(self, s2s: bool=False):
+        self._dsb: DecoSrcBuilder = DecoSrcBuilder()
         self.current_scope: Optional[ScopedSymbolTable] = None
+        self.s2s: bool = s2s
 
     @property
     def safe_current_scope(self) -> ScopedSymbolTable:
         assert self.current_scope is not None
         return cast(ScopedSymbolTable, self.current_scope)
 
-    def _visit_binop(self, node: AST) -> None:
+    def visit(self, node: AST) -> Union[int, float, None]:
+        if self.s2s:
+            self._dsb.build_pre_visit(self.current_scope, node)
+        val = super().visit(node)
+        if self.s2s:
+            self._dsb.build_post_visit(self.current_scope, node)
+        return val
+
+    def _build_in_visit(self, node: AST):
+        if self.s2s:
+            self._dsb.build_in_visit(self.current_scope, node)
+
+    def _visit_binop(self, node: BinOp) -> None:
         self.visit(node.left)
+        self._build_in_visit(node)
         self.visit(node.right)
 
     def _visit_unop(self, node: UnOp) -> None:
@@ -919,19 +1387,19 @@ class SemanticAnalyzer(NodeVisitor):
     def _visit_neg(self, node: Neg) -> None:
         self._visit_unop(node)
 
-    def _visit_add(self, node: AST) -> None:
+    def _visit_add(self, node: Add) -> None:
         self._visit_binop(node)
 
-    def _visit_sub(self, node: AST) -> None:
+    def _visit_sub(self, node: Sub) -> None:
         self._visit_binop(node)
 
-    def _visit_mul(self, node: AST) -> None:
+    def _visit_mul(self, node: Mul) -> None:
         self._visit_binop(node)
 
-    def _visit_intdiv(self, node: AST) -> None:
+    def _visit_intdiv(self, node: IntDiv) -> None:
         self._visit_binop(node)
 
-    def _visit_floatdiv(self, node: AST) -> None:
+    def _visit_floatdiv(self, node: FloatDiv) -> None:
         self._visit_binop(node)
 
     def _visit_num(self, node: Num) -> None:
@@ -946,6 +1414,7 @@ class SemanticAnalyzer(NodeVisitor):
 
     def _visit_assign(self, node: Assign) -> None:
         self.visit(node.right)
+        self._build_in_visit(node)
         self.visit(node.left)
 
     def _visit_var(self, node: Var) -> None:
@@ -963,6 +1432,7 @@ class SemanticAnalyzer(NodeVisitor):
         global_scope.insert(BuiltinTypeSymbol(TypeId.REAL.name))
         self.current_scope = global_scope
 
+        self._build_in_visit(node)
         self.visit(node.block)
 
         logging.info(global_scope)
@@ -1036,7 +1506,11 @@ class SemanticAnalyzer(NodeVisitor):
         raise NotImplementedError()
 
     def analyze(self, node: AST) -> None:
+        self._dsb = DecoSrcBuilder()
         self.visit(node)
+
+    def deco_src(self) -> str:
+        return self._dsb.value
 
 
 class Interpreter(NodeVisitor):
@@ -1137,7 +1611,12 @@ def main() -> None:
         action="store_true", 
         help="verbose debugging output"
     )
-    argparser.add_argument("FILE", help="pascal file")
+    argparser.add_argument(
+        "-s", "--src-to-src",
+        action="store_true",
+        help="translate source in FILE to decorated source and print"
+    )
+    argparser.add_argument("FILE", help="pascal source file")
     args = argparser.parse_args()
 
     setup_logging(args.verbose)
@@ -1149,11 +1628,18 @@ def main() -> None:
     parser: Parser = Parser(lexer)
     ast: AST = parser.parse()
 
-    st_bldr: SemanticAnalyzer = SemanticAnalyzer()
-    st_bldr.analyze(ast)
+    kwargs = {}
+    if args.src_to_src:
+        kwargs["s2s"] = True
 
-    interpreter: Interpreter = Interpreter()
-    interpreter.interpret(ast)
+    lyz: SemanticAnalyzer = SemanticAnalyzer(**kwargs)
+    lyz.analyze(ast)
+
+    if args.src_to_src:
+        print(lyz.deco_src())
+    else:
+        interpreter: Interpreter = Interpreter()
+        interpreter.interpret(ast)
 
 logging.disable(logging.CRITICAL)
 if __name__ == '__main__':

@@ -36,7 +36,7 @@ class LoggingToStrBuf():
         root_logger.addHandler(cls._sh)
 
     @classmethod
-    def _basic_config(cls):
+    def basic_config(cls):
         logging.basicConfig(
             format="{message}", 
             style="{", 
@@ -52,7 +52,7 @@ class LoggingToStrBuf():
         if cls._initd:
             cls._update_handler()
         else:
-            cls._basic_config()
+            cls.basic_config()
 
         return cls._sb
 
@@ -531,6 +531,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         with LoggingToStrBuf() as sb:
             lyz.visit(ast)
 
+        self.assertNotEqual(sb.getvalue(), "")
         scopes = self._get_scopes_from_str(sb.getvalue())
         self.assertEqual(len(scopes), 1)
         self.assertEqual(
@@ -767,8 +768,57 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "LEAVE scope global"
         ]
 
+        actual_s = "    " + "\n    ".join(actual)
+        self.assertEqual(actual, expect, f"got \n[\n{actual_s}\n]")
+
+
+class DecoSrcBuilderTestCase(unittest.TestCase):
+    def test_deco_src_part11(self):
+        ast = make_prog_ast_from_file("tests/part11.pas")
+        lyz = SemanticAnalyzer(s2s=True)
+        lyz.analyze(ast)
+        actual = lyz.deco_src()
+        expect = \
+            "program part110;\n   var x1 : INTEGER;\n   " + \
+            "var y1 : REAL;\n   begin\n   end.    {END OF part11}"
         self.assertEqual(actual, expect)
 
+    def test_deco_src_part14(self):
+        ast = make_prog_ast_from_file("tests/part14_s2s.pas")
+        lyz = SemanticAnalyzer(s2s=True)
+        lyz.analyze(ast)
+        expect = 'program main0;\n   var x1 : REAL;\n   ' + \
+            'var y1 : REAL;\n   var z1 : INTEGER;\n   ' + \
+            'var b1 : INTEGER;\n   var c1 : REAL;\n   ' + \
+            'var d1 : INTEGER;\n   procedure alpha1(a2 : INTEGER);\n      ' + \
+            'var y2 : INTEGER;\n      begin\n      ' + \
+            '<x1:REAL> := <a2:INTEGER> + <x1:REAL> * <y2:INTEGER>\n      ' + \
+            '<x1:REAL> := - <a2:INTEGER>\n      ' + \
+            '<x1:REAL> := + <a2:INTEGER>\n      ' + \
+            '<x1:REAL> := - + <a2:INTEGER>\n      end;    ' + \
+            '{END OF alpha}\n   begin\n   ' + \
+            '<z1:INTEGER> := <z1:INTEGER> - ' + \
+            '<d1:INTEGER> / <b1:INTEGER> DIV <c1:REAL>\n   end.    ' + \
+            '{END OF main}'
+        self.assertEqual(lyz.deco_src(), expect)
+
+    def test_deco_src_part14_2(self):
+        ast = make_prog_ast_from_file("tests/part14_s2s_2.pas")
+        lyz = SemanticAnalyzer(s2s=True)
+        lyz.analyze(ast)
+        expect = 'program main0;\n   ' + \
+            'var x1 : REAL;\n   ' + \
+            'var y1 : REAL;\n   ' + \
+            'var z1 : INTEGER;\n   ' + \
+            'procedure alphaa1(a2 : INTEGER);\n      ' + \
+            'var y2 : INTEGER;\n      ' + \
+            'begin\n      ' + \
+            '<x1:REAL> := <a2:INTEGER> + <x1:REAL> + <y2:INTEGER>\n      ' + \
+            'end;    {END OF alphaa}\n   ' + \
+            'procedure alphab1(a2 : INTEGER);\n      ' + \
+            'var b2 : INTEGER;\n      begin\n      ' + \
+            'end;    {END OF alphab}\n   begin\n   ' + \
+            'end.    {END OF main}'
 
 class Foo(unittest.TestCase):
     def test_foo(self):
@@ -822,5 +872,6 @@ def make_prog_ast_from_file(path):
         txt = f.read()
     return make_prog_ast(txt)
 
+LoggingToStrBuf.basic_config()
 if __name__ == '__main__':
     unittest.main()
