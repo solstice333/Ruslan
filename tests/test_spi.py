@@ -534,22 +534,33 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
 
     def test_builder(self):
         ast = make_prog_ast_from_file("tests/part11.pas")
-        lyz = SemanticAnalyzer()
 
         with LoggingToStrBuf() as sb:
-            lyz.visit(ast)
+            with SemanticAnalyzer() as lyz:
+                lyz.visit(ast)
 
         self.assertNotEqual(sb.getvalue(), "")
         scopes = self._get_scopes_from_str(sb.getvalue())
-        self.assertEqual(len(scopes), 1)
+        self.assertEqual(len(scopes), 2)
         self.assertEqual(
             scopes[0], 
             "(" + \
                 "name: global, " + \
                 "level: 1, " + \
+                "encl_scope: builtins, " + \
+                "symbols: ['<x:INTEGER>', '<y:REAL>']" + \
+            ")",
+            f"got {scopes[1]}"
+        )
+        self.assertEqual(
+            scopes[1], 
+            "(" + \
+                "name: builtins, " + \
+                "level: 0, " + \
                 "encl_scope: None, " + \
-                "symbols: ['INTEGER', 'REAL', '<x:INTEGER>', '<y:REAL>']" + \
-            ")"
+                "symbols: ['INTEGER', 'REAL']" + \
+            ")",
+            f"got {scopes[0]}"
         )
 
     def test_builder_name_error(self):
@@ -570,14 +581,14 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
 
     def test_builder_part12(self):
         ast = make_prog_ast_from_file("tests/part12.pas")
-        lyz = SemanticAnalyzer()
 
         with LoggingToStrBuf() as sb:
-            lyz.analyze(ast)
+            with SemanticAnalyzer() as lyz:
+                lyz.analyze(ast)
 
         scopes = self._get_scopes_from_str(sb.getvalue())
 
-        self.assertEqual(len(scopes), 3)
+        self.assertEqual(len(scopes), 4)
         self.assertEqual(
             scopes[0], 
             "(" + \
@@ -605,14 +616,21 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "(" + \
                 "name: global, " + \
                 "level: 1, " + \
-                "encl_scope: None, " + \
+                "encl_scope: builtins, " + \
                 "symbols: [" + \
-                    "'INTEGER', " + \
-                    "'REAL', " + \
                     "'<a:INTEGER>', " + \
                     "'ProcSymbol(name=p1, params=[])'" + \
                 "]" + \
             ")"
+        )
+        self.assertEqual(
+            scopes[3], 
+            "(" + \
+                "name: builtins, " + \
+                "level: 0, " + \
+                "encl_scope: None, " + \
+                "symbols: ['INTEGER', 'REAL']" + \
+            ")",
         )
 
     def test_dup_var(self):
@@ -626,49 +644,49 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
 
     def test_part14_decl_only_chained_scope(self):
         ast = make_prog_ast_from_file("tests/part14_decl_only.pas")
-        lyz = SemanticAnalyzer()
 
         with LoggingToStrBuf() as sb:
-            lyz.analyze(ast)
+            with SemanticAnalyzer() as lyz:
+                lyz.analyze(ast)
 
         actual = listify_str(sb.getvalue())
 
         expected = [
-            "ENTER scope global",
+            "ENTER scope builtins",
             "Insert: INTEGER",
             "Insert: REAL",
+            "ENTER scope global",
             "Lookup: REAL. (Scope name: global)",
+            "Lookup: REAL. (Scope name: builtins)",
             "Lookup: x. (Scope name: global)",
             "Insert: x",
             "Lookup: REAL. (Scope name: global)",
+            "Lookup: REAL. (Scope name: builtins)",
             "Lookup: y. (Scope name: global)",
             "Insert: y",
             "Insert: alpha",
             "ENTER scope alpha",
             "Lookup: INTEGER. (Scope name: alpha)",
             "Lookup: INTEGER. (Scope name: global)",
+            "Lookup: INTEGER. (Scope name: builtins)",
             "Lookup: a. (Scope name: alpha)",
             "Insert: a",
             "Lookup: INTEGER. (Scope name: alpha)",
             "Lookup: INTEGER. (Scope name: global)",
+            "Lookup: INTEGER. (Scope name: builtins)",
             "Lookup: y. (Scope name: alpha)",
             "Insert: y",
-            "(name: alpha, level: 2, encl_scope: global, " + \
-                "symbols: ['<a:INTEGER>', '<y:INTEGER>'])",
+            "(name: alpha, level: 2, " + \
+                "encl_scope: global, symbols: ['<a:INTEGER>', '<y:INTEGER>'])",
             "LEAVE scope alpha",
-            "(name: global, level: 1, encl_scope: None, " + \
-                "symbols: [" + \
-                    "'INTEGER', " + \
-                    "'REAL', " + \
-                    "'<x:REAL>', " + \
-                    "'<y:REAL>', " + \
-                    "\"ProcSymbol(" + \
-                        "name=alpha, " + \
-                        "params=[VarSymbol(name='a', type='INTEGER')]" + \
-                    ")\"" + \
-                "]" + \
-            ")",
-            "LEAVE scope global"
+            "(name: global, level: 1, encl_scope: builtins, " + \
+                "symbols: ['<x:REAL>', '<y:REAL>', " + \
+                "\"ProcSymbol(name=alpha, " + \
+                    "params=[VarSymbol(name='a', type='INTEGER')])\"])",
+            "LEAVE scope global",
+            "(name: builtins, level: 0, encl_scope: None, " + \
+                "symbols: ['INTEGER', 'REAL'])",
+            "LEAVE scope builtins"
         ]
 
         self.assertEqual(actual, expected)
@@ -686,14 +704,14 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
     def test_part14_sibling_scopes(self):
         ast = make_prog_ast_from_file(
             "tests/part14_decl_only_sibling_scopes.pas")
-        lyz = SemanticAnalyzer()
 
         with LoggingToStrBuf() as sb:
-            lyz.analyze(ast)
+            with SemanticAnalyzer() as lyz:
+                lyz.analyze(ast)
 
         scopes = self._get_scopes_from_str(sb.getvalue())
 
-        self.assertEqual(len(scopes), 3)
+        self.assertEqual(len(scopes), 4)
         self.assertEqual(
             scopes[0], 
             "(" + \
@@ -717,10 +735,8 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "(" + \
                 "name: global, " + \
                 "level: 1, " + \
-                "encl_scope: None, " + \
+                "encl_scope: builtins, " + \
                 "symbols: [" + \
-                    "'INTEGER', " + \
-                    "'REAL', " + \
                     "'<x:REAL>', " + \
                     "'<y:REAL>', " + \
                     "\"ProcSymbol(" + \
@@ -734,34 +750,48 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
                 "]" + \
             ")"
         )
+        self.assertEqual(
+            scopes[3], 
+            "(" + \
+                "name: builtins, " + \
+                "level: 0, " + \
+                "encl_scope: None, " + \
+                "symbols: ['INTEGER', 'REAL']" + \
+            ")",
+        )
 
     def test_part14_var_ref(self):
         ast = make_prog_ast_from_file("tests/part14_var_ref.pas")
 
-        lyz = SemanticAnalyzer()
         with LoggingToStrBuf() as sb:
-            lyz.analyze(ast)
+            with SemanticAnalyzer() as lyz:
+                lyz.analyze(ast)
 
         actual = listify_str(sb.getvalue())
 
         expect = [
-            "ENTER scope global",
+            "ENTER scope builtins",
             "Insert: INTEGER",
             "Insert: REAL",
+            "ENTER scope global",
             "Lookup: REAL. (Scope name: global)",
+            "Lookup: REAL. (Scope name: builtins)",
             "Lookup: x. (Scope name: global)",
             "Insert: x",
             "Lookup: REAL. (Scope name: global)",
+            "Lookup: REAL. (Scope name: builtins)",
             "Lookup: y. (Scope name: global)",
             "Insert: y",
             "Insert: alpha",
             "ENTER scope alpha",
             "Lookup: INTEGER. (Scope name: alpha)",
             "Lookup: INTEGER. (Scope name: global)",
+            "Lookup: INTEGER. (Scope name: builtins)",
             "Lookup: a. (Scope name: alpha)",
             "Insert: a",
             "Lookup: INTEGER. (Scope name: alpha)",
             "Lookup: INTEGER. (Scope name: global)",
+            "Lookup: INTEGER. (Scope name: builtins)",
             "Lookup: y. (Scope name: alpha)",
             "Insert: y",
             "Lookup: a. (Scope name: alpha)",
@@ -770,18 +800,17 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "Lookup: y. (Scope name: alpha)",
             "Lookup: x. (Scope name: alpha)",
             "Lookup: x. (Scope name: global)",
-            "(name: alpha, level: 2, encl_scope: global, " + \
-                "symbols: ['<a:INTEGER>', '<y:INTEGER>'])",
+            "(name: alpha, level: 2, encl_scope: global, symbols: ['<a:INTEGER>', '<y:INTEGER>'])",
             "LEAVE scope alpha",
-            "(name: global, level: 1, encl_scope: None, " + \
-                "symbols: ['INTEGER', 'REAL', '<x:REAL>', " + \
-                "'<y:REAL>', \"ProcSymbol(name=alpha, " + \
-                "params=[VarSymbol(name='a', type='INTEGER')])\"])",
-            "LEAVE scope global"
+            "(name: global, level: 1, encl_scope: builtins, symbols: ['<x:REAL>', '<y:REAL>', \"ProcSymbol(name=alpha, params=[VarSymbol(name='a', type='INTEGER')])\"])",
+            "LEAVE scope global",
+            "(name: builtins, level: 0, encl_scope: None, symbols: ['INTEGER', 'REAL'])",
+            "LEAVE scope builtins"
         ]
 
-        actual_s = "    " + "\n    ".join(actual)
-        self.assertEqual(actual, expect, f"got \n[\n{actual_s}\n]")
+
+        errmsg = prettify_strlist(sb.getvalue())
+        self.assertEqual(actual, expect, f"got \n{errmsg}")
 
 
 class DecoSrcBuilderTestCase(unittest.TestCase):
@@ -875,23 +904,28 @@ class Foo(unittest.TestCase):
 
         print()
 
-        lyz = SemanticAnalyzer()
         with LoggingToStrBuf() as sb:
-            lyz.analyze(ast)
+            with SemanticAnalyzer() as lyz:
+                lyz.analyze(ast)
         print(sb.getvalue())
 
 
 def listify_str(s):
     return s.strip().splitlines()
 
-def print_str_as_list_of_str(s):
+def prettify_strlist(s):
+    pretty_s = ""
     ls = s.strip().split("\n")
-    print("[")
+    pretty_s += "[\n"
     for i, elem in enumerate(ls):
         comma = "" if i >= len(ls) - 1 else ","
         elem = re.sub(r"\"", "\\\"", elem)
-        print(f"    \"{elem}\"{comma}")
-    print("]")
+        pretty_s += f"    \"{elem}\"{comma}\n"
+    pretty_s += "]\n"
+    return pretty_s
+
+def print_str_as_list_of_str(s):
+    print(prettify_strlist(s))
 
 def make_parser(text):
     lexer = Lexer(text)

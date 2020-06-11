@@ -3,6 +3,7 @@ from typing import \
     Any, \
     TypeVar, \
     Callable, \
+    ContextManager, \
     Optional, \
     Union, \
     List, \
@@ -12,6 +13,7 @@ from typing import \
     Iterator, \
     Iterable, \
     cast
+from types import TracebackType
 from abc import ABC, abstractmethod
 from anytree import RenderTree # type:ignore
 from anytree import \
@@ -22,6 +24,7 @@ from re import Pattern, RegexFlag
 import re
 import argparse
 import logging
+import typing
 
 T = TypeVar('T')
 
@@ -1351,11 +1354,28 @@ class DecoSrcBuilder(IDecoSrcBuilder):
         pass
 
 
-class SemanticAnalyzer(NodeVisitor):
+class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
     def __init__(self, s2s: bool=False):
-        self._dsb: DecoSrcBuilder = DecoSrcBuilder()
-        self.current_scope: Optional[ScopedSymbolTable] = None
         self.s2s: bool = s2s
+        self._dsb: DecoSrcBuilder = DecoSrcBuilder()
+        self._closed: bool = False
+
+        self.current_scope: Optional[ScopedSymbolTable] = \
+            ScopedSymbolTable("builtins", 0, None)
+        logging.info(f"ENTER scope {self.current_scope.name}")
+        self.current_scope.insert(BuiltinTypeSymbol("INTEGER"))
+        self.current_scope.insert(BuiltinTypeSymbol("REAL"))
+
+    def __enter__(self) -> 'SemanticAnalyzer':
+        return self
+
+    def __exit__(
+        self, 
+        exc_ty: Optional[typing.Type[BaseException]], 
+        exc_val: Optional[BaseException], 
+        tb: Optional[TracebackType]
+    ) -> None:
+        self.close()
 
     @property
     def safe_current_scope(self) -> ScopedSymbolTable:
@@ -1428,9 +1448,8 @@ class SemanticAnalyzer(NodeVisitor):
     def _visit_program(self, node: Program) -> None:
         scope_name = "global"
         logging.info(f"ENTER scope {scope_name}")
-        global_scope = ScopedSymbolTable(scope_name, 1, self.current_scope)
-        global_scope.insert(BuiltinTypeSymbol(TokenType.INTEGER.name))
-        global_scope.insert(BuiltinTypeSymbol(TokenType.REAL.name))
+        lv = self.current_scope.level + 1 if self.current_scope else 1
+        global_scope = ScopedSymbolTable(scope_name, lv, self.current_scope)
         self.current_scope = global_scope
 
         self._build_in_visit(node)
@@ -1507,11 +1526,19 @@ class SemanticAnalyzer(NodeVisitor):
         raise NotImplementedError()
 
     def analyze(self, node: AST) -> None:
+        assert not self._closed 
         self._dsb = DecoSrcBuilder()
         self.visit(node)
 
     def deco_src(self) -> str:
         return self._dsb.value
+
+    def close(self):
+        logging.info(self.current_scope)
+        scope = self.current_scope
+        self.current_scope = self.current_scope.encl_scope
+        logging.info(f"LEAVE scope {scope.name}")
+        self._closed = True
 
 
 class Interpreter(NodeVisitor):
@@ -1633,8 +1660,8 @@ def main() -> None:
     if args.src_to_src:
         kwargs["s2s"] = True
 
-    lyz: SemanticAnalyzer = SemanticAnalyzer(**kwargs)
-    lyz.analyze(ast)
+    with SemanticAnalyzer(**kwargs) as lyz: # type:SemanticAnalyzer
+        lyz.analyze(ast)
 
     if args.src_to_src:
         print(lyz.deco_src())
