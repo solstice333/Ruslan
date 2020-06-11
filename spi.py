@@ -1446,6 +1446,9 @@ class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
                 f"{var_name}" + (f" at line {linenum}" if linenum else ""))
 
     def _visit_program(self, node: Program) -> None:
+        assert isinstance(self.current_scope, ScopedSymbolTable)
+        self.current_scope.insert(ProcSymbol(node.name))
+
         scope_name = "global"
         logging.info(f"ENTER scope {scope_name}")
         lv = self.current_scope.level + 1 if self.current_scope else 1

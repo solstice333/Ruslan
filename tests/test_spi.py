@@ -558,7 +558,8 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
                 "name: builtins, " + \
                 "level: 0, " + \
                 "encl_scope: None, " + \
-                "symbols: ['INTEGER', 'REAL']" + \
+                "symbols: ['INTEGER', 'REAL', " + \
+                    "'ProcSymbol(name=part11, params=[])']" + \
             ")",
             f"got {scopes[0]}"
         )
@@ -629,7 +630,8 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
                 "name: builtins, " + \
                 "level: 0, " + \
                 "encl_scope: None, " + \
-                "symbols: ['INTEGER', 'REAL']" + \
+                "symbols: ['INTEGER', 'REAL', " + \
+                    "'ProcSymbol(name=part12, params=[])']" + \
             ")",
         )
 
@@ -655,6 +657,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "ENTER scope builtins",
             "Insert: INTEGER",
             "Insert: REAL",
+            "Insert: main",
             "ENTER scope global",
             "Lookup: REAL. (Scope name: global)",
             "Lookup: REAL. (Scope name: builtins)",
@@ -685,7 +688,8 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
                     "params=[VarSymbol(name='a', type='INTEGER')])\"])",
             "LEAVE scope global",
             "(name: builtins, level: 0, encl_scope: None, " + \
-                "symbols: ['INTEGER', 'REAL'])",
+                "symbols: ['INTEGER', 'REAL', " + \
+                "'ProcSymbol(name=main, params=[])'])",
             "LEAVE scope builtins"
         ]
 
@@ -756,7 +760,8 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
                 "name: builtins, " + \
                 "level: 0, " + \
                 "encl_scope: None, " + \
-                "symbols: ['INTEGER', 'REAL']" + \
+                "symbols: ['INTEGER', 'REAL', " + \
+                    "'ProcSymbol(name=main, params=[])']" + \
             ")",
         )
 
@@ -773,6 +778,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "ENTER scope builtins",
             "Insert: INTEGER",
             "Insert: REAL",
+            "Insert: main",
             "ENTER scope global",
             "Lookup: REAL. (Scope name: global)",
             "Lookup: REAL. (Scope name: builtins)",
@@ -800,11 +806,17 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "Lookup: y. (Scope name: alpha)",
             "Lookup: x. (Scope name: alpha)",
             "Lookup: x. (Scope name: global)",
-            "(name: alpha, level: 2, encl_scope: global, symbols: ['<a:INTEGER>', '<y:INTEGER>'])",
+            "(name: alpha, level: 2, encl_scope: global, " + \
+                "symbols: ['<a:INTEGER>', '<y:INTEGER>'])",
             "LEAVE scope alpha",
-            "(name: global, level: 1, encl_scope: builtins, symbols: ['<x:REAL>', '<y:REAL>', \"ProcSymbol(name=alpha, params=[VarSymbol(name='a', type='INTEGER')])\"])",
+            "(name: global, level: 1, encl_scope: builtins, " + \
+                "symbols: ['<x:REAL>', '<y:REAL>', " + \
+                "\"ProcSymbol(name=alpha, " + \
+                "params=[VarSymbol(name='a', type='INTEGER')])\"])",
             "LEAVE scope global",
-            "(name: builtins, level: 0, encl_scope: None, symbols: ['INTEGER', 'REAL'])",
+            "(name: builtins, level: 0, encl_scope: None, " + \
+                "symbols: ['INTEGER', 'REAL', " + \
+                "'ProcSymbol(name=main, params=[])'])",
             "LEAVE scope builtins"
         ]
 
