@@ -1286,7 +1286,13 @@ class DecoSrcBuilder(IDecoSrcBuilder):
         var_name = node.value
         assert scope is not None
         sym = scope.lookup(var_name)
-        type_name = f":{sym.type.name}" if isinstance(sym, VarSymbol) else ""
+
+        type_name = ""
+        if isinstance(sym, VarSymbol):
+            tyname = sym.type.name
+            tylv = scope.lookup_level(tyname)
+            type_name = f":{tyname}{tylv}"
+
         lv = scope.lookup_level(var_name) or ""
         self._statement.append(f"<{var_name}{lv}{type_name}>")
 
@@ -1319,8 +1325,11 @@ class DecoSrcBuilder(IDecoSrcBuilder):
     def _build_pre_visit_vardecl(
         self, scope: Optional[ScopedSymbolTable], node: VarDecl) -> None:
         assert scope is not None
+        varname = node.var.value
+        typename = node.type.value
         lv = cast(ScopedSymbolTable, scope).level
-        self._writeln(scope, f"var {node.var.value}{lv} : {node.type.value};")
+        tylv = scope.lookup_level(typename)
+        self._writeln(scope, f"var {varname}{lv} : {typename}{tylv};")
 
     def _build_post_visit_vardecl(
         self, scope: Optional[ScopedSymbolTable], node: VarDecl) -> None:
@@ -1337,7 +1346,8 @@ class DecoSrcBuilder(IDecoSrcBuilder):
             for param in node.params:
                 varname = param.var.value
                 vartype = param.type.value
-                args += f"{varname}{lv} : {vartype}"
+                vartype_lv = scope.lookup_level(vartype)
+                args += f"{varname}{lv} : {vartype}{vartype_lv}"
             args += ")"
         self._writeln(scope, f"{s}{args};")
 
