@@ -820,7 +820,6 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "LEAVE scope builtins"
         ]
 
-
         errmsg = prettify_strlist(sb.getvalue())
         self.assertEqual(actual, expect, f"got \n{errmsg}")
 
