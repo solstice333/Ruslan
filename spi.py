@@ -113,7 +113,7 @@ class Token:
 
 class Lexer(Iterable[Token]):
     class TokenTypeInfo(NamedTuple):
-        typeid: TokenType
+        tokty: TokenType
         pattern: str
         token: Token=Token(TokenType.EOF, None)
 
@@ -138,12 +138,12 @@ class Lexer(Iterable[Token]):
                 { 
                     name: 
                     cls.TokenTypeInfo(
-                        typeid=tid,
-                        pattern=TokenType.pattern(tid),
-                        token=Token(tid, TokenType.pattern(tid))
+                        tokty=tty,
+                        pattern=TokenType.pattern(tty),
+                        token=Token(tty, TokenType.pattern(tty))
                     )
-                    for name, tid in TokenType.members().items() 
-                    if tid in cls.RES_KW
+                    for name, tty in TokenType.members().items() 
+                    if tty in cls.RES_KW
                 }
         return cls.__RES_KW_TO_TID_INFO
 
@@ -154,10 +154,10 @@ class Lexer(Iterable[Token]):
                 { 
                     name: 
                     cls.TokenTypeInfo(
-                        typeid=tid,
-                        pattern=TokenType.pattern(tid)
+                        tokty=tty,
+                        pattern=TokenType.pattern(tty)
                     )
-                    for name, tid in TokenType.members().items()
+                    for name, tty in TokenType.members().items()
                 }
             cls.__TOKEN_NAME_TO_TID_INFO.update(cls._RES_KW_TO_TID_INFO())
         return cls.__TOKEN_NAME_TO_TID_INFO
@@ -177,20 +177,20 @@ class Lexer(Iterable[Token]):
 
         for m in re.finditer(token_pat, self._text):
             name = m.lastgroup if m.lastgroup else ''
-            tid = token_spec[name].typeid
+            tty = token_spec[name].tokty
 
             if any_of(
                 [TokenType.NEWLINE, TokenType.COMMENT], 
-                lambda tid_elem: tid == tid_elem
+                lambda tid_elem: tty == tid_elem
             ):
-                if tid == TokenType.NEWLINE:
+                if tty == TokenType.NEWLINE:
                     self.linenum += 1
                 continue
 
             if token_spec[name].token:
                 yield token_spec[name].token
             else:
-                yield Token(tid, tid.value.type(m[name]))
+                yield Token(tty, tty.value.type(m[name]))
 
         yield Token(TokenType.EOF, None)
 
