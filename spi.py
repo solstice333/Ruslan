@@ -128,13 +128,13 @@ class Lexer(Iterable[Token]):
         TokenType.END
     ]
 
-    __RES_KW_TO_TID_INFO: Dict[str, TokenTypeInfo] = {}
-    __TOKEN_NAME_TO_TID_INFO: Dict[str, TokenTypeInfo] = {}
+    __RES_KW_TO_TTY_INFO: Dict[str, TokenTypeInfo] = {}
+    __TOKEN_NAME_TO_TTY_INFO: Dict[str, TokenTypeInfo] = {}
 
     @classmethod
-    def _RES_KW_TO_TID_INFO(cls) -> Dict[str, TokenTypeInfo]:
-        if not cls.__RES_KW_TO_TID_INFO:
-            cls.__RES_KW_TO_TID_INFO = \
+    def _RES_KW_TO_TTY_INFO(cls) -> Dict[str, TokenTypeInfo]:
+        if not cls.__RES_KW_TO_TTY_INFO:
+            cls.__RES_KW_TO_TTY_INFO = \
                 { 
                     name: 
                     cls.TokenTypeInfo(
@@ -145,12 +145,12 @@ class Lexer(Iterable[Token]):
                     for name, tty in TokenType.members().items() 
                     if tty in cls.RES_KW
                 }
-        return cls.__RES_KW_TO_TID_INFO
+        return cls.__RES_KW_TO_TTY_INFO
 
     @classmethod
-    def _TOKEN_NAME_TO_TID_INFO(cls) -> Dict[str, TokenTypeInfo]:
-        if not cls.__TOKEN_NAME_TO_TID_INFO:
-            cls.__TOKEN_NAME_TO_TID_INFO = \
+    def _TOKEN_NAME_TO_TTY_INFO(cls) -> Dict[str, TokenTypeInfo]:
+        if not cls.__TOKEN_NAME_TO_TTY_INFO:
+            cls.__TOKEN_NAME_TO_TTY_INFO = \
                 { 
                     name: 
                     cls.TokenTypeInfo(
@@ -159,19 +159,19 @@ class Lexer(Iterable[Token]):
                     )
                     for name, tty in TokenType.members().items()
                 }
-            cls.__TOKEN_NAME_TO_TID_INFO.update(cls._RES_KW_TO_TID_INFO())
-        return cls.__TOKEN_NAME_TO_TID_INFO
+            cls.__TOKEN_NAME_TO_TTY_INFO.update(cls._RES_KW_TO_TTY_INFO())
+        return cls.__TOKEN_NAME_TO_TTY_INFO
 
     def __init__(self, text: str) -> None:
         self._text: str = text
         self.linenum: int = 1
 
     def _iter_tokens(self) -> Iterator[Token]:
-        token_spec = Lexer._TOKEN_NAME_TO_TID_INFO()
+        token_spec = Lexer._TOKEN_NAME_TO_TTY_INFO()
 
         token_pats = [
-            rf"(?P<{name}>{tid_info.pattern})" 
-            for name, tid_info in token_spec.items() 
+            rf"(?P<{name}>{tty_info.pattern})" 
+            for name, tty_info in token_spec.items() 
         ]
         token_pat = "|".join(token_pats)
 
@@ -181,7 +181,7 @@ class Lexer(Iterable[Token]):
 
             if any_of(
                 [TokenType.NEWLINE, TokenType.COMMENT], 
-                lambda tid_elem: tty == tid_elem
+                lambda tty_elem: tty == tty_elem
             ):
                 if tty == TokenType.NEWLINE:
                     self.linenum += 1
