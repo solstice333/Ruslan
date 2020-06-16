@@ -9,7 +9,7 @@ import re
 from anytree import PostOrderIter, RenderTree
 
 sys.path.append(os.path.realpath(".."))
-from spi import TokenType, Token, Lexer, Parser, Interpreter, SemanticAnalyzer
+from spi import *
 
 
 class Float:
@@ -81,7 +81,7 @@ class LexerTestCase(unittest.TestCase):
         lexer = self.makeLexer(' dIv ')
         token = next(iter(lexer))
         self.assertEqual(token.type, TokenType.INT_DIV)
-        self.assertEqual(token.value, '[dD][iI][vV]')
+        self.assertEqual(token.value, 'dIv')
 
     def test_lexer_plus(self):
         lexer = self.makeLexer('+')
@@ -113,44 +113,44 @@ class LexerTestCase(unittest.TestCase):
     def test_lexer_res_kw_single_char_var(self):
         lexer = self.makeLexer("BEGIN a := 0; END.")
         tokens = list(iter(lexer))
-        res_kw_dict = Lexer._RES_KW_TO_TID_INFO()
 
-        self.assertEqual(len(tokens), 9)
-
-        self.assertEqual(
-            tokens[0], Token(TokenType.BEGIN, "[bB][eE][gG][iI][nN]"))
-        self.assertEqual(tokens[1], Token(TokenType.ID, "a"))
-        self.assertEqual(tokens[2], Token(TokenType.ASSIGN, ":="))
-        self.assertEqual(tokens[3], Token(TokenType.INT_CONST, 0))
-        self.assertEqual(tokens[4], Token(TokenType.SEMI, ";"))
-        self.assertEqual(tokens[5], Token(TokenType.END, "[eE][nN][dD]"))
-        self.assertEqual(tokens[6], Token(TokenType.DOT, "."))
-        self.assertEqual(tokens[7], Token(TokenType.EOF, ""))
-        self.assertEqual(tokens[8], Token(TokenType.EOF, None))
-
-        self.assertIs(tokens[0], res_kw_dict['BEGIN'].token)
-        self.assertIs(tokens[5], res_kw_dict['END'].token)
+        self.assertEqual(len(tokens), 8)
+        self.assertEqual(tokens[0], BeginTok("BEGIN", Position(1, 1)))
+        self.assertEqual(tokens[1], IdTok("a", Position(1, 7)))
+        self.assertEqual(tokens[2], AssignTok(":=", Position(1, 9)))
+        self.assertEqual(tokens[3], IntConstTok(0, Position(1, 12)))
+        self.assertEqual(tokens[4], SemiTok(";", Position(1, 13)))
+        self.assertEqual(tokens[5], EndTok("END", Position(1, 15)))
+        self.assertEqual(tokens[6], DotTok(".", Position(1, 18)))
+        self.assertEqual(tokens[7], EofTok("", Position(1, 19)))
 
     def test_lexer_res_kw_multi_char_var(self):
         lexer = self.makeLexer("BEGIN foo_bar123 := 0; END.")
         tokens = list(iter(lexer))
-        res_kw_dict = Lexer._RES_KW_TO_TID_INFO()
 
+        self.assertEqual(len(tokens), 8)
+        self.assertEqual(tokens[0], BeginTok("BEGIN", Position(1, 1)))
+        self.assertEqual(tokens[1], IdTok("foo_bar123", Position(1, 7)))
+        self.assertEqual(tokens[2], AssignTok(":=", Position(1, 18)))
+        self.assertEqual(tokens[3], IntConstTok(0, Position(1, 21)))
+        self.assertEqual(tokens[4], SemiTok(";", Position(1, 22)))
+        self.assertEqual(tokens[5], EndTok("END", Position(1, 24)))
+        self.assertEqual(tokens[6], DotTok(".", Position(1, 27)))
+        self.assertEqual(tokens[7], EofTok("", Position(1, 28)))
+
+    def test_lexer_vardecl(self):
+        lexer = self.makeLexer("VAR x: INTEGER\nVAR y: REAL")
+        tokens = list(iter(lexer))
         self.assertEqual(len(tokens), 9)
-
-        self.assertEqual(
-            tokens[0], Token(TokenType.BEGIN, "[bB][eE][gG][iI][nN]"))
-        self.assertEqual(tokens[1], Token(TokenType.ID, "foo_bar123"))
-        self.assertEqual(tokens[2], Token(TokenType.ASSIGN, ":="))
-        self.assertEqual(tokens[3], Token(TokenType.INT_CONST, 0))
-        self.assertEqual(tokens[4], Token(TokenType.SEMI, ";"))
-        self.assertEqual(tokens[5], Token(TokenType.END, "[eE][nN][dD]"))
-        self.assertEqual(tokens[6], Token(TokenType.DOT, "."))
-        self.assertEqual(tokens[7], Token(TokenType.EOF, ""))
-        self.assertEqual(tokens[8], Token(TokenType.EOF, None))
-
-        self.assertIs(tokens[0], res_kw_dict['BEGIN'].token)
-        self.assertIs(tokens[5], res_kw_dict['END'].token)
+        self.assertEqual(tokens[0], VarTok("VAR", Position(1, 1)))
+        self.assertEqual(tokens[1], IdTok("x", Position(1, 5)))
+        self.assertEqual(tokens[2], ColonTok(":", Position(1, 6)))
+        self.assertEqual(tokens[3], IntegerTok("INTEGER", Position(1, 8)))
+        self.assertEqual(tokens[4], VarTok("VAR", Position(2, 1)))
+        self.assertEqual(tokens[5], IdTok("y", Position(2, 5)))
+        self.assertEqual(tokens[6], ColonTok(":", Position(2, 6)))
+        self.assertEqual(tokens[7], RealTok("REAL", Position(2, 8)))
+        self.assertEqual(tokens[8], EofTok("", Position(2, 12)))
 
 
 class ParserTestCase(unittest.TestCase):
@@ -160,18 +160,20 @@ class ParserTestCase(unittest.TestCase):
     def test_parser1(self):
         p = make_parser("BEGIN x := 11; y := 2 + x END.")
         ast = p.parse_compound()
-        act = str(list(PostOrderIter(ast)))
-        exp = "[" + \
-            "Var(Token(TokenType.ID, x)), " + \
-            "Num(Token(TokenType.INT_CONST, 11)), " + \
-            "Assign(Token(TokenType.ASSIGN, :=)), " +\
-            "Var(Token(TokenType.ID, y)), " + \
-            "Num(Token(TokenType.INT_CONST, 2)), " + \
-            "Var(Token(TokenType.ID, x)), " + \
-            "Add(Token(TokenType.ADD, +)), " +\
-            "Assign(Token(TokenType.ASSIGN, :=)), " +\
-            "Compound(Token(TokenType.EOF, None))" +\
-        "]"
+        act = [str(el) for el in PostOrderIter(ast)]
+
+        exp = [
+            "Var(value=x)",
+            "Num(value=11)",
+            "Assign(value=:=)",
+            "Var(value=y)",
+            "Num(value=2)",
+            "Var(value=x)",
+            "Add(value=+)",
+            "Assign(value=:=)",
+            "Compound()"
+        ]
+          
         self.assertEqual(act, exp)
 
     def test_parser2(self):
@@ -187,38 +189,39 @@ class ParserTestCase(unittest.TestCase):
             "END.\n"
         )
         ast = p.parse_compound()
-        act = str(list(PostOrderIter(ast)))
-        exp = "[" + \
-            "Var(Token(TokenType.ID, number)), " + \
-            "Num(Token(TokenType.INT_CONST, 2)), " + \
-            "Assign(Token(TokenType.ASSIGN, :=)), " + \
-            "Var(Token(TokenType.ID, a)), " + \
-            "Var(Token(TokenType.ID, number)), " + \
-            "Assign(Token(TokenType.ASSIGN, :=)), " + \
-            "Var(Token(TokenType.ID, b)), " + \
-            "Num(Token(TokenType.INT_CONST, 10)), " + \
-            "Var(Token(TokenType.ID, a)), " + \
-            "Mul(Token(TokenType.MUL, *)), " + \
-            "Num(Token(TokenType.INT_CONST, 10)), " + \
-            "Var(Token(TokenType.ID, number)), " + \
-            "Mul(Token(TokenType.MUL, *)), " + \
-            "Num(Token(TokenType.INT_CONST, 4)), " + \
-            "IntDiv(Token(TokenType.INT_DIV, [dD][iI][vV])), " + \
-            "Add(Token(TokenType.ADD, +)), " + \
-            "Assign(Token(TokenType.ASSIGN, :=)), " + \
-            "Var(Token(TokenType.ID, c)), " + \
-            "Var(Token(TokenType.ID, a)), " + \
-            "Var(Token(TokenType.ID, b)), " + \
-            "Neg(Token(TokenType.SUB, -)), " + \
-            "Sub(Token(TokenType.SUB, -)), " + \
-            "Assign(Token(TokenType.ASSIGN, :=)), " + \
-            "Compound(Token(TokenType.EOF, None)), " + \
-            "Var(Token(TokenType.ID, x)), " + \
-            "Num(Token(TokenType.INT_CONST, 11)), " + \
-            "Assign(Token(TokenType.ASSIGN, :=)), " + \
-            "NoOp(Token(TokenType.EOF, None)), " + \
-            "Compound(Token(TokenType.EOF, None))" + \
-        "]"
+
+        act = [str(el) for el in PostOrderIter(ast)]
+        exp = [
+            'Var(value=number)', 
+            'Num(value=2)', 
+            'Assign(value=:=)', 
+            'Var(value=a)', 
+            'Var(value=number)', 
+            'Assign(value=:=)', 
+            'Var(value=b)', 
+            'Num(value=10)', 
+            'Var(value=a)', 
+            'Mul(value=*)', 
+            'Num(value=10)', 
+            'Var(value=number)', 
+            'Mul(value=*)', 
+            'Num(value=4)', 
+            'IntDiv(value=div)', 
+            'Add(value=+)', 
+            'Assign(value=:=)', 
+            'Var(value=c)', 
+            'Var(value=a)', 
+            'Var(value=b)', 
+            'Neg(value=-)', 
+            'Sub(value=-)', 
+            'Assign(value=:=)', 
+            'Compound()', 
+            'Var(value=x)', 
+            'Num(value=11)', 
+            'Assign(value=:=)', 
+            'NoOp()', 
+            'Compound()'
+        ]
 
         self.assertEqual(act, exp)
 
@@ -226,44 +229,43 @@ class ParserTestCase(unittest.TestCase):
         with open("tests/part10.pas") as f:
             p = make_parser(f.read())
         ast = p.parse()
-        act = str(list(PostOrderIter(ast)))
-        exp = "[" + \
-            "Var(Token(TokenType.ID, a)), " + \
-            "Type(Token(TokenType.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
-            "VarDecl(Token(TokenType.EOF, None)), " + \
-            "Var(Token(TokenType.ID, b)), " + \
-            "Type(Token(TokenType.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
-            "VarDecl(Token(TokenType.EOF, None)), " + \
-            "Var(Token(TokenType.ID, y)), " + \
-            "Type(Token(TokenType.REAL, [rR][eE][aA][lL])), " + \
-            "VarDecl(Token(TokenType.EOF, None)), " + \
-            "Var(Token(TokenType.ID, a)), " + \
-            "Num(Token(TokenType.INT_CONST, 2)), " + \
-            "Assign(Token(TokenType.ASSIGN, :=)), " + \
-            "Var(Token(TokenType.ID, b)), " + \
-            "Num(Token(TokenType.INT_CONST, 10)), " + \
-            "Var(Token(TokenType.ID, a)), " + \
-            "Mul(Token(TokenType.MUL, *)), " + \
-            "Num(Token(TokenType.INT_CONST, 10)), " + \
-            "Var(Token(TokenType.ID, a)), " + \
-            "Mul(Token(TokenType.MUL, *)), " + \
-            "Num(Token(TokenType.INT_CONST, 4)), " + \
-            "IntDiv(Token(TokenType.INT_DIV, [dD][iI][vV])), " + \
-            "Add(Token(TokenType.ADD, +)), " + \
-            "Assign(Token(TokenType.ASSIGN, :=)), " + \
-            "Var(Token(TokenType.ID, y)), " + \
-            "Num(Token(TokenType.INT_CONST, 20)), " + \
-            "Num(Token(TokenType.INT_CONST, 7)), " + \
-            "FloatDiv(Token(TokenType.FLOAT_DIV, /)), " + \
-            "Num(Token(TokenType.REAL_CONST, 3.14)), " + \
-            "Add(Token(TokenType.ADD, +)), " + \
-            "Assign(Token(TokenType.ASSIGN, :=)), " + \
-            "NoOp(Token(TokenType.EOF, None)), " + \
-            "Compound(Token(TokenType.EOF, None)), " + \
-            "Block(Token(TokenType.EOF, None)), " + \
-            "Program(Token(TokenType.EOF, None))" + \
-        "]"
-
+        act = [str(el) for el in PostOrderIter(ast)]
+        exp = [
+            'Var(value=a)', 
+            'Type(value=INTEGER)', 
+            'VarDecl()', 
+            'Var(value=b)', 
+            'Type(value=INTEGER)', 
+            'VarDecl()', 
+            'Var(value=y)', 
+            'Type(value=REAL)', 
+            'VarDecl()', 
+            'Var(value=a)', 
+            'Num(value=2)', 
+            'Assign(value=:=)', 
+            'Var(value=b)', 
+            'Num(value=10)', 
+            'Var(value=a)', 
+            'Mul(value=*)', 
+            'Num(value=10)', 
+            'Var(value=a)', 
+            'Mul(value=*)', 
+            'Num(value=4)', 
+            'IntDiv(value=DIV)', 
+            'Add(value=+)', 
+            'Assign(value=:=)', 
+            'Var(value=y)', 
+            'Num(value=20)', 
+            'Num(value=7)', 
+            'FloatDiv(value=/)', 
+            'Num(value=3.14)', 
+            'Add(value=+)', 
+            'Assign(value=:=)', 
+            'NoOp()', 
+            'Compound()', 
+            'Block()', 
+            'Program(name=Part10AST)'
+        ]
         self.assertEqual(act, exp)
 
     def test_parser_proc(self):
@@ -271,42 +273,43 @@ class ParserTestCase(unittest.TestCase):
             p = make_parser(f.read())
 
         ast = p.parse()
-        act = str(list(PostOrderIter(ast)))
-        exp = "[" + \
-            "Var(Token(TokenType.ID, a)), " + \
-            "Type(Token(TokenType.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
-            "VarDecl(Token(TokenType.EOF, None)), " + \
-            "Var(Token(TokenType.ID, a)), " + \
-            "Type(Token(TokenType.REAL, [rR][eE][aA][lL])), " + \
-            "VarDecl(Token(TokenType.EOF, None)), " + \
-            "Var(Token(TokenType.ID, k)), " + \
-            "Type(Token(TokenType.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
-            "VarDecl(Token(TokenType.EOF, None)), " + \
-            "Var(Token(TokenType.ID, a)), " + \
-            "Type(Token(TokenType.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
-            "VarDecl(Token(TokenType.EOF, None)), " + \
-            "Var(Token(TokenType.ID, z)), " + \
-            "Type(Token(TokenType.INTEGER, [iI][nN][tT][eE][gG][eE][rR])), " + \
-            "VarDecl(Token(TokenType.EOF, None)), " + \
-            "Var(Token(TokenType.ID, z)), " + \
-            "Num(Token(TokenType.INT_CONST, 777)), " + \
-            "Assign(Token(TokenType.ASSIGN, :=)), "  + \
-            "NoOp(Token(TokenType.EOF, None)), " + \
-            "Compound(Token(TokenType.EOF, None)), " + \
-            "Block(Token(TokenType.EOF, None)), " + \
-            "ProcDecl(Token(TokenType.EOF, p2)), " + \
-            "NoOp(Token(TokenType.EOF, None)), " + \
-            "Compound(Token(TokenType.EOF, None)), " + \
-            "Block(Token(TokenType.EOF, None)), " + \
-            "ProcDecl(Token(TokenType.EOF, p1)), " + \
-            "Var(Token(TokenType.ID, a)), " + \
-            "Num(Token(TokenType.INT_CONST, 10)), " + \
-            "Assign(Token(TokenType.ASSIGN, :=)), " + \
-            "NoOp(Token(TokenType.EOF, None)), " + \
-            "Compound(Token(TokenType.EOF, None)), " + \
-            "Block(Token(TokenType.EOF, None)), " + \
-            "Program(Token(TokenType.EOF, None))" + \
-        "]"
+        act = [str(el) for el in PostOrderIter(ast)]
+        exp = [
+            'Var(value=a)', 
+            'Type(value=INTEGER)', 
+            'VarDecl()', 
+            'Var(value=a)', 
+            'Type(value=REAL)', 
+            'VarDecl()', 
+            'Var(value=k)', 
+            'Type(value=INTEGER)', 
+            'VarDecl()', 
+            'Var(value=a)', 
+            'Type(value=INTEGER)', 
+            'VarDecl()', 
+            'Var(value=z)', 
+            'Type(value=INTEGER)', 
+            'VarDecl()', 
+            'Var(value=z)', 
+            'Num(value=777)', 
+            'Assign(value=:=)', 
+            'NoOp()', 
+            'Compound()', 
+            'Block()', 
+            'ProcDecl(name=P2)', 
+            'NoOp()', 
+            'Compound()', 
+            'Block()', 
+            'ProcDecl(name=P1)', 
+            'Var(value=a)', 
+            'Num(value=10)', 
+            'Assign(value=:=)', 
+            'NoOp()', 
+            'Compound()', 
+            'Block()', 
+            'Program(name=Part12)'
+        ]
+
         self.assertEqual(act, exp)
 
     def test_fail_parse(self):
@@ -316,95 +319,84 @@ class ParserTestCase(unittest.TestCase):
             p.parse_compound()
 
         exp_msg = \
-            "Invalid syntax: found Token(TokenType.ID, _a). " + \
-            "Expected semi-colon, line 6"
+            "Invalid syntax: found IdTok(_a). " + \
+            "Expected semi-colon at 6:17"
         act_msg = e.exception.args[0]
         self.assertEqual(act_msg, exp_msg)
 
     def test_parser_proc_sig(self):
         ast = make_prog_ast_from_file("tests/part14.pas")
-        actual = str(list(PostOrderIter(ast)))
-
-        self.assertEqual(
-            actual,
-            "[" + \
-                "Var(Token(TokenType.ID, x)), " + \
-                "Type(Token(TokenType.REAL, [rR][eE][aA][lL])), " + \
-                "VarDecl(Token(TokenType.EOF, None)), " + \
-                "Var(Token(TokenType.ID, y)), " + \
-                "Type(Token(TokenType.REAL, [rR][eE][aA][lL])), " + \
-                "VarDecl(Token(TokenType.EOF, None)), " + \
-                "Var(Token(TokenType.ID, a)), " + \
-                "Type(Token(TokenType.INTEGER, " + \
-                    "[iI][nN][tT][eE][gG][eE][rR])), " +\
-                "Param(Token(TokenType.EOF, None)), " + \
-                "Var(Token(TokenType.ID, y)), " + \
-                "Type(Token(TokenType.INTEGER, " + \
-                    "[iI][nN][tT][eE][gG][eE][rR])), " +\
-                "VarDecl(Token(TokenType.EOF, None)), " + \
-                "Var(Token(TokenType.ID, x)), " + \
-                "Var(Token(TokenType.ID, a)), " + \
-                "Var(Token(TokenType.ID, x)), " + \
-                "Add(Token(TokenType.ADD, +)), " + \
-                "Var(Token(TokenType.ID, y)), " + \
-                "Add(Token(TokenType.ADD, +)), " + \
-                "Assign(Token(TokenType.ASSIGN, :=)), " + \
-                "NoOp(Token(TokenType.EOF, None)), " + \
-                "Compound(Token(TokenType.EOF, None)), " + \
-                "Block(Token(TokenType.EOF, None)), " + \
-                "ProcDecl(Token(TokenType.EOF, alpha)), " + \
-                "NoOp(Token(TokenType.EOF, None)), " + \
-                "Compound(Token(TokenType.EOF, None)), " + \
-                "Block(Token(TokenType.EOF, None)), " + \
-                "Program(Token(TokenType.EOF, None))" + \
-            "]"
-        )
+        act = [str(el) for el in PostOrderIter(ast)]
+        exp = [
+            'Var(value=x)', 
+            'Type(value=real)', 
+            'VarDecl()', 
+            'Var(value=y)', 
+            'Type(value=real)', 
+            'VarDecl()', 
+            'Var(value=a)', 
+            'Type(value=integer)', 
+            'Param()', 
+            'Var(value=y)', 
+            'Type(value=integer)', 
+            'VarDecl()', 
+            'Var(value=x)', 
+            'Var(value=a)', 
+            'Var(value=x)', 
+            'Add(value=+)', 
+            'Var(value=y)', 
+            'Add(value=+)', 
+            'Assign(value=:=)', 
+            'NoOp()', 
+            'Compound()', 
+            'Block()', 
+            'ProcDecl(name=Alpha)', 
+            'NoOp()', 
+            'Compound()', 
+            'Block()', 
+            'Program(name=Main)'
+        ]
+        self.assertEqual(act, exp)
 
     def test_parser_proc_sig2(self):
         ast = make_prog_ast_from_file("tests/part14_2.pas")
-        actual = str(list(PostOrderIter(ast)))
-
-        self.assertEqual(
-            actual,
-            "[" + \
-                "Var(Token(TokenType.ID, x)), " + \
-                "Type(Token(TokenType.REAL, [rR][eE][aA][lL])), " + \
-                "VarDecl(Token(TokenType.EOF, None)), " + \
-                "Var(Token(TokenType.ID, y)), " + \
-                "Type(Token(TokenType.REAL, [rR][eE][aA][lL])), " + \
-                "VarDecl(Token(TokenType.EOF, None)), " + \
-                "Var(Token(TokenType.ID, a)), " + \
-                "Type(Token(TokenType.INTEGER, " + \
-                    "[iI][nN][tT][eE][gG][eE][rR])), " +\
-                "Param(Token(TokenType.EOF, None)), " + \
-                "Var(Token(TokenType.ID, b)), " + \
-                "Type(Token(TokenType.INTEGER, " + 
-                    "[iI][nN][tT][eE][gG][eE][rR])), " +\
-                "Param(Token(TokenType.EOF, None)), " + \
-                "Var(Token(TokenType.ID, c)), " + \
-                "Type(Token(TokenType.REAL, [rR][eE][aA][lL])), " + \
-                "Param(Token(TokenType.EOF, None)), " + \
-                "Var(Token(TokenType.ID, y)), " + \
-                "Type(Token(TokenType.INTEGER, " + \
-                    "[iI][nN][tT][eE][gG][eE][rR])), " +\
-                "VarDecl(Token(TokenType.EOF, None)), " + \
-                "Var(Token(TokenType.ID, x)), " + \
-                "Var(Token(TokenType.ID, a)), " + \
-                "Var(Token(TokenType.ID, x)), " + \
-                "Add(Token(TokenType.ADD, +)), " + \
-                "Var(Token(TokenType.ID, y)), " + \
-                "Add(Token(TokenType.ADD, +)), " + \
-                "Assign(Token(TokenType.ASSIGN, :=)), " + \
-                "NoOp(Token(TokenType.EOF, None)), " + \
-                "Compound(Token(TokenType.EOF, None)), " + \
-                "Block(Token(TokenType.EOF, None)), " + \
-                "ProcDecl(Token(TokenType.EOF, alpha)), " + \
-                "NoOp(Token(TokenType.EOF, None)), " + \
-                "Compound(Token(TokenType.EOF, None)), " + \
-                "Block(Token(TokenType.EOF, None)), " + \
-                "Program(Token(TokenType.EOF, None))" + \
-            "]"
-        )
+        act = [str(el) for el in PostOrderIter(ast)]
+        exp = [
+            'Var(value=x)', 
+            'Type(value=real)', 
+            'VarDecl()', 
+            'Var(value=y)', 
+            'Type(value=real)', 
+            'VarDecl()', 
+            'Var(value=a)', 
+            'Type(value=integer)', 
+            'Param()', 
+            'Var(value=b)', 
+            'Type(value=integer)', 
+            'Param()', 
+            'Var(value=c)', 
+            'Type(value=real)', 
+            'Param()', 
+            'Var(value=y)', 
+            'Type(value=integer)', 
+            'VarDecl()', 
+            'Var(value=x)', 
+            'Var(value=a)', 
+            'Var(value=x)', 
+            'Add(value=+)', 
+            'Var(value=y)', 
+            'Add(value=+)', 
+            'Assign(value=:=)', 
+            'NoOp()', 
+            'Compound()', 
+            'Block()', 
+            'ProcDecl(name=Alpha)', 
+            'NoOp()', 
+            'Compound()', 
+            'Block()', 
+            'Program(name=Main)'
+        ]
+        self.assertEqual(act, exp)
 
 
 class InterpreterTestCase(unittest.TestCase):
@@ -479,7 +471,7 @@ class InterpreterTestCase(unittest.TestCase):
         self.assertEqual(
             msg, 
             "Invalid syntax: was expecting TokenType.ID, " + \
-            "got TokenType.EOF, line 1"
+            "got TokenType.EOF at 1:4"
         )
 
     def test_expression_invalid_syntax1(self):
@@ -559,7 +551,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
                 "level: 0, " + \
                 "encl_scope: None, " + \
                 "symbols: ['INTEGER', 'REAL', " + \
-                    "'ProcSymbol(name=part11, params=[])']" + \
+                    "'ProcSymbol(name=Part11, params=[])']" + \
             ")",
             f"got {scopes[0]}"
         )
@@ -570,7 +562,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
 
         with self.assertRaises(NameError) as e:
             lyz.visit(ast)
-        self.assertEqual(e.exception.args[0], "b at line 6")
+        self.assertEqual(e.exception.args[0], "b is not declared at 6:13")
 
     def test_builder_name_error2(self):
         ast = make_prog_ast_from_file("tests/name_err2.pas")
@@ -578,7 +570,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
 
         with self.assertRaises(NameError) as e:
             lyz.visit(ast)
-        self.assertEqual(e.exception.args[0], "a at line 7")
+        self.assertEqual(e.exception.args[0], "a is not declared at 7:4")
 
     def test_builder_part12(self):
         ast = make_prog_ast_from_file("tests/part12.pas")
@@ -593,22 +585,22 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         self.assertEqual(
             scopes[0], 
             "(" + \
-                "name: p2, " + \
+                "name: P2, " + \
                 "level: 3, " + \
-                "encl_scope: p1, " + \
+                "encl_scope: P1, " + \
                 "symbols: ['<a:INTEGER>', '<z:INTEGER>']" + \
             ")"
         )
         self.assertEqual(
             scopes[1],
             "(" + \
-                "name: p1, " + \
+                "name: P1, " + \
                 "level: 2, " + \
                 "encl_scope: global, " + \
                 "symbols: [" + \
                     "'<a:REAL>', " + \
                     "'<k:INTEGER>', " + \
-                    "'ProcSymbol(name=p2, params=[])'" + \
+                    "'ProcSymbol(name=P2, params=[])'" + \
                 "]" + \
             ")"
         )
@@ -620,7 +612,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
                 "encl_scope: builtins, " + \
                 "symbols: [" + \
                     "'<a:INTEGER>', " + \
-                    "'ProcSymbol(name=p1, params=[])'" + \
+                    "'ProcSymbol(name=P1, params=[])'" + \
                 "]" + \
             ")"
         )
@@ -631,7 +623,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
                 "level: 0, " + \
                 "encl_scope: None, " + \
                 "symbols: ['INTEGER', 'REAL', " + \
-                    "'ProcSymbol(name=part12, params=[])']" + \
+                    "'ProcSymbol(name=Part12, params=[])']" + \
             ")",
         )
 
@@ -642,7 +634,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         with self.assertRaises(NameError) as e:
             lyz.analyze(ast)
         self.assertEqual(
-            e.exception.args[0], "duplicate identifier y found at line 3")
+            e.exception.args[0], "duplicate identifier y found at 3:8")
 
     def test_part14_decl_only_chained_scope(self):
         ast = make_prog_ast_from_file("tests/part14_decl_only.pas")
@@ -657,39 +649,39 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "ENTER scope builtins",
             "Insert: INTEGER",
             "Insert: REAL",
-            "Insert: main",
+            "Insert: Main",
             "ENTER scope global",
-            "Lookup: REAL. (Scope name: global)",
-            "Lookup: REAL. (Scope name: builtins)",
+            "Lookup: real. (Scope name: global)",
+            "Lookup: real. (Scope name: builtins)",
             "Lookup: x. (Scope name: global)",
             "Insert: x",
-            "Lookup: REAL. (Scope name: global)",
-            "Lookup: REAL. (Scope name: builtins)",
+            "Lookup: real. (Scope name: global)",
+            "Lookup: real. (Scope name: builtins)",
             "Lookup: y. (Scope name: global)",
             "Insert: y",
-            "Insert: alpha",
-            "ENTER scope alpha",
-            "Lookup: INTEGER. (Scope name: alpha)",
-            "Lookup: INTEGER. (Scope name: global)",
-            "Lookup: INTEGER. (Scope name: builtins)",
-            "Lookup: a. (Scope name: alpha)",
+            "Insert: Alpha",
+            "ENTER scope Alpha",
+            "Lookup: integer. (Scope name: Alpha)",
+            "Lookup: integer. (Scope name: global)",
+            "Lookup: integer. (Scope name: builtins)",
+            "Lookup: a. (Scope name: Alpha)",
             "Insert: a",
-            "Lookup: INTEGER. (Scope name: alpha)",
-            "Lookup: INTEGER. (Scope name: global)",
-            "Lookup: INTEGER. (Scope name: builtins)",
-            "Lookup: y. (Scope name: alpha)",
+            "Lookup: integer. (Scope name: Alpha)",
+            "Lookup: integer. (Scope name: global)",
+            "Lookup: integer. (Scope name: builtins)",
+            "Lookup: y. (Scope name: Alpha)",
             "Insert: y",
-            "(name: alpha, level: 2, " + \
+            "(name: Alpha, level: 2, " + \
                 "encl_scope: global, symbols: ['<a:INTEGER>', '<y:INTEGER>'])",
-            "LEAVE scope alpha",
+            "LEAVE scope Alpha",
             "(name: global, level: 1, encl_scope: builtins, " + \
                 "symbols: ['<x:REAL>', '<y:REAL>', " + \
-                "\"ProcSymbol(name=alpha, " + \
+                "\"ProcSymbol(name=Alpha, " + \
                     "params=[VarSymbol(name='a', type='INTEGER')])\"])",
             "LEAVE scope global",
             "(name: builtins, level: 0, encl_scope: None, " + \
                 "symbols: ['INTEGER', 'REAL', " + \
-                "'ProcSymbol(name=main, params=[])'])",
+                "'ProcSymbol(name=Main, params=[])'])",
             "LEAVE scope builtins"
         ]
 
@@ -703,7 +695,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         with self.assertRaises(NameError) as e:
             lyz.analyze(ast)
         self.assertEqual(
-            e.exception.args[0], "duplicate identifier a found at line 4")
+            e.exception.args[0], "duplicate identifier a found 4:33")
 
     def test_part14_sibling_scopes(self):
         ast = make_prog_ast_from_file(
@@ -719,7 +711,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         self.assertEqual(
             scopes[0], 
             "(" + \
-                "name: alphaa, " + \
+                "name: AlphaA, " + \
                 "level: 2, " + \
                 "encl_scope: global, " + \
                 "symbols: ['<a:INTEGER>', '<y:INTEGER>']" + \
@@ -728,7 +720,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         self.assertEqual(
             scopes[1], 
             "(" + \
-                "name: alphab, " + \
+                "name: AlphaB, " + \
                 "level: 2, " + \
                 "encl_scope: global, " + \
                 "symbols: ['<a:INTEGER>', '<b:INTEGER>']" + \
@@ -744,11 +736,11 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
                     "'<x:REAL>', " + \
                     "'<y:REAL>', " + \
                     "\"ProcSymbol(" + \
-                        "name=alphaa, " + \
+                        "name=AlphaA, " + \
                         "params=[VarSymbol(name='a', type='INTEGER')]" + \
                     ")\", " + \
                     "\"ProcSymbol(" + \
-                        "name=alphab, " + \
+                        "name=AlphaB, " + \
                         "params=[VarSymbol(name='a', type='INTEGER')]" + \
                     ")\"" + \
                 "]" + \
@@ -761,7 +753,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
                 "level: 0, " + \
                 "encl_scope: None, " + \
                 "symbols: ['INTEGER', 'REAL', " + \
-                    "'ProcSymbol(name=main, params=[])']" + \
+                    "'ProcSymbol(name=Main, params=[])']" + \
             ")",
         )
 
@@ -778,45 +770,45 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "ENTER scope builtins",
             "Insert: INTEGER",
             "Insert: REAL",
-            "Insert: main",
+            "Insert: Main",
             "ENTER scope global",
-            "Lookup: REAL. (Scope name: global)",
-            "Lookup: REAL. (Scope name: builtins)",
+            "Lookup: real. (Scope name: global)",
+            "Lookup: real. (Scope name: builtins)",
             "Lookup: x. (Scope name: global)",
             "Insert: x",
-            "Lookup: REAL. (Scope name: global)",
-            "Lookup: REAL. (Scope name: builtins)",
+            "Lookup: real. (Scope name: global)",
+            "Lookup: real. (Scope name: builtins)",
             "Lookup: y. (Scope name: global)",
             "Insert: y",
-            "Insert: alpha",
-            "ENTER scope alpha",
-            "Lookup: INTEGER. (Scope name: alpha)",
-            "Lookup: INTEGER. (Scope name: global)",
-            "Lookup: INTEGER. (Scope name: builtins)",
-            "Lookup: a. (Scope name: alpha)",
+            "Insert: Alpha",
+            "ENTER scope Alpha",
+            "Lookup: integer. (Scope name: Alpha)",
+            "Lookup: integer. (Scope name: global)",
+            "Lookup: integer. (Scope name: builtins)",
+            "Lookup: a. (Scope name: Alpha)",
             "Insert: a",
-            "Lookup: INTEGER. (Scope name: alpha)",
-            "Lookup: INTEGER. (Scope name: global)",
-            "Lookup: INTEGER. (Scope name: builtins)",
-            "Lookup: y. (Scope name: alpha)",
+            "Lookup: integer. (Scope name: Alpha)",
+            "Lookup: integer. (Scope name: global)",
+            "Lookup: integer. (Scope name: builtins)",
+            "Lookup: y. (Scope name: Alpha)",
             "Insert: y",
-            "Lookup: a. (Scope name: alpha)",
-            "Lookup: x. (Scope name: alpha)",
+            "Lookup: a. (Scope name: Alpha)",
+            "Lookup: x. (Scope name: Alpha)",
             "Lookup: x. (Scope name: global)",
-            "Lookup: y. (Scope name: alpha)",
-            "Lookup: x. (Scope name: alpha)",
+            "Lookup: y. (Scope name: Alpha)",
+            "Lookup: x. (Scope name: Alpha)",
             "Lookup: x. (Scope name: global)",
-            "(name: alpha, level: 2, encl_scope: global, " + \
+            "(name: Alpha, level: 2, encl_scope: global, " + \
                 "symbols: ['<a:INTEGER>', '<y:INTEGER>'])",
-            "LEAVE scope alpha",
+            "LEAVE scope Alpha",
             "(name: global, level: 1, encl_scope: builtins, " + \
                 "symbols: ['<x:REAL>', '<y:REAL>', " + \
-                "\"ProcSymbol(name=alpha, " + \
+                "\"ProcSymbol(name=Alpha, " + \
                 "params=[VarSymbol(name='a', type='INTEGER')])\"])",
             "LEAVE scope global",
             "(name: builtins, level: 0, encl_scope: None, " + \
                 "symbols: ['INTEGER', 'REAL', " + \
-                "'ProcSymbol(name=main, params=[])'])",
+                "'ProcSymbol(name=Main, params=[])'])",
             "LEAVE scope builtins"
         ]
 
@@ -831,71 +823,74 @@ class DecoSrcBuilderTestCase(unittest.TestCase):
         lyz.analyze(ast)
         actual = lyz.deco_src()
         expect = \
-            "program part110;\n   var x1 : INTEGER0;\n   " + \
-            "var y1 : REAL0;\n   begin\n   end.    {END OF part11}"
+            "program Part110;\n   var x1 : INTEGER0;\n   " + \
+            "var y1 : REAL0;\n   begin\n   end.    {END OF Part11}"
         self.assertEqual(actual, expect)
 
     def test_deco_src_part14(self):
         ast = make_prog_ast_from_file("tests/part14_s2s.pas")
         lyz = SemanticAnalyzer(s2s=True)
         lyz.analyze(ast)
-        expect = 'program main0;\n   var x1 : REAL0;\n   ' + \
-            'var y1 : REAL0;\n   var z1 : INTEGER0;\n   ' + \
-            'var b1 : INTEGER0;\n   var c1 : REAL0;\n   ' + \
-            'var d1 : INTEGER0;\n   procedure alpha1(a2 : INTEGER0);\n      ' + \
-            'var y2 : INTEGER0;\n      begin\n      ' + \
+        actual = lyz.deco_src()
+        expect = 'program Main0;\n   var x1 : real0;\n   ' + \
+            'var y1 : real0;\n   var z1 : integer0;\n   ' + \
+            'var b1 : integer0;\n   var c1 : real0;\n   ' + \
+            'var d1 : integer0;\n   procedure Alpha1(a2 : integer0);\n      ' + \
+            'var y2 : integer0;\n      begin\n      ' + \
             '<x1:REAL0> := <a2:INTEGER0> + <x1:REAL0> * <y2:INTEGER0>\n      ' + \
             '<x1:REAL0> := - <a2:INTEGER0>\n      ' + \
             '<x1:REAL0> := + <a2:INTEGER0>\n      ' + \
             '<x1:REAL0> := - + <a2:INTEGER0>\n      end;    ' + \
-            '{END OF alpha}\n   begin\n   ' + \
+            '{END OF Alpha}\n   begin\n   ' + \
             '<z1:INTEGER0> := <z1:INTEGER0> - ' + \
             '<d1:INTEGER0> / <b1:INTEGER0> DIV <c1:REAL0>\n   end.    ' + \
-            '{END OF main}'
-        self.assertEqual(lyz.deco_src(), expect)
+            '{END OF Main}'
+        self.assertEqual(actual, expect)
 
     def test_deco_src_part14_2(self):
         ast = make_prog_ast_from_file("tests/part14_s2s_2.pas")
         lyz = SemanticAnalyzer(s2s=True)
         lyz.analyze(ast)
-        expect = 'program main0;\n   ' + \
-            'var x1 : REAL0;\n   ' + \
-            'var y1 : REAL0;\n   ' + \
-            'var z1 : INTEGER0;\n   ' + \
-            'procedure alphaa1(a2 : INTEGER0);\n      ' + \
-            'var y2 : INTEGER0;\n      ' + \
+        actual = lyz.deco_src()
+        expect = 'program Main0;\n   ' + \
+            'var x1 : real0;\n   ' + \
+            'var y1 : real0;\n   ' + \
+            'var z1 : integer0;\n   ' + \
+            'procedure AlphaA1(a2 : integer0);\n      ' + \
+            'var y2 : integer0;\n      ' + \
             'begin\n      ' + \
             '<x1:REAL0> := <a2:INTEGER0> + <x1:REAL0> + <y2:INTEGER0>\n      ' + \
-            'end;    {END OF alphaa}\n   ' + \
-            'procedure alphab1(a2 : INTEGER0);\n      ' + \
-            'var b2 : INTEGER0;\n      begin\n      ' + \
-            'end;    {END OF alphab}\n   begin\n   ' + \
-            'end.    {END OF main}'
-        self.assertEqual(lyz.deco_src(), expect)
+            'end;    {END OF AlphaA}\n   ' + \
+            'procedure AlphaB1(a2 : integer0);\n      ' + \
+            'var b2 : integer0;\n      begin\n      ' + \
+            'end;    {END OF AlphaB}\n   begin\n   ' + \
+            'end.    {END OF Main}'
+        self.assertEqual(actual, expect)
 
     def test_deco_src_part14_3(self):
         ast = make_prog_ast_from_file("tests/part14_s2s_3.pas")
         lyz = SemanticAnalyzer(s2s=True)
         lyz.analyze(ast)
-        expect = 'program main0;\n   var b1 : REAL0;\n   ' + \
-            'var x1 : REAL0;\n   var y1 : REAL0;\n   ' + \
-            'var z1 : INTEGER0;\n   procedure ' + \
-            'alphaa1(a2 : INTEGER0);\n      ' + \
-            'var b2 : INTEGER0;\n      ' + \
-            'procedure beta2(c3 : INTEGER0);\n         ' + \
-            'var y3 : INTEGER0;\n         ' + \
-            'procedure gamma3(c4 : INTEGER0);\n            ' + \
-            'var x4 : INTEGER0;\n            begin\n            ' + \
+        actual = lyz.deco_src()
+        expect = 'program Main0;\n   var b1 : real0;\n   ' + \
+            'var x1 : real0;\n   var y1 : real0;\n   ' + \
+            'var z1 : integer0;\n   procedure ' + \
+            'AlphaA1(a2 : integer0);\n      ' + \
+            'var b2 : integer0;\n      ' + \
+            'procedure Beta2(c3 : integer0);\n         ' + \
+            'var y3 : integer0;\n         ' + \
+            'procedure Gamma3(c4 : integer0);\n            ' + \
+            'var x4 : integer0;\n            begin\n            ' + \
             '<x4:INTEGER0> := <a2:INTEGER0> + <b2:INTEGER0> + ' + \
             '<c4:INTEGER0> + <x4:INTEGER0> + <y3:INTEGER0> + ' + \
             '<z1:INTEGER0>\n            end;    ' + \
-            '{END OF gamma}\n         begin\n         end;    ' + \
-            '{END OF beta}\n      begin\n      end;    ' + \
-            '{END OF alphaa}\n   procedure ' + \
-            'alphab1(a2 : INTEGER0);\n      var c2 : REAL0;\n      ' + \
+            '{END OF Gamma}\n         begin\n         end;    ' + \
+            '{END OF Beta}\n      begin\n      end;    ' + \
+            '{END OF AlphaA}\n   procedure ' + \
+            'AlphaB1(a2 : integer0);\n      var c2 : real0;\n      ' + \
             'begin\n      <c2:REAL0> := <a2:INTEGER0> + <b1:REAL0>\n      ' + \
-            'end;    {END OF alphab}\n   begin\n   end.    {END OF main}'
-        self.assertEqual(lyz.deco_src(), expect)
+            'end;    {END OF AlphaB}\n   begin\n   end.    {END OF Main}'
+        self.assertEqual(actual, expect)
 
 
 class Foo(unittest.TestCase):

@@ -6,13 +6,14 @@ from typing import \
     ContextManager, \
     Optional, \
     Union, \
+    overload, \
+    Sequence, \
     List, \
     Dict, \
     Mapping, \
     NamedTuple, \
     Iterator, \
-    Iterable, \
-    cast
+    Iterable
 from types import TracebackType
 from abc import ABC, abstractmethod
 from anytree import RenderTree # type:ignore
@@ -35,6 +36,11 @@ class TokenTypeValue(NamedTuple):
     type: Callable[[str], Any] = str
 
 
+class Position(NamedTuple):
+    line: int
+    col: int
+
+
 class TokenType(Enum):
     PROGRAM = TokenTypeValue(pat=r"[pP][rR][oO][gG][rR][aA][mM]", re=True)
     VAR = TokenTypeValue(pat=r"[vV][aA][rR]", re=True)
@@ -52,7 +58,6 @@ class TokenType(Enum):
     FLOAT_DIV = TokenTypeValue(pat='/')
     LPAR = TokenTypeValue(pat='(')
     RPAR = TokenTypeValue(pat=')')
-    EOF = TokenTypeValue(pat=r"$", re=True)
     BEGIN = TokenTypeValue(pat=r"[bB][eE][gG][iI][nN]", re=True)
     END = TokenTypeValue(pat=r"[eE][nN][dD]", re=True)
     DOT = TokenTypeValue(pat=".")
@@ -62,6 +67,7 @@ class TokenType(Enum):
     SEMI = TokenTypeValue(pat=";")
     COMMENT = TokenTypeValue(pat=r"\{.*\}", re=True)
     NEWLINE = TokenTypeValue(pat=r"\n", re=True)
+    EOF = TokenTypeValue(pat=r"$", re=True)
 
     def __repr__(self) -> str:
         return str(self)
@@ -76,24 +82,24 @@ class TokenType(Enum):
         return pat if ident.value.re else re.escape(pat)
 
 
-class Token:
+class IToken(ABC):
     def __init__(
         self, 
         ty: TokenType, 
-        value: Union[str, int, float, None]
+        value: Union[str, int, float],
+        pos: Position
     ) -> None:
         self.type: TokenType = ty
-        self.value: Union[str, int, float, None] = value
+        self._value: Union[str, int, float] = value
+        self.pos: Position = pos
+
+    @property # type:ignore
+    @abstractmethod
+    def value(self) -> Union[str, int, float]:
+        return self._value
 
     def __str__(self) -> str:
-        """String representation of the class instance.
-
-        Examples:
-            Token(INT_CONST, 3)
-            Token(ADD, '+')
-            Token(MUL, '*')
-        """
-        return f"Token({self.type}, {self.value})"
+        return f"{type(self).__name__}({self.value})"
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -103,52 +109,263 @@ class Token:
 
     def __eq__(self, other) -> bool:
         return self.type == other.type and \
-            self.value.lower() == other.value.lower() \
-            if isinstance(self.value, str) else \
-            self.value == other.value
+            (
+                self.value.lower() == other.value.lower() \
+                if isinstance(self.value, str) else \
+                self.value == other.value
+            ) and \
+            self.pos == other.pos
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)
 
 
-class Lexer(Iterable[Token]):
+class ProgramTok(IToken):
+    def __init__(
+        self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.PROGRAM, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+    
+
+class VarTok(IToken):
+    def __init__(
+        self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.VAR, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class ProcedureTok(IToken):
+    def __init__(
+        self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.PROCEDURE, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+    
+
+class CommaTok(IToken):
+    def __init__(
+        self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.COMMA, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class IntegerTok(IToken):
+    def __init__(
+        self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.INTEGER, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+    
+
+class RealTok(IToken):
+    def __init__(
+        self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.REAL, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class IntConstTok(IToken):
+    def __init__(
+        self, value: int, pos: Position) -> None:
+        super().__init__(TokenType.INT_CONST, value, pos)
+
+    @property
+    def value(self) -> int:
+        return cast(int, self._value)
+
+
+class RealConstTok(IToken):
+    def __init__(
+        self, value: float, pos: Position) -> None:
+        super().__init__(TokenType.REAL_CONST, value, pos)
+
+    @property
+    def value(self) -> float:
+        return cast(float, self._value)
+    
+
+class AddTok(IToken):
+    def __init__(
+        self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.ADD, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class SubTok(IToken):
+    def __init__(
+        self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.SUB, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class MulTok(IToken):
+    def __init__(
+        self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.MUL, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class IntDivTok(IToken):
+    def __init__(
+        self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.INT_DIV, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class FloatDivTok(IToken):
+    def __init__(
+        self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.FLOAT_DIV, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class LparTok(IToken):
+    def __init__(
+        self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.LPAR, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class RparTok(IToken):
+    def __init__(
+        self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.RPAR, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class EofTok(IToken):
+    def __init__(
+        self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.EOF, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class BeginTok(IToken):
+    def __init__(
+        self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.BEGIN, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class EndTok(IToken):
+    def __init__(
+        self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.END, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class DotTok(IToken):
+    def __init__(
+        self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.DOT, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class IdTok(IToken):
+    def __init__(
+        self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.ID, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class AssignTok(IToken):
+    def __init__(
+        self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.ASSIGN, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class ColonTok(IToken):
+    def __init__(
+        self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.COLON, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class SemiTok(IToken):
+    def __init__(
+        self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.SEMI, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class Lexer(Iterable[IToken]):
     class TokenTypeInfo(NamedTuple):
         tokty: TokenType
         pattern: str
-        token: Token=Token(TokenType.EOF, None)
+        token: IToken=EofTok("", Position(line=0, col=0))
 
-    RES_KW: List[TokenType] = [
-        TokenType.PROGRAM,
-        TokenType.VAR,
-        TokenType.PROCEDURE,
-        TokenType.INT_DIV,
-        TokenType.INTEGER,
-        TokenType.REAL,
-        TokenType.BEGIN,
-        TokenType.END
-    ]
-
-    __RES_KW_TO_TTY_INFO: Dict[str, TokenTypeInfo] = {}
     __TOKEN_NAME_TO_TTY_INFO: Dict[str, TokenTypeInfo] = {}
 
-    @classmethod
-    def _RES_KW_TO_TTY_INFO(cls) -> Dict[str, TokenTypeInfo]:
-        if not cls.__RES_KW_TO_TTY_INFO:
-            cls.__RES_KW_TO_TTY_INFO = \
-                { 
-                    name: 
-                    cls.TokenTypeInfo(
-                        tokty=tty,
-                        pattern=TokenType.pattern(tty),
-                        token=Token(tty, TokenType.pattern(tty))
-                    )
-                    for name, tty in TokenType.members().items() 
-                    if tty in cls.RES_KW
-                }
-        return cls.__RES_KW_TO_TTY_INFO
+    @staticmethod
+    def token_ctor(name: str) -> \
+        Callable[[Union[str, int, float], Position], IToken]:
+        ctor_name = to_camel_case(name) + "Tok"
+        return globals()[ctor_name]
 
     @classmethod
-    def _TOKEN_NAME_TO_TTY_INFO(cls) -> Dict[str, TokenTypeInfo]:
+    def _token_name_to_tty_info(cls) -> Dict[str, TokenTypeInfo]:
         if not cls.__TOKEN_NAME_TO_TTY_INFO:
             cls.__TOKEN_NAME_TO_TTY_INFO = \
                 { 
@@ -159,15 +376,15 @@ class Lexer(Iterable[Token]):
                     )
                     for name, tty in TokenType.members().items()
                 }
-            cls.__TOKEN_NAME_TO_TTY_INFO.update(cls._RES_KW_TO_TTY_INFO())
         return cls.__TOKEN_NAME_TO_TTY_INFO
 
     def __init__(self, text: str) -> None:
         self._text: str = text
         self.linenum: int = 1
+        self.newline_anchor: int = -1
 
-    def _iter_tokens(self) -> Iterator[Token]:
-        token_spec = Lexer._TOKEN_NAME_TO_TTY_INFO()
+    def _iter_tokens(self) -> Iterator[IToken]:
+        token_spec = Lexer._token_name_to_tty_info()
 
         token_pats = [
             rf"(?P<{name}>{tty_info.pattern})" 
@@ -185,261 +402,543 @@ class Lexer(Iterable[Token]):
             ):
                 if tty == TokenType.NEWLINE:
                     self.linenum += 1
+                    self.newline_anchor = m.start()
                 continue
 
-            if token_spec[name].token:
-                yield token_spec[name].token
-            else:
-                yield Token(tty, tty.value.type(m[name]))
+            yield Lexer.token_ctor(name)(
+                tty.value.type(m[name]), 
+                Position(
+                    line=self.linenum, 
+                    col=m.start(name) - self.newline_anchor
+                )
+            )
 
-        yield Token(TokenType.EOF, None)
-
-    def __iter__(self) -> Iterator[Token]:
-        """Lexical analyzer (also known as scanner or tokenizer)
-
-        This method is responsible for breaking a sentence
-        apart into tokens. One token at a time.
-        """
-
+    def __iter__(self) -> Iterator[IToken]:
         return self._iter_tokens()
 
 
 class IAST(ABC, NodeMixin):
-    @property # type:ignore
-    @abstractmethod
-    def token(self) -> Token:
-        pass
-
-    @property # type:ignore
-    @abstractmethod
-    def linenum(self) -> int:
-        pass
-
-    @linenum.setter # type:ignore
-    @abstractmethod
-    def linenum(self, num: int) -> None:
-        pass
-
-
-class AST(IAST):
-    def __init__(self):
-        self._linenum = 0
-        self._token = Token(TokenType.EOF, None)
+    def __init__(self, children: Optional[List['IAST']]=None):
+        self.children: List['IAST'] = children or []
 
     @property
-    def token(self) -> Token:
-        return self._token
+    def kids(self) -> List['IAST']:
+        assert isinstance(self.children, list)
+        return self.children
 
-    @property
-    def linenum(self) -> int:
-        return self._linenum
-
-    @linenum.setter
-    def linenum(self, num: int) -> None:
-        self._linenum = num 
-
+    @abstractmethod    
     def __str__(self) -> str:
-        return f"{type(self).__name__}({self.token})"
+        return f"{type(self).__name__}({self.kids})"
 
     def __repr__(self) -> str:
         return str(self)
 
 
-class Program(AST):
+class Program(IAST):
     def __init__(self, name: str, block: 'Block') -> None:
-        super().__init__()
         self.name: str = name
         self.block: 'Block' = block
-        self.children: List[AST] = [self.block]
+        super().__init__([self.block])
+
+    def __str__(self) -> str:
+        return f"{type(self).__name__}(name={self.name})"
 
 
-class Block(AST):
+class Block(IAST):
     def __init__(
         self, 
         declarations: List['VarDecl'], 
         compound_statement: 'Compound'
     ) -> None:
-        super().__init__()
         self.declarations: List['VarDecl'] = declarations
         self.compound_statement: 'Compound' = compound_statement
-        self.children: List[AST] = self.declarations + [self.compound_statement]
+        super().__init__(self.declarations + [self.compound_statement])
+
+    def __str__(self) -> str:
+        return f"{type(self).__name__}()"
 
 
-class VarDecl(AST):
+class VarDecl(IAST):
     def __init__(self, var: 'Var', ty: 'Type') -> None:
-        super().__init__()
         self.var: 'Var' = var
         self.type: 'Type' = ty
-        self.children: List[AST] = [self.var, self.type]
+        super().__init__([self.var, self.type])
 
+    def __str__(self) -> str:
+        return f"{type(self).__name__}()"
+    
 
 class Param(VarDecl):
     def __init__(self, var: 'Var', ty: 'Type') -> None:
         super().__init__(var, ty)
 
 
-class ProcDecl(AST):
+class ProcDecl(IAST):
     def __init__(self, proc_name: str, params: List[Param], block_node: Block):
-        super().__init__()
-        self._token: Token = Token(TokenType.EOF, proc_name)
         self.name: str = proc_name
         self.params: List[Param] = params
         self.block_node: Block = block_node
-        self.children: List[AST] = self.params + [self.block_node]
+        super().__init__(self.params + [self.block_node])
 
+    def __str__(self) -> str:
+        return f"{type(self).__name__}(name={self.name})"
+    
 
-class Type(AST):
-    def __init__(self, tytok: Token) -> None:
+class Type(IAST):
+    def __init__(self, arg: Union[IntegerTok, RealTok, 'Type']) -> None:
         super().__init__()
-        self._token: Token = tytok
-        self.type: TokenType = self._token.type
-        self.value: str  = self.type.name
 
-    @classmethod
-    def copy(cls, other: 'Type') -> 'Type':
-        tok = cls(other._token)
-        tok.linenum = other.linenum
-        return tok
+        if isinstance(arg, (IntegerTok, RealTok)):
+            self.token: Union[IntegerTok, RealTok] = arg
+            self.value: str = cast(str, self.token.value)
+        else:
+            ty = cast(Type, arg)
+            self.token = ty.token
+            self.value = ty.value
+
+    def __str__(self) -> str:
+        return f"{type(self).__name__}(value={self.value})"
 
 
-class BinOp(AST):
-    def __init__(self, left: AST, right: AST, optok: Token) -> None:
-        super().__init__()
-        self._token: Token = optok
-        self.op: Token = self._token
-        self.left: AST = left
-        self.right: AST = right
-        self.children: List[AST] = [self.left, self.right]
+class BinOp(IAST):
+    def __init__(
+        self, 
+        left: IAST, 
+        right: IAST, 
+        optok: Union[AddTok, SubTok, MulTok, IntDivTok, FloatDivTok]
+    ) -> None:
+        self.token: Union[AddTok, SubTok, MulTok, IntDivTok, FloatDivTok] = \
+            optok
+        self.value: str = self.token.value
+        self.left: IAST = left
+        self.right: IAST = right
+        super().__init__([self.left, self.right])
+
+    def __str__(self) -> str:
+        return f"{type(self).__name__}(value={self.value})"
 
 
 class Add(BinOp):
     def __init__(
         self, 
-        left: AST, 
-        right: AST, 
-        opchar: str=TokenType.ADD.value.pat
+        left: IAST, 
+        right: IAST, 
+        optok: AddTok
     ) -> None:
-        super().__init__(left, right, Token(TokenType.ADD, opchar))
+        super().__init__(left, right, optok)
+
 
 class Sub(BinOp):
      def __init__(
         self, 
-        left: AST, 
-        right: AST, 
-        opchar: str=TokenType.SUB.value.pat
+        left: IAST, 
+        right: IAST, 
+        optok: SubTok
     ) -> None:
-        super().__init__(left, right, Token(TokenType.SUB, opchar))   
+        super().__init__(left, right, optok)   
 
 
 class Mul(BinOp):
      def __init__(
         self, 
-        left: AST, 
-        right: AST, 
-        opchar: str=TokenType.MUL.value.pat
+        left: IAST, 
+        right: IAST, 
+        optok: MulTok
     ) -> None:
-        super().__init__(left, right, Token(TokenType.MUL, opchar))
+        super().__init__(left, right, optok)
 
 
 class IntDiv(BinOp):
      def __init__(
         self, 
-        left: AST, 
-        right: AST, 
-        opchar: str=TokenType.INT_DIV.value.pat
+        left: IAST, 
+        right: IAST, 
+        optok: IntDivTok
     ) -> None:
-        super().__init__(left, right, Token(TokenType.INT_DIV, opchar))
+        super().__init__(left, right, optok)
 
 
 class FloatDiv(BinOp):
     def __init__(
         self, 
-        left: AST, 
-        right: AST, 
-        opchar: str=TokenType.FLOAT_DIV.value.pat
+        left: IAST, 
+        right: IAST, 
+        optok: FloatDivTok
     ) -> None:
-        super().__init__(left, right, Token(TokenType.FLOAT_DIV, opchar))
+        super().__init__(left, right, optok)
 
 
-class UnOp(AST):
-    def __init__(self, right: AST, optok: Token ) -> None:
-        super().__init__()
-        self.right: AST = right
-        self.children: List[AST] = [self.right]
-        self._token: Token = optok
+class UnOp(IAST):
+    def __init__(self, right: IAST, optok: Union[AddTok, SubTok]) -> None:
+        self.right: IAST = right
+        super().__init__([self.right])
+        self.token: Union[AddTok, SubTok] = optok
+        self.value = self.token.value
+
+    def __str__(self) -> str:
+        return f"{type(self).__name__}(value={self.value})"
 
 
 class Pos(UnOp):
     def __init__(
         self, 
-        right: AST,
-        opchar: str=TokenType.ADD.value.pat
+        right: IAST,
+        optok: AddTok
     ) -> None:
-        super().__init__(right, Token(TokenType.ADD, opchar))
+        super().__init__(right, optok)
 
 
 class Neg(UnOp):
     def __init__(
         self,
-        right: AST,
-        opchar: str=TokenType.SUB.value.pat
+        right: IAST,
+        optok: SubTok    
     ) -> None:
-        super().__init__(right, Token(TokenType.SUB, opchar))
+        super().__init__(right, optok)
 
 
-class Num(AST):
-    def __init__(self, val: Union[int, float]) -> None:
+class Num(IAST):
+    def __init__(self, numtok: Union[IntConstTok, RealConstTok]) -> None:
         super().__init__()
-        self.value: Union[int, float] = 0
-        self._token: Token = Token(TokenType.EOF, None)
+        self.token: Union[IntConstTok, RealConstTok] = numtok
+        self.value: Union[int, float] = self.token.value
 
-        if isinstance(val, int):
-            self.value = cast(int, val)
-            self._token = Token(TokenType.INT_CONST, self.value)
-        elif isinstance(val, float):
-            self.value = cast(float, val)
-            self._token = Token(TokenType.REAL_CONST, self.value)
-        else:
-            raise TypeError("val must be int or float")
+    def __str__(self) -> str:
+        return f"{type(self).__name__}(value={self.value})"
 
 
-class Compound(AST):
-    """Represents a 'BEGIN ... END' block"""
-    def __init__(self, children: Optional[List[AST]]=None) -> None:
+class Compound(IAST):
+    def __init__(self, children: Optional[List[IAST]]=None) -> None:
+        super().__init__(children)
+
+    def __str__(self) -> str:
+        return f"{type(self).__name__}()"
+
+
+class Var(IAST):
+    def __init__(self, idtok: IdTok) -> None:
         super().__init__()
-        self.children: List[AST] = children or []
+        self.token: IdTok = idtok
+        self.value: str = cast(str, self.token.value)
+
+    def __str__(self) -> str:
+        return f"{type(self).__name__}(value={self.value})"
 
 
-class Var(AST):
-    def __init__(self, name: str) -> None:
-        super().__init__()
-        self._token: Token = Token(TokenType.ID, name.lower())
-        self.value: str = cast(str, self._token.value)
-
-
-class Assign(AST):
+class Assign(IAST):
     def __init__(
         self, 
         left: Var, 
-        right: AST, 
-        opchar: str=TokenType.ASSIGN.value.pat
+        right: IAST, 
+        optok: AssignTok
     ) -> None:
-        super().__init__()
         self.left: Var = left
-        self.right: AST = right
-        self.children: List[AST] = [self.left, self.right]
-        self._token: Token = Token(TokenType.ASSIGN, opchar)
+        self.right: IAST = right
+        super().__init__([self.left, self.right])
+        self.token: AssignTok = optok
+        self.value = self.token.value
+
+    def __str__(self) -> str:
+        return f"{type(self).__name__}(value={self.value})"
 
 
-class NoOp(AST):
-    def __init__(self) -> None:
-        super().__init__()
+class NoOp(IAST):
+    def __str__(self) -> str:
+        return f"{type(self).__name__}()"
 
 
-class Eof(AST):
-    def __init__(self) -> None:
-        super().__init__()
-        self._token: Token = Token(TokenType.EOF, None)
+class Eof(NoOp):
+    pass
+
+
+class Parser:
+    def __init__(self, lexer: Lexer) -> None:
+        self.lexer: Lexer = lexer
+        self._it: Iterator[IToken] = iter(self.lexer)
+        self.current_token: IToken = next(self._it)
+
+    def error(self, msg: str, pos: Position) -> None:
+        raise RuntimeError(f"Invalid syntax: {msg} at {pos.line}:{pos.col}")
+
+    def eat(self, toktypes: Union[TokenType, Sequence[TokenType]]):
+        if isinstance(toktypes, TokenType):
+            toktypes = toktypes,
+
+        assert len(toktypes) > 0
+
+        if any_of(toktypes, lambda tokty: self.current_token.type == tokty):
+            self.current_token = next(self._it) 
+        else:
+            line = self.current_token.pos.line
+            col = self.current_token.pos.col
+            toktypes_s = \
+                toktypes[0] if len(toktypes) == 1 else f"one of {toktypes}"
+
+            self.error(
+                f"was expecting {toktypes_s}, " + \
+                f"got {self.current_token.type}",
+                self.current_token.pos
+            )
+
+    def factor(self, lpar_b: bool=False) -> IAST:
+        """
+        factor : 
+            ADD factor | 
+            SUB factor | 
+            INT_CONST | 
+            REAL_CONST | 
+            LPAREN expr RPAREN | 
+            variable
+        """
+
+        def assert_no_lpar_rpar(): 
+            curtok = self.current_token
+            if curtok.type == TokenType.LPAR:
+                self.error(f"found {curtok}", curtok.pos)
+            elif curtok.type == TokenType.RPAR and not lpar_b:
+                self.error(
+                    f"{TokenType.RPAR} with no matching {TokenType.LPAR}")
+
+        curtok = self.current_token
+        prevtok = curtok
+
+        if curtok.type == TokenType.ADD:
+            self.eat(TokenType.ADD) 
+            ast = Pos(self.factor(lpar_b), cast(AddTok, prevtok))
+        elif curtok.type == TokenType.SUB:
+            self.eat(TokenType.SUB)
+            ast = Neg(self.factor(lpar_b), cast(SubTok, prevtok))
+        elif curtok.type == TokenType.INT_CONST:
+            ast = Num(cast(IntConstTok, curtok))
+            self.eat(TokenType.INT_CONST)
+            assert_no_lpar_rpar() 
+        elif curtok.type == TokenType.REAL_CONST:
+            ast = Num(cast(RealConstTok, curtok))
+            self.eat(TokenType.REAL_CONST)
+            assert_no_lpar_rpar() 
+        elif curtok.type == TokenType.LPAR:
+            self.eat(TokenType.LPAR)
+            ast = self.expr(True)
+            self.eat(TokenType.RPAR)
+        else:
+            ast = self.variable()
+        return ast
+
+    def term(self, lpar_b: bool=False) -> BinOp:
+        """term : factor ((MUL | INT_DIV | FLOAT_DIV) factor)*"""
+        node: IAST = self.factor(lpar_b)
+
+        while True:
+            curtok: IToken = self.current_token
+            if curtok.type == TokenType.MUL:
+                self.eat(TokenType.MUL)
+                node = Mul(
+                    node, self.factor(lpar_b), cast(MulTok, curtok))
+            elif curtok.type == TokenType.INT_DIV:
+                self.eat(TokenType.INT_DIV)
+                node = IntDiv(
+                    node, self.factor(lpar_b), cast(IntDivTok, curtok))
+            elif curtok.type == TokenType.FLOAT_DIV:
+                self.eat(TokenType.FLOAT_DIV)
+                node = FloatDiv(
+                    node, self.factor(lpar_b), cast(FloatDivTok, curtok))
+            else:
+                break
+
+        return node
+
+    def expr(self, lpar_b: bool=False) -> IAST:
+        """expr: term ((ADD | SUB) term)* """
+        node: IAST = self.term(lpar_b)
+
+        while True:
+            curtok: IToken = self.current_token
+            if curtok.type == TokenType.ADD:
+                self.eat(TokenType.ADD)
+                node = Add(node, self.term(lpar_b), cast(AddTok, curtok))
+            elif curtok.type == TokenType.SUB:
+                self.eat(TokenType.SUB)
+                node = Sub(node, self.term(lpar_b), cast(SubTok, curtok))
+            else:
+                break
+
+        return node
+
+    def empty(self) -> NoOp:
+        """empty rule"""
+        return NoOp()
+
+    def variable(self) -> Var:
+        """variable: ID"""
+        try:
+            node = Var(cast(IdTok, self.current_token))
+        finally:
+            self.eat(TokenType.ID)
+        return node
+
+    def assignment_statement(self) -> Assign:
+        """assignment_statement: variable ASSIGN expr"""
+        left = self.variable()
+        assign_tok = self.current_token
+        self.eat(TokenType.ASSIGN)
+        right = self.expr()
+        return Assign(left, right, cast(AssignTok, assign_tok))
+
+    def statement(self) -> IAST:
+        """statement: compound_statement | assignment_statement | empty"""
+        tokty = self.current_token.type
+
+        if tokty == TokenType.BEGIN:
+            node = self.compound_statement()
+        elif tokty == TokenType.ID:
+            node = self.assignment_statement()
+        else:
+            node = self.empty()
+
+        return node
+
+    def statement_list(self) -> List[IAST]:
+        """statement_list: statement (SEMI statement)*"""
+        statements = []
+        statements.append(self.statement())
+
+        while self.current_token.type == TokenType.SEMI:
+            self.eat(TokenType.SEMI)
+            statements.append(self.statement())
+
+        if self.current_token.type == TokenType.ID:
+            self.error(
+                f"found {self.current_token}. Expected semi-colon", 
+                self.current_token.pos
+            )
+
+        return statements
+
+    def compound_statement(self) -> Compound:
+        """compound_statement: BEGIN statement_list END"""
+        self.eat(TokenType.BEGIN)
+        nodes = self.statement_list()
+        self.eat(TokenType.END)
+        return Compound(nodes)
+
+
+    def type_spec(self) -> Type:
+        """type_spec: INTEGER | REAL"""
+
+        curtok = self.current_token
+        if curtok.type == TokenType.INTEGER:
+            tok = Type(cast(IntegerTok, curtok))
+            self.eat(TokenType.INTEGER)
+        elif curtok.type == TokenType.REAL:
+            tok = Type(cast(RealTok, curtok))
+            self.eat(TokenType.REAL)
+        else:
+            self.error(f"expected a type. Got {curtok}", curtok.pos)
+
+        return tok
+
+    def variable_declaration(self) -> List[VarDecl]:
+        """
+        variable_declaration: variable (COMMA variable)* COLON type_spec
+        """
+        var_nodes = [self.variable()]
+        while self.current_token.type == TokenType.COMMA:
+            self.eat(TokenType.COMMA)
+            var_nodes.append(self.variable())
+        self.eat(TokenType.COLON)
+        ty_node = self.type_spec()
+        return [
+            VarDecl(var_node, Type(ty_node)) \
+            for var_node in var_nodes \
+        ]
+
+    def formal_parameters(self) -> List[Param]:
+        """
+        formal_parameters: variable (COMMA variable)* COLON type_spec
+        """
+        param_nodes = [self.variable()]
+        while self.current_token.type == TokenType.COMMA:
+            self.eat(TokenType.COMMA)
+            param_nodes.append(self.variable())
+        self.eat(TokenType.COLON)
+        ty_node = self.type_spec()
+        return [
+            Param(param_node, Type(ty_node)) \
+            for param_node in param_nodes \
+        ]
+
+    def formal_parameter_list(self) -> List[Param]:
+        """
+        formal_parameter_list: formal_parameters (SEMI formal_parameters)*
+        """
+        param_nodes = self.formal_parameters()
+        while self.current_token.type == TokenType.SEMI:
+            self.eat(TokenType.SEMI)
+            param_nodes += self.formal_parameters()
+        return param_nodes
+
+    def declarations(self) -> List[IAST]:
+        """
+        declarations: 
+            (VAR (variable_declaration SEMI)+)* | 
+            (PROCEDURE variable (LPAR formal_parameter_list RPAR)? 
+                SEMI block SEMI)* | 
+            empty
+        """
+        declarations: List[IAST] = []
+
+        while self.current_token.type == TokenType.VAR:
+            self.eat(TokenType.VAR)
+            while self.current_token.type == TokenType.ID:
+                declarations += self.variable_declaration()
+                self.eat(TokenType.SEMI)
+
+        while self.current_token.type == TokenType.PROCEDURE:
+            self.eat(TokenType.PROCEDURE)
+            var_n: Var = self.variable()
+            proc_name: str = var_n.value
+
+            params: List[Param] = []
+            if self.current_token.type == TokenType.LPAR:
+                self.eat(TokenType.LPAR)
+                params = self.formal_parameter_list()
+                self.eat(TokenType.RPAR)
+
+            self.eat(TokenType.SEMI)
+            block_n: Block = self.block()
+            self.eat(TokenType.SEMI)
+            declarations.append(ProcDecl(proc_name, params, block_n))
+
+        return declarations
+
+    def block(self) -> Block:
+        """block: declarations compound_statement"""
+        declaration_nodes = self.declarations()
+        compound_statement_node = self.compound_statement()
+        return Block(declaration_nodes, compound_statement_node)
+
+    def program(self) -> Program:
+        """program : PROGRAM variable SEMI block DOT"""
+        self.eat(TokenType.PROGRAM)
+        var_node = self.variable()
+        prog_name = var_node.value
+        self.eat(TokenType.SEMI)
+        block_node = self.block()
+        self.eat(TokenType.DOT)
+        return Program(prog_name, block_node)
+
+    def parse_expr(self) -> Union[BinOp, NoOp]:
+        return self.expr()
+
+    def parse_compound(self) -> Compound:
+        return self.compound_statement()
+
+    def parse(self) -> Program:
+        prog = self.program()
+        curtok = self.current_token
+        if curtok.type != TokenType.EOF:
+            self.error(f"expected EOF. Got {curtok}", curtok.pos)
+        return prog
 
 
 class Symbol:
@@ -533,7 +1032,7 @@ class ScopedSymbolTable:
 
     def lookup_this_scope(self, name: str) -> Optional[Symbol]:
         logging.info(f"Lookup: {name}. (Scope name: {self.name})")
-        return self._symbols.get(name)
+        return self._symbols.get(name.lower())
 
     def lookup(self, name: str) -> Optional[Symbol]:
         sym = self.lookup_this_scope(name)
@@ -542,7 +1041,7 @@ class ScopedSymbolTable:
         return sym
 
     def lookup_level(self, name: str) -> Optional[int]:
-        if self._symbols.get(name) is not None:
+        if self._symbols.get(name.lower()) is not None:
             return self.level
         elif self.encl_scope is not None:
             return self.encl_scope.lookup_level(name)
@@ -551,292 +1050,19 @@ class ScopedSymbolTable:
 
     def insert(self, sym: Symbol) -> None:
         logging.info(f"Insert: {sym.name}")
-        self._symbols[sym.name] = sym
-
-
-class Parser:
-    def __init__(self, lexer: Lexer) -> None:
-        self.lexer: Lexer = lexer
-        self._it: Iterator[Token] = iter(self.lexer)
-        self.current_token: Token = next(self._it)
-
-    @property
-    def linenum(self):
-        return self.lexer.linenum
-
-    def error(self, msg: str) -> None:
-        raise RuntimeError(f"Invalid syntax: {msg}, line {self.linenum}")
-
-    def eat(self, token_type: TokenType) -> None:
-        if self.current_token.type == token_type:
-            self.current_token = next(self._it)
-        else:
-            self.error(
-                f"was expecting {token_type}, got {self.current_token.type}")
-
-    def factor(self, lpar_b: bool=False) -> AST:
-        """
-        factor : 
-            ADD factor | 
-            SUB factor | 
-            INT_CONST | 
-            REAL_CONST | 
-            LPAREN expr RPAREN | 
-            variable
-        """
-
-        def assert_no_lpar_rpar(): 
-            token = self.current_token
-            if token.type == TokenType.LPAR:
-                self.error(f"found {token}")
-            elif token.type == TokenType.RPAR and not lpar_b:
-                self.error(
-                    f"{TokenType.RPAR} with no matching {TokenType.LPAR}")
-
-        token: Token = self.current_token
-
-        if token.type == TokenType.ADD:
-            self.eat(TokenType.ADD) 
-            return Pos(self.factor(lpar_b))
-        elif token.type == TokenType.SUB:
-            self.eat(TokenType.SUB)
-            return Neg(self.factor(lpar_b))
-        elif token.type == TokenType.INT_CONST:
-            numtok = token
-            self.eat(TokenType.INT_CONST)
-            assert_no_lpar_rpar()
-            return Num(cast(int, numtok.value))
-        elif token.type == TokenType.REAL_CONST:
-            numtok = token
-            self.eat(TokenType.REAL_CONST)
-            assert_no_lpar_rpar()
-            return Num(cast(float, numtok.value))
-        elif token.type == TokenType.LPAR:
-            self.eat(TokenType.LPAR)
-            node: AST = self.expr(True)
-            self.eat(TokenType.RPAR)
-            return node
-        else:
-            return self.variable()
-
-
-    def term(self, lpar_b: bool=False) -> BinOp:
-        """term : factor ((MUL | INT_DIV | FLOAT_DIV) factor)*"""
-        node: AST = self.factor(lpar_b)
-
-        while True:
-            token: Token = self.current_token
-            if token.type == TokenType.MUL:
-                self.eat(TokenType.MUL)
-                node = Mul(node, self.factor(lpar_b))
-            elif token.type == TokenType.INT_DIV:
-                self.eat(TokenType.INT_DIV)
-                node = IntDiv(node, self.factor(lpar_b))
-            elif token.type == TokenType.FLOAT_DIV:
-                self.eat(TokenType.FLOAT_DIV)
-                node = FloatDiv(node, self.factor(lpar_b))
-            else:
-                break
-
-        return node
-
-    def expr(self, lpar_b: bool=False) -> BinOp:
-        """expr: term ((ADD | SUB) term)* """
-        node: AST = self.term(lpar_b)
-
-        while True:
-            token: Token = self.current_token
-            if token.type == TokenType.ADD:
-                self.eat(TokenType.ADD)
-                node = Add(node, self.term(lpar_b))
-            elif token.type == TokenType.SUB:
-                self.eat(TokenType.SUB)
-                node = Sub(node, self.term(lpar_b))
-            else:
-                break
-
-        return node
-
-    def empty(self) -> NoOp:
-        """empty rule"""
-        return NoOp()
-
-    def variable(self) -> Var:
-        """variable: ID"""
-        node = Var(cast(str, self.current_token.value))
-        node.linenum = self.linenum
-        self.eat(TokenType.ID)
-        return node
-
-    def assignment_statement(self) -> Assign:
-        """assignment_statement: variable ASSIGN expr"""
-        left = self.variable()
-        self.eat(TokenType.ASSIGN)
-        right = self.expr()
-        return Assign(left, right)
-
-    def statement(self) -> AST:
-        """statement: compound_statement | assignment_statement | empty"""
-        tokty = self.current_token.type
-
-        if tokty == TokenType.BEGIN:
-            node = self.compound_statement()
-        elif tokty == TokenType.ID:
-            node = self.assignment_statement()
-        else:
-            node = self.empty()
-
-        return node
-
-    def statement_list(self) -> List[AST]:
-        """statement_list: statement (SEMI statement)*"""
-        statements = []
-        statements.append(self.statement())
-
-        while self.current_token.type == TokenType.SEMI:
-            self.eat(TokenType.SEMI)
-            statements.append(self.statement())
-
-        if self.current_token.type == TokenType.ID:
-            self.error(f"found {self.current_token}. Expected semi-colon")
-
-        return statements
-
-    def compound_statement(self) -> Compound:
-        """compound_statement: BEGIN statement_list END"""
-        self.eat(TokenType.BEGIN)
-        nodes = self.statement_list()
-        self.eat(TokenType.END)
-        return Compound(nodes)
-
-
-    def type_spec(self) -> Type:
-        """type_spec: INTEGER | REAL"""
-
-        tok = Type(self.current_token)
-        if self.current_token.type == TokenType.INTEGER:
-            self.eat(TokenType.INTEGER)
-        elif self.current_token.type == TokenType.REAL:
-            self.eat(TokenType.REAL)
-        else:
-            self.error(f"expected a type spec. Got {self.current_token}")
-
-        tok.linenum = self.linenum
-        return tok
-
-    def variable_declaration(self) -> List[VarDecl]:
-        """
-        variable_declaration: variable (COMMA variable)* COLON type_spec
-        """
-        var_nodes = [self.variable()]
-        while self.current_token.type == TokenType.COMMA:
-            self.eat(TokenType.COMMA)
-            var_nodes.append(self.variable())
-        self.eat(TokenType.COLON)
-        ty_node = self.type_spec()
-        return [
-            VarDecl(var_node, Type.copy(ty_node)) \
-            for var_node in var_nodes \
-        ]
-
-    def formal_parameters(self) -> List[Param]:
-        """
-        formal_parameters: variable (COMMA variable)* COLON type_spec
-        """
-        param_nodes = [self.variable()]
-        while self.current_token.type == TokenType.COMMA:
-            self.eat(TokenType.COMMA)
-            param_nodes.append(self.variable())
-        self.eat(TokenType.COLON)
-        ty_node = self.type_spec()
-        return [
-            Param(param_node, Type.copy(ty_node)) \
-            for param_node in param_nodes \
-        ]
-
-    def formal_parameter_list(self) -> List[Param]:
-        """
-        formal_parameter_list: formal_parameters (SEMI formal_parameters)*
-        """
-        param_nodes = self.formal_parameters()
-        while self.current_token.type == TokenType.SEMI:
-            self.eat(TokenType.SEMI)
-            param_nodes += self.formal_parameters()
-        return param_nodes
-
-    def declarations(self) -> List[AST]:
-        """
-        declarations: 
-            (VAR (variable_declaration SEMI)+)* | 
-            (PROCEDURE variable (LPAR formal_parameter_list RPAR)? 
-                SEMI block SEMI)* | 
-            empty
-        """
-        declarations: List[AST] = []
-
-        while self.current_token.type == TokenType.VAR:
-            self.eat(TokenType.VAR)
-            while self.current_token.type == TokenType.ID:
-                declarations += self.variable_declaration()
-                self.eat(TokenType.SEMI)
-
-        while self.current_token.type == TokenType.PROCEDURE:
-            self.eat(TokenType.PROCEDURE)
-            var_n: Var = self.variable()
-            proc_name: str = var_n.value
-
-            params: List[Param] = []
-            if self.current_token.type == TokenType.LPAR:
-                self.eat(TokenType.LPAR)
-                params = self.formal_parameter_list()
-                self.eat(TokenType.RPAR)
-
-            self.eat(TokenType.SEMI)
-            block_n: Block = self.block()
-            self.eat(TokenType.SEMI)
-            declarations.append(ProcDecl(proc_name, params, block_n))
-
-        return declarations
-
-    def block(self) -> Block:
-        """block: declarations compound_statement"""
-        declaration_nodes = self.declarations()
-        compound_statement_node = self.compound_statement()
-        return Block(declaration_nodes, compound_statement_node)
-
-    def program(self) -> Program:
-        """program : PROGRAM variable SEMI block DOT"""
-        self.eat(TokenType.PROGRAM)
-        var_node = self.variable()
-        prog_name = var_node.value
-        self.eat(TokenType.SEMI)
-        block_node = self.block()
-        self.eat(TokenType.DOT)
-        return Program(prog_name, block_node)
-
-    def parse_expr(self) -> Union[BinOp, NoOp]:
-        return self.expr()
-
-    def parse_compound(self) -> Compound:
-        return self.compound_statement()
-
-    def parse(self) -> Program:
-        prog = self.program()
-        if self.current_token.type != TokenType.EOF:
-            self.error(f"expected EOF. Got {self.current_token}")
-        return prog
+        self._symbols[sym.name.lower()] = sym
 
 
 class NodeVisitor(ABC):
-    def _gen_visit_method_name(self, node: AST) -> str:
+    def _gen_visit_method_name(self, node: IAST) -> str:
         method_name = '_visit_' + type(node).__name__
         return method_name.lower()
 
-    def visit(self, node: AST) -> Union[int, float, None]:
+    def visit(self, node: IAST) -> Union[int, float, None]:
         method_name = self._gen_visit_method_name(node)
         return getattr(self, method_name, self.raise_visit_error)(node)
 
-    def raise_visit_error(self, node: AST) -> None:
+    def raise_visit_error(self, node: IAST) -> None:
         method_name = self._gen_visit_method_name(node)
         raise RuntimeError(f"No {method_name} method")
 
@@ -916,17 +1142,17 @@ class IDecoSrcBuilder(ABC):
         pass
 
     def build_pre_visit(
-        self, scope: Optional[ScopedSymbolTable], node: AST) -> None:
+        self, scope: Optional[ScopedSymbolTable], node: IAST) -> None:
         methname = f"_build_pre_visit_{type(node).__name__.lower()}"
         getattr(self, methname)(scope, node)
 
     def build_post_visit(
-        self, scope: Optional[ScopedSymbolTable], node: AST) -> None:
+        self, scope: Optional[ScopedSymbolTable], node: IAST) -> None:
         methname = f"_build_post_visit_{type(node).__name__.lower()}"
         getattr(self, methname)(scope, node)
 
     def build_in_visit(
-        self, scope: Optional[ScopedSymbolTable], node: AST) -> None:
+        self, scope: Optional[ScopedSymbolTable], node: IAST) -> None:
         methname = f"_build_in_visit_{type(node).__name__.lower()}"
         getattr(self, methname)(scope, node)
 
@@ -1392,7 +1618,7 @@ class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
         assert self.current_scope is not None
         return cast(ScopedSymbolTable, self.current_scope)
 
-    def visit(self, node: AST) -> Union[int, float, None]:
+    def visit(self, node: IAST) -> Union[int, float, None]:
         if self.s2s:
             self._dsb.build_pre_visit(self.current_scope, node)
         val = super().visit(node)
@@ -1400,7 +1626,7 @@ class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
             self._dsb.build_post_visit(self.current_scope, node)
         return val
 
-    def _build_in_visit(self, node: AST):
+    def _build_in_visit(self, node: IAST):
         if self.s2s:
             self._dsb.build_in_visit(self.current_scope, node)
 
@@ -1450,10 +1676,10 @@ class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
 
     def _visit_var(self, node: Var) -> None:
         var_name = node.value
+        pos = node.token.pos
         if self.safe_current_scope.lookup(var_name) is None:
-            linenum = node.linenum
             raise NameError(
-                f"{var_name}" + (f" at line {linenum}" if linenum else ""))
+                f"{var_name} is not declared at {pos.line}:{pos.col}")
 
     def _visit_program(self, node: Program) -> None:
         assert isinstance(self.current_scope, ScopedSymbolTable)
@@ -1480,21 +1706,26 @@ class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
         var = node.var
         ty = node.type
 
+        var_pos = var.token.pos
+        ty_pos = ty.token.pos
+
         type_name = ty.value
         type_sym = self.safe_current_scope.lookup(type_name)
 
         if type_sym is None:
             raise TypeError(
-                f"{type_name} not in symbol table at line {ty.linenum}")
+                f"{type_name} not in symbol table " + \
+                f"at {ty_pos.line}:{ty_pos.col}"
+            )
 
         var_name = var.value
         var_sym = VarSymbol(var_name, cast(BuiltinTypeSymbol, type_sym))
 
         if self.safe_current_scope.lookup_this_scope(var_sym.name) is not None:
-            linenum = node.var.linenum
+            pos = node.var.token.pos
             raise NameError(
                 f"duplicate identifier {var_sym.name} " + \
-                f"found at line {linenum}"
+                f"found at {pos.line}:{pos.col}"
             )
 
         self.safe_current_scope.insert(var_sym)
@@ -1512,6 +1743,7 @@ class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
 
         for param in node.params:
             param_name = param.var.value
+            param_pos = param.var.token.pos
             param_ty = self.current_scope.lookup(param.type.value)
 
             assert param_ty is not None
@@ -1519,10 +1751,9 @@ class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
 
             param_sym = self.safe_current_scope.lookup_this_scope(param_name)
             if param_sym is not None:
-                linenum = param.var.linenum
                 raise NameError(
                     f"duplicate identifier {param_name} " + \
-                    f"found at line {linenum}"
+                    f"found {param_pos.line}:{param_pos.col}"
                 )
 
             var_sym = VarSymbol(param_name, cast(BuiltinTypeSymbol, param_ty))
@@ -1538,7 +1769,7 @@ class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
     def _visit_type(self, node: Type) -> None:
         raise NotImplementedError()
 
-    def analyze(self, node: AST) -> None:
+    def analyze(self, node: IAST) -> None:
         assert not self._closed 
         self._dsb = DecoSrcBuilder()
         self.visit(node)
@@ -1559,35 +1790,35 @@ class Interpreter(NodeVisitor):
         self.GLOBAL_SCOPE: Dict[str, Union[int, float]] = {}
 
     def _visit_pos(self, node: Pos) -> Union[int, float]:
-        return +cast(Union[int, float], self.visit(node.right))
+        return +cast([int, float], self.visit(node.right))
 
     def _visit_neg(self, node: Neg) -> Union[int, float]:
-        return -cast(Union[int, float], self.visit(node.right))
+        return -cast([int, float], self.visit(node.right))
 
-    def _visit_add(self, node: AST) -> Union[int, float]:
+    def _visit_add(self, node: IAST) -> Union[int, float]:
         return \
-            cast(Union[int, float], self.visit(node.left)) + \
-            cast(Union[int, float], self.visit(node.right))
+            cast([int, float], self.visit(node.left)) + \
+            cast([int, float], self.visit(node.right))
 
-    def _visit_sub(self, node: AST) -> Union[int, float]:
+    def _visit_sub(self, node: IAST) -> Union[int, float]:
         return \
-            cast(Union[int, float], self.visit(node.left)) - \
-            cast(Union[int, float], self.visit(node.right))
+            cast([int, float], self.visit(node.left)) - \
+            cast([int, float], self.visit(node.right))
 
-    def _visit_mul(self, node: AST) -> Union[int, float]:
+    def _visit_mul(self, node: IAST) -> Union[int, float]:
         return \
-            cast(Union[int, float], self.visit(node.left)) * \
-            cast(Union[int, float], self.visit(node.right))
+            cast([int, float], self.visit(node.left)) * \
+            cast([int, float], self.visit(node.right))
 
-    def _visit_intdiv(self, node: AST) -> Union[int, float]:
+    def _visit_intdiv(self, node: IAST) -> Union[int, float]:
         return \
-            cast(Union[int, float], self.visit(node.left)) // \
-            cast(Union[int, float], self.visit(node.right))
+            cast([int, float], self.visit(node.left)) // \
+            cast([int, float], self.visit(node.right))
 
-    def _visit_floatdiv(self, node: AST) -> Union[int, float]:
+    def _visit_floatdiv(self, node: IAST) -> Union[int, float]:
         return \
-            cast(Union[int, float], self.visit(node.left)) / \
-            cast(Union[int, float], self.visit(node.right))
+            cast([int, float], self.visit(node.left)) / \
+            cast([int, float], self.visit(node.right))
 
     def _visit_num(self, node: Num) -> Union[int, float]:
         return node.value
@@ -1601,7 +1832,7 @@ class Interpreter(NodeVisitor):
 
     def _visit_assign(self, node: Assign) -> None:
         self.GLOBAL_SCOPE[node.left.value] = \
-            cast(Union[int, float], self.visit(node.right))
+            cast([int, float], self.visit(node.right))
 
     def _visit_var(self, node: Var) -> Union[int, float]:
         name = node.value
@@ -1626,7 +1857,7 @@ class Interpreter(NodeVisitor):
     def _visit_type(self, node: Type) -> None:
         pass
 
-    def interpret(self, ast: AST) -> Union[int, float, None]:
+    def interpret(self, ast: IAST) -> Union[int, float, None]:
         val = self.visit(ast)
         logging.info(f"global runtime memory: {self.GLOBAL_SCOPE}")
         return val
@@ -1637,6 +1868,32 @@ def any_of(vals: Iterable[T], pred: Callable[[T], bool]):
         if pred(val):
             return True
     return False
+
+def to_camel_case(s):
+    s = s.lower()
+    s = re.sub(r"^\w", lambda m: m[0].upper(), s)
+    s = re.sub(r"_(\w)", lambda m: m[1].upper(), s)
+    return s
+
+@overload
+def cast(ty: typing.Type[T], val: Any) -> T:
+   pass
+
+@overload
+def cast(ty: Iterable[typing.Type], val: Any) -> Any:
+   pass
+
+@overload
+def cast(ty: None, val: Any) -> None:
+   pass
+
+def cast(ty, val):
+   ty = type(None) if ty is None else ty
+   tys = ty if isinstance(ty, Iterable) else [ty]
+
+   assert any_of(tys, lambda ty2: isinstance(val, ty2)), \
+      f"val is type {type(val)} which is not a subtype of any of {tys}"
+   return val
 
 def setup_logging(verbose: bool) -> None:
     logging.disable(logging.NOTSET)
@@ -1667,7 +1924,7 @@ def main() -> None:
 
     lexer: Lexer = Lexer(text)
     parser: Parser = Parser(lexer)
-    ast: AST = parser.parse()
+    ast: IAST = parser.parse()
 
     kwargs = {}
     if args.src_to_src:
