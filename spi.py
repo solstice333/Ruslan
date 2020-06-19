@@ -1465,7 +1465,7 @@ class DecoSrcBuilder(IDecoSrcBuilder):
 
     def _build_pre_visit_num(
         self, scope: Optional[ScopedSymbolTable], node: Num) -> None:
-        pass
+        self._statement.append(str(node.value))
 
     def _build_post_visit_num(
         self, scope: Optional[ScopedSymbolTable], node: Num) -> None:

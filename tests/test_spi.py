@@ -892,6 +892,23 @@ class DecoSrcBuilderTestCase(unittest.TestCase):
             'end;    {END OF AlphaB}\n   begin\n   end.    {END OF Main}'
         self.assertEqual(actual, expect)
 
+    def test_deco_src_part10(self):
+        ast = make_prog_ast_from_file("tests/part10.pas")
+        lyz = SemanticAnalyzer(s2s=True)
+        lyz.analyze(ast)
+        actual = lyz.deco_src()
+        expect = 'program Part10AST0;\n' + \
+            '   var a1 : INTEGER0;\n' + \
+            '   var b1 : INTEGER0;\n' + \
+            '   var y1 : REAL0;\n' + \
+            '   begin\n' + \
+            '   <a1:INTEGER0> := 2\n' + \
+            '   <b1:INTEGER0> := 10 * <a1:INTEGER0> + ' + \
+                    '10 * <a1:INTEGER0> DIV 4\n' + \
+            '   <y1:REAL0> := 20 / 7 + 3.14\n' + \
+            '   end.    {END OF Part10AST}'
+        self.assertEqual(actual, expect)
+
 
 class Foo(unittest.TestCase):
     def test_foo(self):
