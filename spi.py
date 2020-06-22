@@ -27,6 +27,7 @@ import argparse
 import logging
 import typing
 
+
 T = TypeVar('T')
 
 
@@ -102,7 +103,7 @@ class IToken(ABC):
         return f"{type(self).__name__}({self.value})"
 
     def __repr__(self) -> str:
-        return self.__str__()
+        return f"{type(self).__name__}({self.value}, {self.pos})"
 
     def __bool__(self) -> bool:
         return bool(self.value)

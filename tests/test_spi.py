@@ -8,7 +8,17 @@ import re
 
 from anytree import PostOrderIter, RenderTree
 
-sys.path.append(os.path.realpath(".."))
+def append_spi_dir_to_sys_path():
+    spi_path = "spi.py"
+    while not os.path.isfile(spi_path):
+        old_spi_path = spi_path
+        spi_path = os.path.join("..", spi_path)
+        assert old_spi_path != spi_path
+    spi_path = os.path.dirname(spi_path)
+    sys.path.append(os.path.realpath(spi_path))
+
+append_spi_dir_to_sys_path()
+
 from spi import *
 
 
@@ -226,7 +236,7 @@ class ParserTestCase(unittest.TestCase):
         self.assertEqual(act, exp)
 
     def test_parser3(self):
-        with open("tests/part10.pas") as f:
+        with open("part10.pas") as f:
             p = make_parser(f.read())
         ast = p.parse()
         act = [str(el) for el in PostOrderIter(ast)]
@@ -269,7 +279,7 @@ class ParserTestCase(unittest.TestCase):
         self.assertEqual(act, exp)
 
     def test_parser_proc(self):
-        with open("tests/part12.pas") as f:
+        with open("part12.pas") as f:
             p = make_parser(f.read())
 
         ast = p.parse()
@@ -313,7 +323,7 @@ class ParserTestCase(unittest.TestCase):
         self.assertEqual(act, exp)
 
     def test_fail_parse(self):
-        with open("tests/bar.pas") as f:
+        with open("bar.pas") as f:
             p = make_parser(f.read())
         with self.assertRaises(RuntimeError) as e:
             p.parse_compound()
@@ -325,7 +335,7 @@ class ParserTestCase(unittest.TestCase):
         self.assertEqual(act_msg, exp_msg)
 
     def test_parser_proc_sig(self):
-        ast = make_prog_ast_from_file("tests/part14.pas")
+        ast = make_prog_ast_from_file("part14.pas")
         act = [str(el) for el in PostOrderIter(ast)]
         exp = [
             'Var(value=x)', 
@@ -359,7 +369,7 @@ class ParserTestCase(unittest.TestCase):
         self.assertEqual(act, exp)
 
     def test_parser_proc_sig2(self):
-        ast = make_prog_ast_from_file("tests/part14_2.pas")
+        ast = make_prog_ast_from_file("part14_2.pas")
         act = [str(el) for el in PostOrderIter(ast)]
         exp = [
             'Var(value=x)', 
@@ -483,7 +493,7 @@ class InterpreterTestCase(unittest.TestCase):
             ast = make_expr_ast('1 (1 + 2)')
 
     def test_expression_compound(self):
-        with open("tests/foo.pas") as foo_pas:
+        with open("foo.pas") as foo_pas:
             txt = foo_pas.read()
 
         ast = self.make_compound_ast(txt)
@@ -500,7 +510,7 @@ class InterpreterTestCase(unittest.TestCase):
         )
 
     def test_part10_program(self):
-        with open("tests/part10.pas") as pas:
+        with open("part10.pas") as pas:
             txt = pas.read()
 
         ast = make_prog_ast(txt)
@@ -514,7 +524,7 @@ class InterpreterTestCase(unittest.TestCase):
         )
 
     def test_part12_program(self):
-        ast = make_prog_ast_from_file("tests/part12.pas")
+        ast = make_prog_ast_from_file("part12.pas")
         self.interpreter.interpret(ast)
         self.assertEqual(len(self.interpreter.GLOBAL_SCOPE), 1)
         self.assertEqual(self.interpreter.GLOBAL_SCOPE['a'], 10)
@@ -525,7 +535,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         return [el for el in s.splitlines() if re.match(r"\s*\(name", el)]
 
     def test_builder(self):
-        ast = make_prog_ast_from_file("tests/part11.pas")
+        ast = make_prog_ast_from_file("part11.pas")
 
         with LoggingToStrBuf() as sb:
             with SemanticAnalyzer() as lyz:
@@ -557,7 +567,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         )
 
     def test_builder_name_error(self):
-        ast = make_prog_ast_from_file("tests/name_err.pas")
+        ast = make_prog_ast_from_file("name_err.pas")
         lyz = SemanticAnalyzer()
 
         with self.assertRaises(NameError) as e:
@@ -565,7 +575,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         self.assertEqual(e.exception.args[0], "b is not declared at 6:13")
 
     def test_builder_name_error2(self):
-        ast = make_prog_ast_from_file("tests/name_err2.pas")
+        ast = make_prog_ast_from_file("name_err2.pas")
         lyz = SemanticAnalyzer()
 
         with self.assertRaises(NameError) as e:
@@ -573,7 +583,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         self.assertEqual(e.exception.args[0], "a is not declared at 7:4")
 
     def test_builder_part12(self):
-        ast = make_prog_ast_from_file("tests/part12.pas")
+        ast = make_prog_ast_from_file("part12.pas")
 
         with LoggingToStrBuf() as sb:
             with SemanticAnalyzer() as lyz:
@@ -628,7 +638,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         )
 
     def test_dup_var(self):
-        ast = make_prog_ast_from_file("tests/dup_var_err.pas")
+        ast = make_prog_ast_from_file("dup_var_err.pas")
         lyz = SemanticAnalyzer()
 
         with self.assertRaises(NameError) as e:
@@ -637,7 +647,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             e.exception.args[0], "duplicate identifier y found at 3:8")
 
     def test_part14_decl_only_chained_scope(self):
-        ast = make_prog_ast_from_file("tests/part14_decl_only.pas")
+        ast = make_prog_ast_from_file("part14_decl_only.pas")
 
         with LoggingToStrBuf() as sb:
             with SemanticAnalyzer() as lyz:
@@ -689,7 +699,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
 
 
     def test_part14_dup_param(self):
-        ast = make_prog_ast_from_file("tests/part14_dup_param.pas")
+        ast = make_prog_ast_from_file("part14_dup_param.pas")
         lyz = SemanticAnalyzer()
 
         with self.assertRaises(NameError) as e:
@@ -699,7 +709,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
 
     def test_part14_sibling_scopes(self):
         ast = make_prog_ast_from_file(
-            "tests/part14_decl_only_sibling_scopes.pas")
+            "part14_decl_only_sibling_scopes.pas")
 
         with LoggingToStrBuf() as sb:
             with SemanticAnalyzer() as lyz:
@@ -758,7 +768,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         )
 
     def test_part14_var_ref(self):
-        ast = make_prog_ast_from_file("tests/part14_var_ref.pas")
+        ast = make_prog_ast_from_file("part14_var_ref.pas")
 
         with LoggingToStrBuf() as sb:
             with SemanticAnalyzer() as lyz:
@@ -818,7 +828,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
 
 class DecoSrcBuilderTestCase(unittest.TestCase):
     def test_deco_src_part11(self):
-        ast = make_prog_ast_from_file("tests/part11.pas")
+        ast = make_prog_ast_from_file("part11.pas")
         lyz = SemanticAnalyzer(s2s=True)
         lyz.analyze(ast)
         actual = lyz.deco_src()
@@ -828,7 +838,7 @@ class DecoSrcBuilderTestCase(unittest.TestCase):
         self.assertEqual(actual, expect)
 
     def test_deco_src_part14(self):
-        ast = make_prog_ast_from_file("tests/part14_s2s.pas")
+        ast = make_prog_ast_from_file("part14_s2s.pas")
         lyz = SemanticAnalyzer(s2s=True)
         lyz.analyze(ast)
         actual = lyz.deco_src()
@@ -848,7 +858,7 @@ class DecoSrcBuilderTestCase(unittest.TestCase):
         self.assertEqual(actual, expect)
 
     def test_deco_src_part14_2(self):
-        ast = make_prog_ast_from_file("tests/part14_s2s_2.pas")
+        ast = make_prog_ast_from_file("part14_s2s_2.pas")
         lyz = SemanticAnalyzer(s2s=True)
         lyz.analyze(ast)
         actual = lyz.deco_src()
@@ -868,7 +878,7 @@ class DecoSrcBuilderTestCase(unittest.TestCase):
         self.assertEqual(actual, expect)
 
     def test_deco_src_part14_3(self):
-        ast = make_prog_ast_from_file("tests/part14_s2s_3.pas")
+        ast = make_prog_ast_from_file("part14_s2s_3.pas")
         lyz = SemanticAnalyzer(s2s=True)
         lyz.analyze(ast)
         actual = lyz.deco_src()
@@ -893,7 +903,7 @@ class DecoSrcBuilderTestCase(unittest.TestCase):
         self.assertEqual(actual, expect)
 
     def test_deco_src_part10(self):
-        ast = make_prog_ast_from_file("tests/part10.pas")
+        ast = make_prog_ast_from_file("part10.pas")
         lyz = SemanticAnalyzer(s2s=True)
         lyz.analyze(ast)
         actual = lyz.deco_src()
@@ -912,7 +922,7 @@ class DecoSrcBuilderTestCase(unittest.TestCase):
 
 class Foo(unittest.TestCase):
     def test_foo(self):
-        with open("tests/part12.pas") as f:
+        with open("part12.pas") as f:
             txt = f.read()
 
         lexer = Lexer(txt)
@@ -931,7 +941,6 @@ class Foo(unittest.TestCase):
             with SemanticAnalyzer() as lyz:
                 lyz.analyze(ast)
         print(sb.getvalue())
-
 
 def listify_str(s):
     return s.strip().splitlines()
