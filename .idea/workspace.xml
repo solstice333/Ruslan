@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="6be5c658-cf34-4aec-9b90-55a71c8f090b" name="Default" comment="">
+      <change beforePath="$PROJECT_DIR$/spi.py" beforeDir="false" afterPath="$PROJECT_DIR$/spi.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_spi.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_spi.py" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="CreatePatchCommitExecutor">
+    <option name="PATCH_PATH" value="" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectFrameBounds">
+    <option name="x" value="1440" />
+    <option name="y" value="-157" />
+    <option name="width" value="1920" />
+    <option name="height" value="1057" />
+  </component>
+  <component name="ProjectId" id="1dhEhERxYnsXqdPnbhyGHXtZ1jl" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+    <option name="showMembers" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="settings.editor.selected.configurable" value="preferences.lookFeel" />
+  </component>
+  <component name="RunManager" selected="Python tests.Unittests in test_spi.py">
+    <configuration name="Unittests in test_spi.py" type="tests" factoryName="Unittests" temporary="true" nameIsGenerated="true">
+      <module name="interpreter_ruslan" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="_new_pattern" value="&quot;&quot;" />
+      <option name="_new_additionalArguments" value="&quot;-f&quot;" />
+      <option name="_new_target" value="&quot;$PROJECT_DIR$/tests/test_spi.py&quot;" />
+      <option name="_new_targetType" value="&quot;PATH&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration name="Unittests in tests" type="tests" factoryName="Unittests" temporary="true" nameIsGenerated="true">
+      <module name="interpreter_ruslan" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;$PROJECT_DIR$/tests&quot;" />
+      <option name="_new_targetType" value="&quot;PATH&quot;" />
+      <method v="2" />
+    </configuration>
+    <list>
+      <item itemvalue="Python tests.Unittests in test_spi.py" />
+      <item itemvalue="Python tests.Unittests in tests" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python tests.Unittests in test_spi.py" />
+        <item itemvalue="Python tests.Unittests in tests" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="6be5c658-cf34-4aec-9b90-55a71c8f090b" name="Default" comment="" />
+      <created>1592867846354</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1592867846354</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="2177" y="264" width="501" height="340" key="#Custom_Plugin_Repositories" timestamp="1592869406080">
+      <screen x="1440" y="-157" width="1920" height="1057" />
+    </state>
+    <state x="2177" y="264" width="501" height="340" key="#Custom_Plugin_Repositories/0.23.1440.877/1440.-157.1920.1057@1440.-157.1920.1057" timestamp="1592869406080" />
+    <state x="2097" y="-8" key="#Unittests_in_test_spi.py" timestamp="1592869597333">
+      <screen x="1440" y="-157" width="1920" height="1057" />
+    </state>
+    <state x="2097" y="-8" key="#Unittests_in_test_spi.py/0.23.1440.877/1440.-157.1920.1057@1440.-157.1920.1057" timestamp="1592869597333" />
+    <state x="1864" y="33" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1592869510509">
+      <screen x="1440" y="-157" width="1920" height="1057" />
+    </state>
+    <state x="1864" y="33" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.23.1440.877/1440.-157.1920.1057@1440.-157.1920.1057" timestamp="1592869510509" />
+    <state x="1540" y="-57" width="1720" height="857" key="#com.intellij.execution.junit2.states.ComparisonFailureState$DiffDialog" timestamp="1592869719919">
+      <screen x="1440" y="-157" width="1920" height="1057" />
+    </state>
+    <state x="1540" y="-57" width="1720" height="857" key="#com.intellij.execution.junit2.states.ComparisonFailureState$DiffDialog/0.23.1440.877/1440.-157.1920.1057@1440.-157.1920.1057" timestamp="1592869719919" />
+    <state x="2188" y="132" key="FileChooserDialogImpl" timestamp="1592869084770">
+      <screen x="1440" y="-157" width="1920" height="1057" />
+    </state>
+    <state x="2188" y="132" key="FileChooserDialogImpl/0.23.1440.877/1440.-157.1920.1057@1440.-157.1920.1057" timestamp="1592869084770" />
+    <state width="1899" height="374" key="GridCell.Tab.0.bottom" timestamp="1592869616863">
+      <screen x="1440" y="-157" width="1920" height="1057" />
+    </state>
+    <state width="1899" height="374" key="GridCell.Tab.0.bottom/0.23.1440.877/1440.-157.1920.1057@1440.-157.1920.1057" timestamp="1592869616863" />
+    <state width="1899" height="374" key="GridCell.Tab.0.center" timestamp="1592869616861">
+      <screen x="1440" y="-157" width="1920" height="1057" />
+    </state>
+    <state width="1899" height="374" key="GridCell.Tab.0.center/0.23.1440.877/1440.-157.1920.1057@1440.-157.1920.1057" timestamp="1592869616861" />
+    <state width="1899" height="374" key="GridCell.Tab.0.left" timestamp="1592869616861">
+      <screen x="1440" y="-157" width="1920" height="1057" />
+    </state>
+    <state width="1899" height="374" key="GridCell.Tab.0.left/0.23.1440.877/1440.-157.1920.1057@1440.-157.1920.1057" timestamp="1592869616861" />
+    <state width="1899" height="374" key="GridCell.Tab.0.right" timestamp="1592869616862">
+      <screen x="1440" y="-157" width="1920" height="1057" />
+    </state>
+    <state width="1899" height="374" key="GridCell.Tab.0.right/0.23.1440.877/1440.-157.1920.1057@1440.-157.1920.1057" timestamp="1592869616862" />
+    <state x="1938" y="83" width="1242" height="722" key="SettingsEditor" timestamp="1592869768250">
+      <screen x="1440" y="-157" width="1920" height="1057" />
+    </state>
+    <state x="1938" y="83" width="1242" height="722" key="SettingsEditor/0.23.1440.877/1440.-157.1920.1057@1440.-157.1920.1057" timestamp="1592869768250" />
+  </component>
+</project>
