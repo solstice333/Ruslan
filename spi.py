@@ -20,7 +20,6 @@ from anytree import RenderTree # type:ignore
 from anytree import \
     PostOrderIter, \
     NodeMixin
-from re import Pattern, RegexFlag
 
 import re
 import argparse
