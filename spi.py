@@ -16,7 +16,7 @@ from typing import \
     Iterable
 from types import TracebackType
 from abc import ABC, abstractmethod
-from anytree import RenderTree # type:ignore
+from anytree import RenderTree  # type:ignore
 from anytree import \
     PostOrderIter, \
     NodeMixin
@@ -25,7 +25,6 @@ import re
 import argparse
 import logging
 import typing
-
 
 T = TypeVar('T')
 
@@ -71,7 +70,7 @@ class TokenType(Enum):
 
     def __repr__(self) -> str:
         return str(self)
- 
+
     @classmethod
     def members(cls) -> Mapping[str, 'TokenType']:
         return cls.__members__
@@ -84,16 +83,16 @@ class TokenType(Enum):
 
 class IToken(ABC):
     def __init__(
-        self, 
-        ty: TokenType, 
-        value: Union[str, int, float],
-        pos: Position
+            self,
+            ty: TokenType,
+            value: Union[str, int, float],
+            pos: Position
     ) -> None:
         self.type: TokenType = ty
         self._value: Union[str, int, float] = value
         self.pos: Position = pos
 
-    @property # type:ignore
+    @property  # type:ignore
     @abstractmethod
     def value(self) -> Union[str, int, float]:
         return self._value
@@ -109,30 +108,28 @@ class IToken(ABC):
 
     def __eq__(self, other) -> bool:
         return self.type == other.type and \
-            (
-                self.value.lower() == other.value.lower() \
-                if isinstance(self.value, str) else \
-                self.value == other.value
-            ) and \
-            self.pos == other.pos
+               (
+                   self.value.lower() == other.value.lower() \
+                       if isinstance(self.value, str) else \
+                       self.value == other.value
+               ) and \
+               self.pos == other.pos
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)
 
 
 class ProgramTok(IToken):
-    def __init__(
-        self, value: str, pos: Position) -> None:
+    def __init__(self, value: str, pos: Position) -> None:
         super().__init__(TokenType.PROGRAM, value, pos)
 
     @property
     def value(self) -> str:
         return cast(str, self._value)
-    
+
 
 class VarTok(IToken):
-    def __init__(
-        self, value: str, pos: Position) -> None:
+    def __init__(self, value: str, pos: Position) -> None:
         super().__init__(TokenType.VAR, value, pos)
 
     @property
@@ -141,18 +138,16 @@ class VarTok(IToken):
 
 
 class ProcedureTok(IToken):
-    def __init__(
-        self, value: str, pos: Position) -> None:
+    def __init__(self, value: str, pos: Position) -> None:
         super().__init__(TokenType.PROCEDURE, value, pos)
 
     @property
     def value(self) -> str:
         return cast(str, self._value)
-    
+
 
 class CommaTok(IToken):
-    def __init__(
-        self, value: str, pos: Position) -> None:
+    def __init__(self, value: str, pos: Position) -> None:
         super().__init__(TokenType.COMMA, value, pos)
 
     @property
@@ -161,18 +156,16 @@ class CommaTok(IToken):
 
 
 class IntegerTok(IToken):
-    def __init__(
-        self, value: str, pos: Position) -> None:
+    def __init__(self, value: str, pos: Position) -> None:
         super().__init__(TokenType.INTEGER, value, pos)
 
     @property
     def value(self) -> str:
         return cast(str, self._value)
-    
+
 
 class RealTok(IToken):
-    def __init__(
-        self, value: str, pos: Position) -> None:
+    def __init__(self, value: str, pos: Position) -> None:
         super().__init__(TokenType.REAL, value, pos)
 
     @property
@@ -181,8 +174,7 @@ class RealTok(IToken):
 
 
 class IntConstTok(IToken):
-    def __init__(
-        self, value: int, pos: Position) -> None:
+    def __init__(self, value: int, pos: Position) -> None:
         super().__init__(TokenType.INT_CONST, value, pos)
 
     @property
@@ -191,18 +183,16 @@ class IntConstTok(IToken):
 
 
 class RealConstTok(IToken):
-    def __init__(
-        self, value: float, pos: Position) -> None:
+    def __init__(self, value: float, pos: Position) -> None:
         super().__init__(TokenType.REAL_CONST, value, pos)
 
     @property
     def value(self) -> float:
         return cast(float, self._value)
-    
+
 
 class AddTok(IToken):
-    def __init__(
-        self, value: str, pos: Position) -> None:
+    def __init__(self, value: str, pos: Position) -> None:
         super().__init__(TokenType.ADD, value, pos)
 
     @property
@@ -211,8 +201,7 @@ class AddTok(IToken):
 
 
 class SubTok(IToken):
-    def __init__(
-        self, value: str, pos: Position) -> None:
+    def __init__(self, value: str, pos: Position) -> None:
         super().__init__(TokenType.SUB, value, pos)
 
     @property
@@ -221,8 +210,7 @@ class SubTok(IToken):
 
 
 class MulTok(IToken):
-    def __init__(
-        self, value: str, pos: Position) -> None:
+    def __init__(self, value: str, pos: Position) -> None:
         super().__init__(TokenType.MUL, value, pos)
 
     @property
@@ -231,8 +219,7 @@ class MulTok(IToken):
 
 
 class IntDivTok(IToken):
-    def __init__(
-        self, value: str, pos: Position) -> None:
+    def __init__(self, value: str, pos: Position) -> None:
         super().__init__(TokenType.INT_DIV, value, pos)
 
     @property
@@ -241,8 +228,7 @@ class IntDivTok(IToken):
 
 
 class FloatDivTok(IToken):
-    def __init__(
-        self, value: str, pos: Position) -> None:
+    def __init__(self, value: str, pos: Position) -> None:
         super().__init__(TokenType.FLOAT_DIV, value, pos)
 
     @property
@@ -251,8 +237,7 @@ class FloatDivTok(IToken):
 
 
 class LparTok(IToken):
-    def __init__(
-        self, value: str, pos: Position) -> None:
+    def __init__(self, value: str, pos: Position) -> None:
         super().__init__(TokenType.LPAR, value, pos)
 
     @property
@@ -261,8 +246,7 @@ class LparTok(IToken):
 
 
 class RparTok(IToken):
-    def __init__(
-        self, value: str, pos: Position) -> None:
+    def __init__(self, value: str, pos: Position) -> None:
         super().__init__(TokenType.RPAR, value, pos)
 
     @property
@@ -271,8 +255,7 @@ class RparTok(IToken):
 
 
 class EofTok(IToken):
-    def __init__(
-        self, value: str, pos: Position) -> None:
+    def __init__(self, value: str, pos: Position) -> None:
         super().__init__(TokenType.EOF, value, pos)
 
     @property
@@ -281,8 +264,7 @@ class EofTok(IToken):
 
 
 class BeginTok(IToken):
-    def __init__(
-        self, value: str, pos: Position) -> None:
+    def __init__(self, value: str, pos: Position) -> None:
         super().__init__(TokenType.BEGIN, value, pos)
 
     @property
@@ -291,8 +273,7 @@ class BeginTok(IToken):
 
 
 class EndTok(IToken):
-    def __init__(
-        self, value: str, pos: Position) -> None:
+    def __init__(self, value: str, pos: Position) -> None:
         super().__init__(TokenType.END, value, pos)
 
     @property
@@ -301,8 +282,7 @@ class EndTok(IToken):
 
 
 class DotTok(IToken):
-    def __init__(
-        self, value: str, pos: Position) -> None:
+    def __init__(self, value: str, pos: Position) -> None:
         super().__init__(TokenType.DOT, value, pos)
 
     @property
@@ -311,8 +291,7 @@ class DotTok(IToken):
 
 
 class IdTok(IToken):
-    def __init__(
-        self, value: str, pos: Position) -> None:
+    def __init__(self, value: str, pos: Position) -> None:
         super().__init__(TokenType.ID, value, pos)
 
     @property
@@ -321,8 +300,7 @@ class IdTok(IToken):
 
 
 class AssignTok(IToken):
-    def __init__(
-        self, value: str, pos: Position) -> None:
+    def __init__(self, value: str, pos: Position) -> None:
         super().__init__(TokenType.ASSIGN, value, pos)
 
     @property
@@ -331,8 +309,7 @@ class AssignTok(IToken):
 
 
 class ColonTok(IToken):
-    def __init__(
-        self, value: str, pos: Position) -> None:
+    def __init__(self, value: str, pos: Position) -> None:
         super().__init__(TokenType.COLON, value, pos)
 
     @property
@@ -341,8 +318,7 @@ class ColonTok(IToken):
 
 
 class SemiTok(IToken):
-    def __init__(
-        self, value: str, pos: Position) -> None:
+    def __init__(self, value: str, pos: Position) -> None:
         super().__init__(TokenType.SEMI, value, pos)
 
     @property
@@ -354,13 +330,13 @@ class Lexer(Iterable[IToken]):
     class TokenTypeInfo(NamedTuple):
         tokty: TokenType
         pattern: str
-        token: IToken=EofTok("", Position(line=0, col=0))
+        token: IToken = EofTok("", Position(line=0, col=0))
 
     __TOKEN_NAME_TO_TTY_INFO: Dict[str, TokenTypeInfo] = {}
 
     @staticmethod
     def token_ctor(name: str) -> \
-        Callable[[Union[str, int, float], Position], IToken]:
+            Callable[[Union[str, int, float], Position], IToken]:
         ctor_name = to_camel_case(name) + "Tok"
         return globals()[ctor_name]
 
@@ -368,12 +344,12 @@ class Lexer(Iterable[IToken]):
     def _token_name_to_tty_info(cls) -> Dict[str, TokenTypeInfo]:
         if not cls.__TOKEN_NAME_TO_TTY_INFO:
             cls.__TOKEN_NAME_TO_TTY_INFO = \
-                { 
-                    name: 
-                    cls.TokenTypeInfo(
-                        tokty=tty,
-                        pattern=TokenType.pattern(tty)
-                    )
+                {
+                    name:
+                        cls.TokenTypeInfo(
+                            tokty=tty,
+                            pattern=TokenType.pattern(tty)
+                        )
                     for name, tty in TokenType.members().items()
                 }
         return cls.__TOKEN_NAME_TO_TTY_INFO
@@ -387,8 +363,8 @@ class Lexer(Iterable[IToken]):
         token_spec = Lexer._token_name_to_tty_info()
 
         token_pats = [
-            rf"(?P<{name}>{tty_info.pattern})" 
-            for name, tty_info in token_spec.items() 
+            rf"(?P<{name}>{tty_info.pattern})"
+            for name, tty_info in token_spec.items()
         ]
         token_pat = "|".join(token_pats)
 
@@ -397,8 +373,8 @@ class Lexer(Iterable[IToken]):
             tty = token_spec[name].tokty
 
             if any_of(
-                [TokenType.NEWLINE, TokenType.COMMENT], 
-                lambda tty_elem: tty == tty_elem
+                    [TokenType.NEWLINE, TokenType.COMMENT],
+                    lambda tty_elem: tty == tty_elem
             ):
                 if tty == TokenType.NEWLINE:
                     self.linenum += 1
@@ -406,9 +382,9 @@ class Lexer(Iterable[IToken]):
                 continue
 
             yield Lexer.token_ctor(name)(
-                tty.value.type(m[name]), 
+                tty.value.type(m[name]),
                 Position(
-                    line=self.linenum, 
+                    line=self.linenum,
                     col=m.start(name) - self.newline_anchor
                 )
             )
@@ -418,7 +394,7 @@ class Lexer(Iterable[IToken]):
 
 
 class IAST(ABC, NodeMixin):
-    def __init__(self, children: Optional[List['IAST']]=None):
+    def __init__(self, children: Optional[List['IAST']] = None):
         self.children: List['IAST'] = children or []
 
     @property
@@ -426,7 +402,7 @@ class IAST(ABC, NodeMixin):
         assert isinstance(self.children, list)
         return self.children
 
-    @abstractmethod    
+    @abstractmethod
     def __str__(self) -> str:
         return f"{type(self).__name__}({self.kids})"
 
@@ -446,9 +422,9 @@ class Program(IAST):
 
 class Block(IAST):
     def __init__(
-        self, 
-        declarations: List['VarDecl'], 
-        compound_statement: 'Compound'
+            self,
+            declarations: List['VarDecl'],
+            compound_statement: 'Compound'
     ) -> None:
         self.declarations: List['VarDecl'] = declarations
         self.compound_statement: 'Compound' = compound_statement
@@ -466,7 +442,7 @@ class VarDecl(IAST):
 
     def __str__(self) -> str:
         return f"{type(self).__name__}()"
-    
+
 
 class Param(VarDecl):
     def __init__(self, var: 'Var', ty: 'Type') -> None:
@@ -482,7 +458,7 @@ class ProcDecl(IAST):
 
     def __str__(self) -> str:
         return f"{type(self).__name__}(name={self.name})"
-    
+
 
 class Type(IAST):
     def __init__(self, arg: Union[IntegerTok, RealTok, 'Type']) -> None:
@@ -502,10 +478,10 @@ class Type(IAST):
 
 class BinOp(IAST):
     def __init__(
-        self, 
-        left: IAST, 
-        right: IAST, 
-        optok: Union[AddTok, SubTok, MulTok, IntDivTok, FloatDivTok]
+            self,
+            left: IAST,
+            right: IAST,
+            optok: Union[AddTok, SubTok, MulTok, IntDivTok, FloatDivTok]
     ) -> None:
         self.token: Union[AddTok, SubTok, MulTok, IntDivTok, FloatDivTok] = \
             optok
@@ -520,50 +496,50 @@ class BinOp(IAST):
 
 class Add(BinOp):
     def __init__(
-        self, 
-        left: IAST, 
-        right: IAST, 
-        optok: AddTok
+            self,
+            left: IAST,
+            right: IAST,
+            optok: AddTok
     ) -> None:
         super().__init__(left, right, optok)
 
 
 class Sub(BinOp):
-     def __init__(
-        self, 
-        left: IAST, 
-        right: IAST, 
-        optok: SubTok
+    def __init__(
+            self,
+            left: IAST,
+            right: IAST,
+            optok: SubTok
     ) -> None:
-        super().__init__(left, right, optok)   
+        super().__init__(left, right, optok)
 
 
 class Mul(BinOp):
-     def __init__(
-        self, 
-        left: IAST, 
-        right: IAST, 
-        optok: MulTok
+    def __init__(
+            self,
+            left: IAST,
+            right: IAST,
+            optok: MulTok
     ) -> None:
         super().__init__(left, right, optok)
 
 
 class IntDiv(BinOp):
-     def __init__(
-        self, 
-        left: IAST, 
-        right: IAST, 
-        optok: IntDivTok
+    def __init__(
+            self,
+            left: IAST,
+            right: IAST,
+            optok: IntDivTok
     ) -> None:
         super().__init__(left, right, optok)
 
 
 class FloatDiv(BinOp):
     def __init__(
-        self, 
-        left: IAST, 
-        right: IAST, 
-        optok: FloatDivTok
+            self,
+            left: IAST,
+            right: IAST,
+            optok: FloatDivTok
     ) -> None:
         super().__init__(left, right, optok)
 
@@ -581,18 +557,18 @@ class UnOp(IAST):
 
 class Pos(UnOp):
     def __init__(
-        self, 
-        right: IAST,
-        optok: AddTok
+            self,
+            right: IAST,
+            optok: AddTok
     ) -> None:
         super().__init__(right, optok)
 
 
 class Neg(UnOp):
     def __init__(
-        self,
-        right: IAST,
-        optok: SubTok    
+            self,
+            right: IAST,
+            optok: SubTok
     ) -> None:
         super().__init__(right, optok)
 
@@ -608,7 +584,7 @@ class Num(IAST):
 
 
 class Compound(IAST):
-    def __init__(self, children: Optional[List[IAST]]=None) -> None:
+    def __init__(self, children: Optional[List[IAST]] = None) -> None:
         super().__init__(children)
 
     def __str__(self) -> str:
@@ -627,10 +603,10 @@ class Var(IAST):
 
 class Assign(IAST):
     def __init__(
-        self, 
-        left: Var, 
-        right: IAST, 
-        optok: AssignTok
+            self,
+            left: Var,
+            right: IAST,
+            optok: AssignTok
     ) -> None:
         self.left: Var = left
         self.right: IAST = right
@@ -667,7 +643,7 @@ class Parser:
         assert len(toktypes) > 0
 
         if any_of(toktypes, lambda tokty: self.current_token.type == tokty):
-            self.current_token = next(self._it) 
+            self.current_token = next(self._it)
         else:
             line = self.current_token.pos.line
             col = self.current_token.pos.col
@@ -680,7 +656,7 @@ class Parser:
                 self.current_token.pos
             )
 
-    def factor(self, lpar_b: bool=False) -> IAST:
+    def factor(self, lpar_b: bool = False) -> IAST:
         """
         factor : 
             ADD factor | 
@@ -691,7 +667,7 @@ class Parser:
             variable
         """
 
-        def assert_no_lpar_rpar(): 
+        def assert_no_lpar_rpar():
             curtok = self.current_token
             if curtok.type == TokenType.LPAR:
                 self.error(f"found {curtok}", curtok.pos)
@@ -703,7 +679,7 @@ class Parser:
         prevtok = curtok
 
         if curtok.type == TokenType.ADD:
-            self.eat(TokenType.ADD) 
+            self.eat(TokenType.ADD)
             ast = Pos(self.factor(lpar_b), cast(AddTok, prevtok))
         elif curtok.type == TokenType.SUB:
             self.eat(TokenType.SUB)
@@ -711,11 +687,11 @@ class Parser:
         elif curtok.type == TokenType.INT_CONST:
             ast = Num(cast(IntConstTok, curtok))
             self.eat(TokenType.INT_CONST)
-            assert_no_lpar_rpar() 
+            assert_no_lpar_rpar()
         elif curtok.type == TokenType.REAL_CONST:
             ast = Num(cast(RealConstTok, curtok))
             self.eat(TokenType.REAL_CONST)
-            assert_no_lpar_rpar() 
+            assert_no_lpar_rpar()
         elif curtok.type == TokenType.LPAR:
             self.eat(TokenType.LPAR)
             ast = self.expr(True)
@@ -724,7 +700,7 @@ class Parser:
             ast = self.variable()
         return ast
 
-    def term(self, lpar_b: bool=False) -> BinOp:
+    def term(self, lpar_b: bool = False) -> BinOp:
         """term : factor ((MUL | INT_DIV | FLOAT_DIV) factor)*"""
         node: IAST = self.factor(lpar_b)
 
@@ -747,7 +723,7 @@ class Parser:
 
         return node
 
-    def expr(self, lpar_b: bool=False) -> IAST:
+    def expr(self, lpar_b: bool = False) -> IAST:
         """expr: term ((ADD | SUB) term)* """
         node: IAST = self.term(lpar_b)
 
@@ -808,7 +784,7 @@ class Parser:
 
         if self.current_token.type == TokenType.ID:
             self.error(
-                f"found {self.current_token}. Expected semi-colon", 
+                f"found {self.current_token}. Expected semi-colon",
                 self.current_token.pos
             )
 
@@ -820,7 +796,6 @@ class Parser:
         nodes = self.statement_list()
         self.eat(TokenType.END)
         return Compound(nodes)
-
 
     def type_spec(self) -> Type:
         """type_spec: INTEGER | REAL"""
@@ -850,7 +825,7 @@ class Parser:
         return [
             VarDecl(var_node, Type(ty_node)) \
             for var_node in var_nodes \
-        ]
+            ]
 
     def formal_parameters(self) -> List[Param]:
         """
@@ -865,7 +840,7 @@ class Parser:
         return [
             Param(param_node, Type(ty_node)) \
             for param_node in param_nodes \
-        ]
+            ]
 
     def formal_parameter_list(self) -> List[Param]:
         """
@@ -970,19 +945,20 @@ class VarSymbol(Symbol):
 
 
 class ProcSymbol(Symbol):
-    def __init__(self, name: str, params: List[VarSymbol]=None) -> None:
+    def __init__(self, name: str, params: List[VarSymbol] = None) -> None:
         super().__init__(name)
         self.params: List[VarSymbol] = params if params is not None else []
 
     def __str__(self) -> str:
         return f"{type(self).__name__}(name={self.name}, params={self.params})"
 
+
 class ScopedSymbolTable:
     def __init__(
-        self, 
-        name: str, 
-        level: int, 
-        encl_scope: Optional['ScopedSymbolTable']=None
+            self,
+            name: str,
+            level: int,
+            encl_scope: Optional['ScopedSymbolTable'] = None
     ) -> None:
         self._symbols: Dict[str, Symbol] = {}
         self.name: str = name
@@ -991,13 +967,13 @@ class ScopedSymbolTable:
 
     def __str__(self) -> str:
         encl_scope_name = self.encl_scope.name \
-            if self.encl_scope is not None else str(None) 
+            if self.encl_scope is not None else str(None)
         return f"(" + \
-            f"name: {self.name}, " + \
-            f"level: {self.level}, " + \
-            f"encl_scope: {encl_scope_name}, " + \
-            f"symbols: {[str(sym) for sym in self._symbols.values()]}" + \
-        ")"
+               f"name: {self.name}, " + \
+               f"level: {self.level}, " + \
+               f"encl_scope: {encl_scope_name}, " + \
+               f"symbols: {[str(sym) for sym in self._symbols.values()]}" + \
+               ")"
 
     def __repr__(self) -> str:
         header = "Symbol Table Contents"
@@ -1006,12 +982,12 @@ class ScopedSymbolTable:
         level_header = "Scope level"
 
         lines = [
-            header, 
-            "="*len(header),
+            header,
+            "=" * len(header),
             f"{name_header:<15}: {self.name}",
             f"{level_header:<15}: {self.level}",
             f"{header2}",
-            "-"*len(header2),
+            "-" * len(header2),
         ]
         lines += [f"{name:7}: {sym!r}" for name, sym in self._symbols.items()]
         return "\n".join(lines)
@@ -1136,236 +1112,236 @@ class NodeVisitor(ABC):
 
 
 class IDecoSrcBuilder(ABC):
-    @property # type:ignore
+    @property  # type:ignore
     @abstractmethod
     def value(self) -> str:
         pass
 
     def build_pre_visit(
-        self, scope: Optional[ScopedSymbolTable], node: IAST) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: IAST) -> None:
         methname = f"_build_pre_visit_{type(node).__name__.lower()}"
         getattr(self, methname)(scope, node)
 
     def build_post_visit(
-        self, scope: Optional[ScopedSymbolTable], node: IAST) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: IAST) -> None:
         methname = f"_build_post_visit_{type(node).__name__.lower()}"
         getattr(self, methname)(scope, node)
 
     def build_in_visit(
-        self, scope: Optional[ScopedSymbolTable], node: IAST) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: IAST) -> None:
         methname = f"_build_in_visit_{type(node).__name__.lower()}"
         getattr(self, methname)(scope, node)
 
     @abstractmethod
     def _build_pre_visit_pos(
-        self, scope: Optional[ScopedSymbolTable], node: Pos) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Pos) -> None:
         pass
 
     @abstractmethod
     def _build_post_visit_pos(
-        self, scope: Optional[ScopedSymbolTable], node: Pos) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Pos) -> None:
         pass
 
     @abstractmethod
     def _build_pre_visit_neg(
-        self, scope: Optional[ScopedSymbolTable], node: Neg) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Neg) -> None:
         pass
 
     @abstractmethod
     def _build_post_visit_neg(
-        self, scope: Optional[ScopedSymbolTable], node: Neg) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Neg) -> None:
         pass
 
     @abstractmethod
     def _build_pre_visit_add(
-        self, scope: Optional[ScopedSymbolTable], node: Add) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Add) -> None:
         pass
 
     @abstractmethod
     def _build_in_visit_add(
-        self, scope: Optional[ScopedSymbolTable], node: Add) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Add) -> None:
         pass
 
     @abstractmethod
     def _build_post_visit_add(
-        self, scope: Optional[ScopedSymbolTable], node: Add) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Add) -> None:
         pass
 
     @abstractmethod
     def _build_pre_visit_sub(
-        self, scope: Optional[ScopedSymbolTable], node: Sub) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Sub) -> None:
         pass
 
     @abstractmethod
     def _build_in_visit_sub(
-        self, scope: Optional[ScopedSymbolTable], node: Sub) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Sub) -> None:
         pass
 
     @abstractmethod
     def _build_post_visit_sub(
-        self, scope: Optional[ScopedSymbolTable], node: Sub) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Sub) -> None:
         pass
 
     @abstractmethod
     def _build_pre_visit_mul(
-        self, scope: Optional[ScopedSymbolTable], node: Mul) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Mul) -> None:
         pass
 
     @abstractmethod
     def _build_in_visit_mul(
-        self, scope: Optional[ScopedSymbolTable], node: Mul) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Mul) -> None:
         pass
 
     @abstractmethod
     def _build_post_visit_mul(
-        self, scope: Optional[ScopedSymbolTable], node: Mul) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Mul) -> None:
         pass
 
     @abstractmethod
     def _build_pre_visit_intdiv(
-        self, scope: Optional[ScopedSymbolTable], node: IntDiv) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: IntDiv) -> None:
         pass
 
     @abstractmethod
     def _build_in_visit_intdiv(
-        self, scope: Optional[ScopedSymbolTable], node: IntDiv) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: IntDiv) -> None:
         pass
 
     @abstractmethod
     def _build_post_visit_intdiv(
-        self, scope: Optional[ScopedSymbolTable], node: IntDiv) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: IntDiv) -> None:
         pass
 
     @abstractmethod
     def _build_pre_visit_floatdiv(
-        self, scope: Optional[ScopedSymbolTable], node: FloatDiv) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: FloatDiv) -> None:
         pass
 
     @abstractmethod
     def _build_in_visit_floatdiv(
-        self, scope: Optional[ScopedSymbolTable], node: FloatDiv) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: FloatDiv) -> None:
         pass
 
     @abstractmethod
     def _build_post_visit_floatdiv(
-        self, scope: Optional[ScopedSymbolTable], node: FloatDiv) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: FloatDiv) -> None:
         pass
 
     @abstractmethod
     def _build_pre_visit_num(
-        self, scope: Optional[ScopedSymbolTable], node: Num) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Num) -> None:
         pass
 
     @abstractmethod
     def _build_post_visit_num(
-        self, scope: Optional[ScopedSymbolTable], node: Num) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Num) -> None:
         pass
 
     @abstractmethod
     def _build_pre_visit_compound(
-        self, scope: Optional[ScopedSymbolTable], node: Compound) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Compound) -> None:
         pass
 
     @abstractmethod
     def _build_post_visit_compound(
-        self, scope: Optional[ScopedSymbolTable], node: Compound) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Compound) -> None:
         pass
 
     @abstractmethod
     def _build_pre_visit_noop(
-        self, scope: Optional[ScopedSymbolTable], node: NoOp) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: NoOp) -> None:
         pass
 
     @abstractmethod
     def _build_post_visit_noop(
-        self, scope: Optional[ScopedSymbolTable], node: NoOp) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: NoOp) -> None:
         pass
 
     @abstractmethod
     def _build_pre_visit_assign(
-        self, scope: Optional[ScopedSymbolTable], node: Assign) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Assign) -> None:
         pass
 
     @abstractmethod
     def _build_in_visit_assign(
-        self, scope: Optional[ScopedSymbolTable], node: Assign) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Assign) -> None:
         pass
 
     @abstractmethod
     def _build_post_visit_assign(
-        self, scope: Optional[ScopedSymbolTable], node: Assign) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Assign) -> None:
         pass
 
     @abstractmethod
     def _build_pre_visit_var(
-        self, scope: Optional[ScopedSymbolTable], node: Var) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Var) -> None:
         pass
 
     @abstractmethod
     def _build_post_visit_var(
-        self, scope: Optional[ScopedSymbolTable], node: Var) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Var) -> None:
         pass
 
     @abstractmethod
     def _build_pre_visit_program(
-        self, scope: Optional[ScopedSymbolTable], node: Program) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Program) -> None:
         pass
 
     @abstractmethod
     def _build_in_visit_program(
-        self, scope: Optional[ScopedSymbolTable], node: Program) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Program) -> None:
         pass
 
     @abstractmethod
     def _build_post_visit_program(
-        self, scope: Optional[ScopedSymbolTable], node: Program) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Program) -> None:
         pass
 
     @abstractmethod
     def _build_pre_visit_block(
-        self, scope: Optional[ScopedSymbolTable], node: Block) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Block) -> None:
         pass
 
     @abstractmethod
     def _build_post_visit_block(
-        self, scope: Optional[ScopedSymbolTable], node: Block) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Block) -> None:
         pass
 
     @abstractmethod
     def _build_pre_visit_vardecl(
-        self, scope: Optional[ScopedSymbolTable], node: VarDecl) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: VarDecl) -> None:
         pass
 
     @abstractmethod
     def _build_post_visit_vardecl(
-        self, scope: Optional[ScopedSymbolTable], node: VarDecl) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: VarDecl) -> None:
         pass
 
     @abstractmethod
     def _build_pre_visit_procdecl(
-        self, scope: Optional[ScopedSymbolTable], node: ProcDecl) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: ProcDecl) -> None:
         pass
 
     @abstractmethod
     def _build_post_visit_procdecl(
-        self, scope: Optional[ScopedSymbolTable], node: ProcDecl) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: ProcDecl) -> None:
         pass
 
     @abstractmethod
     def _build_pre_visit_type(
-        self, scope: Optional[ScopedSymbolTable], node: Type) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Type) -> None:
         pass
 
     @abstractmethod
     def _build_post_visit_type(
-        self, scope: Optional[ScopedSymbolTable], node: Type) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Type) -> None:
         pass
 
 
 class DecoSrcBuilder(IDecoSrcBuilder):
     def __init__(self):
         self._value: str = ""
-        self._expr: List[str] = [] 
+        self._expr: List[str] = []
         self._lvalue: List[str] = []
         self._statement: List[str] = []
         self._global_name: str = ""
@@ -1388,119 +1364,119 @@ class DecoSrcBuilder(IDecoSrcBuilder):
         self._write(scope, f"{s}\n")
 
     def _build_pre_visit_pos(
-        self, scope: Optional[ScopedSymbolTable], node: Pos) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Pos) -> None:
         self._statement.append("+")
 
     def _build_post_visit_pos(
-        self, scope: Optional[ScopedSymbolTable], node: Pos) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Pos) -> None:
         pass
 
     def _build_pre_visit_neg(
-        self, scope: Optional[ScopedSymbolTable], node: Neg) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Neg) -> None:
         self._statement.append("-")
 
     def _build_post_visit_neg(
-        self, scope: Optional[ScopedSymbolTable], node: Neg) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Neg) -> None:
         pass
 
     def _build_pre_visit_add(
-        self, scope: Optional[ScopedSymbolTable], node: Add) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Add) -> None:
         pass
 
     def _build_in_visit_add(
-        self, scope: Optional[ScopedSymbolTable], node: Add) -> None:
-        self._statement.append("+") 
+            self, scope: Optional[ScopedSymbolTable], node: Add) -> None:
+        self._statement.append("+")
 
     def _build_post_visit_add(
-        self, scope: Optional[ScopedSymbolTable], node: Add) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Add) -> None:
         pass
 
     def _build_pre_visit_sub(
-        self, scope: Optional[ScopedSymbolTable], node: Sub) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Sub) -> None:
         pass
 
     def _build_in_visit_sub(
-        self, scope: Optional[ScopedSymbolTable], node: Sub) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Sub) -> None:
         self._statement.append("-")
 
     def _build_post_visit_sub(
-        self, scope: Optional[ScopedSymbolTable], node: Sub) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Sub) -> None:
         pass
 
     def _build_pre_visit_mul(
-        self, scope: Optional[ScopedSymbolTable], node: Mul) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Mul) -> None:
         pass
 
     def _build_in_visit_mul(
-        self, scope: Optional[ScopedSymbolTable], node: Mul) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Mul) -> None:
         self._statement.append("*")
 
     def _build_post_visit_mul(
-        self, scope: Optional[ScopedSymbolTable], node: Mul) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Mul) -> None:
         pass
 
     def _build_pre_visit_intdiv(
-        self, scope: Optional[ScopedSymbolTable], node: IntDiv) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: IntDiv) -> None:
         pass
 
     def _build_in_visit_intdiv(
-        self, scope: Optional[ScopedSymbolTable], node: IntDiv) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: IntDiv) -> None:
         self._statement.append("DIV")
 
     def _build_post_visit_intdiv(
-        self, scope: Optional[ScopedSymbolTable], node: IntDiv) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: IntDiv) -> None:
         pass
 
     def _build_pre_visit_floatdiv(
-        self, scope: Optional[ScopedSymbolTable], node: FloatDiv) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: FloatDiv) -> None:
         pass
 
     def _build_in_visit_floatdiv(
-        self, scope: Optional[ScopedSymbolTable], node: FloatDiv) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: FloatDiv) -> None:
         self._statement.append("/")
 
     def _build_post_visit_floatdiv(
-        self, scope: Optional[ScopedSymbolTable], node: FloatDiv) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: FloatDiv) -> None:
         pass
 
     def _build_pre_visit_num(
-        self, scope: Optional[ScopedSymbolTable], node: Num) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Num) -> None:
         self._statement.append(str(node.value))
 
     def _build_post_visit_num(
-        self, scope: Optional[ScopedSymbolTable], node: Num) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Num) -> None:
         pass
 
     def _build_pre_visit_compound(
-        self, scope: Optional[ScopedSymbolTable], node: Compound) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Compound) -> None:
         self._writeln(scope, f"begin")
 
     def _build_post_visit_compound(
-        self, scope: Optional[ScopedSymbolTable], node: Compound) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Compound) -> None:
         s = f"end;" if scope is not None and scope.level > 1 else f"end"
         self._write(scope, s)
 
     def _build_pre_visit_noop(
-        self, scope: Optional[ScopedSymbolTable], node: NoOp) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: NoOp) -> None:
         pass
 
     def _build_post_visit_noop(
-        self, scope: Optional[ScopedSymbolTable], node: NoOp) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: NoOp) -> None:
         pass
 
     def _build_pre_visit_assign(
-        self, scope: Optional[ScopedSymbolTable], node: Assign) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Assign) -> None:
         self._expr = []
         self._lvalue = []
         self._statement = []
 
     def _build_in_visit_assign(
-        self, scope: Optional[ScopedSymbolTable], node: Assign) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Assign) -> None:
         self._expr = self._statement
         self._statement = []
 
     def _build_post_visit_assign(
-        self, scope: Optional[ScopedSymbolTable], node: Assign) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Assign) -> None:
         self._lvalue = self._statement
         self._statement = []
         lvalue = " ".join(self._lvalue)
@@ -1508,7 +1484,7 @@ class DecoSrcBuilder(IDecoSrcBuilder):
         self._writeln(scope, f"{lvalue} := {expr}")
 
     def _build_pre_visit_var(
-        self, scope: Optional[ScopedSymbolTable], node: Var) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Var) -> None:
         var_name = node.value
         assert scope is not None
         sym = scope.lookup(var_name)
@@ -1523,33 +1499,33 @@ class DecoSrcBuilder(IDecoSrcBuilder):
         self._statement.append(f"<{var_name}{lv}{type_name}>")
 
     def _build_post_visit_var(
-        self, scope: Optional[ScopedSymbolTable], node: Var) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Var) -> None:
         pass
 
     def _build_pre_visit_program(
-        self, scope: Optional[ScopedSymbolTable], node: Program) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Program) -> None:
         lv = scope.level if scope else 0
         self._global_name = node.name
         self._writeln(scope, f"program {node.name}{lv};")
 
     def _build_in_visit_program(
-        self, scope: Optional[ScopedSymbolTable], node: Program) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Program) -> None:
         pass
 
     def _build_post_visit_program(
-        self, scope: Optional[ScopedSymbolTable], node: Program) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Program) -> None:
         self._writeinl(f".    {{END OF {self._global_name}}}")
 
     def _build_pre_visit_block(
-        self, scope: Optional[ScopedSymbolTable], node: Block) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Block) -> None:
         pass
 
     def _build_post_visit_block(
-        self, scope: Optional[ScopedSymbolTable], node: Block) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Block) -> None:
         pass
 
     def _build_pre_visit_vardecl(
-        self, scope: Optional[ScopedSymbolTable], node: VarDecl) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: VarDecl) -> None:
         assert scope is not None
         varname = node.var.value
         typename = node.type.value
@@ -1558,11 +1534,11 @@ class DecoSrcBuilder(IDecoSrcBuilder):
         self._writeln(scope, f"var {varname}{lv} : {typename}{tylv};")
 
     def _build_post_visit_vardecl(
-        self, scope: Optional[ScopedSymbolTable], node: VarDecl) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: VarDecl) -> None:
         pass
 
     def _build_pre_visit_procdecl(
-        self, scope: Optional[ScopedSymbolTable], node: ProcDecl) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: ProcDecl) -> None:
         assert scope is not None
         s = f"procedure {node.name}{scope.level}"
         lv = cast(ScopedSymbolTable, scope).level + 1
@@ -1578,20 +1554,20 @@ class DecoSrcBuilder(IDecoSrcBuilder):
         self._writeln(scope, f"{s}{args};")
 
     def _build_post_visit_procdecl(
-        self, scope: Optional[ScopedSymbolTable], node: ProcDecl) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: ProcDecl) -> None:
         self._writeinl(f"    {{END OF {node.name}}}\n")
 
     def _build_pre_visit_type(
-        self, scope: Optional[ScopedSymbolTable], node: Type) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Type) -> None:
         pass
 
     def _build_post_visit_type(
-        self, scope: Optional[ScopedSymbolTable], node: Type) -> None:
+            self, scope: Optional[ScopedSymbolTable], node: Type) -> None:
         pass
 
 
 class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
-    def __init__(self, s2s: bool=False):
+    def __init__(self, s2s: bool = False):
         self.s2s: bool = s2s
         self._dsb: DecoSrcBuilder = DecoSrcBuilder()
         self._closed: bool = False
@@ -1606,10 +1582,10 @@ class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
         return self
 
     def __exit__(
-        self, 
-        exc_ty: Optional[typing.Type[BaseException]], 
-        exc_val: Optional[BaseException], 
-        tb: Optional[TracebackType]
+            self,
+            exc_ty: Optional[typing.Type[BaseException]],
+            exc_val: Optional[BaseException],
+            tb: Optional[TracebackType]
     ) -> None:
         self.close()
 
@@ -1770,7 +1746,7 @@ class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
         raise NotImplementedError()
 
     def analyze(self, node: IAST) -> None:
-        assert not self._closed 
+        assert not self._closed
         self._dsb = DecoSrcBuilder()
         self.visit(node)
 
@@ -1869,31 +1845,37 @@ def any_of(vals: Iterable[T], pred: Callable[[T], bool]):
             return True
     return False
 
+
 def to_camel_case(s):
     s = s.lower()
     s = re.sub(r"^\w", lambda m: m[0].upper(), s)
     s = re.sub(r"_(\w)", lambda m: m[1].upper(), s)
     return s
 
+
 @overload
 def cast(ty: typing.Type[T], val: Any) -> T:
-   pass
+    pass
+
 
 @overload
 def cast(ty: Iterable[typing.Type], val: Any) -> Any:
-   pass
+    pass
+
 
 @overload
 def cast(ty: None, val: Any) -> None:
-   pass
+    pass
+
 
 def cast(ty, val):
-   ty = type(None) if ty is None else ty
-   tys = ty if isinstance(ty, Iterable) else [ty]
+    ty = type(None) if ty is None else ty
+    tys = ty if isinstance(ty, Iterable) else [ty]
 
-   assert any_of(tys, lambda ty2: isinstance(val, ty2)), \
-      f"val is type {type(val)} which is not a subtype of any of {tys}"
-   return val
+    assert any_of(tys, lambda ty2: isinstance(val, ty2)), \
+        f"val is type {type(val)} which is not a subtype of any of {tys}"
+    return val
+
 
 def setup_logging(verbose: bool) -> None:
     logging.disable(logging.NOTSET)
@@ -1902,11 +1884,12 @@ def setup_logging(verbose: bool) -> None:
         root_logger = logging.getLogger()
         root_logger.setLevel(logging.INFO)
 
+
 def main() -> None:
     argparser = argparse.ArgumentParser(description="simple pascal interpreter")
     argparser.add_argument(
-        "-v", "--verbose", 
-        action="store_true", 
+        "-v", "--verbose",
+        action="store_true",
         help="verbose debugging output"
     )
     argparser.add_argument(
@@ -1930,7 +1913,7 @@ def main() -> None:
     if args.src_to_src:
         kwargs["s2s"] = True
 
-    with SemanticAnalyzer(**kwargs) as lyz: # type:SemanticAnalyzer
+    with SemanticAnalyzer(**kwargs) as lyz:  # type:SemanticAnalyzer
         lyz.analyze(ast)
 
     if args.src_to_src:
@@ -1938,6 +1921,7 @@ def main() -> None:
     else:
         interpreter: Interpreter = Interpreter()
         interpreter.interpret(ast)
+
 
 logging.disable(logging.CRITICAL)
 if __name__ == '__main__':

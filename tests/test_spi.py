@@ -8,6 +8,7 @@ import re
 
 from anytree import PostOrderIter, RenderTree
 
+
 def append_spi_dir_to_sys_path():
     spi_path = "spi.py"
     while not os.path.isfile(spi_path):
@@ -17,6 +18,7 @@ def append_spi_dir_to_sys_path():
     spi_path = os.path.dirname(spi_path)
     sys.path.append(os.path.realpath(spi_path))
 
+
 append_spi_dir_to_sys_path()
 
 from spi import *
@@ -24,12 +26,12 @@ from spi import *
 
 class Float:
     def __init__(self, val):
-       self.val = val
+        self.val = val
 
     def eq(self, eps, other):
         if isinstance(other, float):
             other = Float(other)
-        return abs(self.val - other.val) < eps  
+        return abs(self.val - other.val) < eps
 
 
 class LoggingToStrBuf():
@@ -48,9 +50,9 @@ class LoggingToStrBuf():
     @classmethod
     def basic_config(cls):
         logging.basicConfig(
-            format="{message}", 
-            style="{", 
-            level=logging.INFO, 
+            format="{message}",
+            style="{",
+            level=logging.INFO,
             handlers=[cls._sh]
         )
         cls._initd = True
@@ -183,7 +185,7 @@ class ParserTestCase(unittest.TestCase):
             "Assign(value=:=)",
             "Compound()"
         ]
-          
+
         self.assertEqual(act, exp)
 
     def test_parser2(self):
@@ -202,34 +204,34 @@ class ParserTestCase(unittest.TestCase):
 
         act = [str(el) for el in PostOrderIter(ast)]
         exp = [
-            'Var(value=number)', 
-            'Num(value=2)', 
-            'Assign(value=:=)', 
-            'Var(value=a)', 
-            'Var(value=number)', 
-            'Assign(value=:=)', 
-            'Var(value=b)', 
-            'Num(value=10)', 
-            'Var(value=a)', 
-            'Mul(value=*)', 
-            'Num(value=10)', 
-            'Var(value=number)', 
-            'Mul(value=*)', 
-            'Num(value=4)', 
-            'IntDiv(value=div)', 
-            'Add(value=+)', 
-            'Assign(value=:=)', 
-            'Var(value=c)', 
-            'Var(value=a)', 
-            'Var(value=b)', 
-            'Neg(value=-)', 
-            'Sub(value=-)', 
-            'Assign(value=:=)', 
-            'Compound()', 
-            'Var(value=x)', 
-            'Num(value=11)', 
-            'Assign(value=:=)', 
-            'NoOp()', 
+            'Var(value=number)',
+            'Num(value=2)',
+            'Assign(value=:=)',
+            'Var(value=a)',
+            'Var(value=number)',
+            'Assign(value=:=)',
+            'Var(value=b)',
+            'Num(value=10)',
+            'Var(value=a)',
+            'Mul(value=*)',
+            'Num(value=10)',
+            'Var(value=number)',
+            'Mul(value=*)',
+            'Num(value=4)',
+            'IntDiv(value=div)',
+            'Add(value=+)',
+            'Assign(value=:=)',
+            'Var(value=c)',
+            'Var(value=a)',
+            'Var(value=b)',
+            'Neg(value=-)',
+            'Sub(value=-)',
+            'Assign(value=:=)',
+            'Compound()',
+            'Var(value=x)',
+            'Num(value=11)',
+            'Assign(value=:=)',
+            'NoOp()',
             'Compound()'
         ]
 
@@ -241,39 +243,39 @@ class ParserTestCase(unittest.TestCase):
         ast = p.parse()
         act = [str(el) for el in PostOrderIter(ast)]
         exp = [
-            'Var(value=a)', 
-            'Type(value=INTEGER)', 
-            'VarDecl()', 
-            'Var(value=b)', 
-            'Type(value=INTEGER)', 
-            'VarDecl()', 
-            'Var(value=y)', 
-            'Type(value=REAL)', 
-            'VarDecl()', 
-            'Var(value=a)', 
-            'Num(value=2)', 
-            'Assign(value=:=)', 
-            'Var(value=b)', 
-            'Num(value=10)', 
-            'Var(value=a)', 
-            'Mul(value=*)', 
-            'Num(value=10)', 
-            'Var(value=a)', 
-            'Mul(value=*)', 
-            'Num(value=4)', 
-            'IntDiv(value=DIV)', 
-            'Add(value=+)', 
-            'Assign(value=:=)', 
-            'Var(value=y)', 
-            'Num(value=20)', 
-            'Num(value=7)', 
-            'FloatDiv(value=/)', 
-            'Num(value=3.14)', 
-            'Add(value=+)', 
-            'Assign(value=:=)', 
-            'NoOp()', 
-            'Compound()', 
-            'Block()', 
+            'Var(value=a)',
+            'Type(value=INTEGER)',
+            'VarDecl()',
+            'Var(value=b)',
+            'Type(value=INTEGER)',
+            'VarDecl()',
+            'Var(value=y)',
+            'Type(value=REAL)',
+            'VarDecl()',
+            'Var(value=a)',
+            'Num(value=2)',
+            'Assign(value=:=)',
+            'Var(value=b)',
+            'Num(value=10)',
+            'Var(value=a)',
+            'Mul(value=*)',
+            'Num(value=10)',
+            'Var(value=a)',
+            'Mul(value=*)',
+            'Num(value=4)',
+            'IntDiv(value=DIV)',
+            'Add(value=+)',
+            'Assign(value=:=)',
+            'Var(value=y)',
+            'Num(value=20)',
+            'Num(value=7)',
+            'FloatDiv(value=/)',
+            'Num(value=3.14)',
+            'Add(value=+)',
+            'Assign(value=:=)',
+            'NoOp()',
+            'Compound()',
+            'Block()',
             'Program(name=Part10AST)'
         ]
         self.assertEqual(act, exp)
@@ -285,38 +287,38 @@ class ParserTestCase(unittest.TestCase):
         ast = p.parse()
         act = [str(el) for el in PostOrderIter(ast)]
         exp = [
-            'Var(value=a)', 
-            'Type(value=INTEGER)', 
-            'VarDecl()', 
-            'Var(value=a)', 
-            'Type(value=REAL)', 
-            'VarDecl()', 
-            'Var(value=k)', 
-            'Type(value=INTEGER)', 
-            'VarDecl()', 
-            'Var(value=a)', 
-            'Type(value=INTEGER)', 
-            'VarDecl()', 
-            'Var(value=z)', 
-            'Type(value=INTEGER)', 
-            'VarDecl()', 
-            'Var(value=z)', 
-            'Num(value=777)', 
-            'Assign(value=:=)', 
-            'NoOp()', 
-            'Compound()', 
-            'Block()', 
-            'ProcDecl(name=P2)', 
-            'NoOp()', 
-            'Compound()', 
-            'Block()', 
-            'ProcDecl(name=P1)', 
-            'Var(value=a)', 
-            'Num(value=10)', 
-            'Assign(value=:=)', 
-            'NoOp()', 
-            'Compound()', 
-            'Block()', 
+            'Var(value=a)',
+            'Type(value=INTEGER)',
+            'VarDecl()',
+            'Var(value=a)',
+            'Type(value=REAL)',
+            'VarDecl()',
+            'Var(value=k)',
+            'Type(value=INTEGER)',
+            'VarDecl()',
+            'Var(value=a)',
+            'Type(value=INTEGER)',
+            'VarDecl()',
+            'Var(value=z)',
+            'Type(value=INTEGER)',
+            'VarDecl()',
+            'Var(value=z)',
+            'Num(value=777)',
+            'Assign(value=:=)',
+            'NoOp()',
+            'Compound()',
+            'Block()',
+            'ProcDecl(name=P2)',
+            'NoOp()',
+            'Compound()',
+            'Block()',
+            'ProcDecl(name=P1)',
+            'Var(value=a)',
+            'Num(value=10)',
+            'Assign(value=:=)',
+            'NoOp()',
+            'Compound()',
+            'Block()',
             'Program(name=Part12)'
         ]
 
@@ -338,32 +340,32 @@ class ParserTestCase(unittest.TestCase):
         ast = make_prog_ast_from_file("part14.pas")
         act = [str(el) for el in PostOrderIter(ast)]
         exp = [
-            'Var(value=x)', 
-            'Type(value=real)', 
-            'VarDecl()', 
-            'Var(value=y)', 
-            'Type(value=real)', 
-            'VarDecl()', 
-            'Var(value=a)', 
-            'Type(value=integer)', 
-            'Param()', 
-            'Var(value=y)', 
-            'Type(value=integer)', 
-            'VarDecl()', 
-            'Var(value=x)', 
-            'Var(value=a)', 
-            'Var(value=x)', 
-            'Add(value=+)', 
-            'Var(value=y)', 
-            'Add(value=+)', 
-            'Assign(value=:=)', 
-            'NoOp()', 
-            'Compound()', 
-            'Block()', 
-            'ProcDecl(name=Alpha)', 
-            'NoOp()', 
-            'Compound()', 
-            'Block()', 
+            'Var(value=x)',
+            'Type(value=real)',
+            'VarDecl()',
+            'Var(value=y)',
+            'Type(value=real)',
+            'VarDecl()',
+            'Var(value=a)',
+            'Type(value=integer)',
+            'Param()',
+            'Var(value=y)',
+            'Type(value=integer)',
+            'VarDecl()',
+            'Var(value=x)',
+            'Var(value=a)',
+            'Var(value=x)',
+            'Add(value=+)',
+            'Var(value=y)',
+            'Add(value=+)',
+            'Assign(value=:=)',
+            'NoOp()',
+            'Compound()',
+            'Block()',
+            'ProcDecl(name=Alpha)',
+            'NoOp()',
+            'Compound()',
+            'Block()',
             'Program(name=Main)'
         ]
         self.assertEqual(act, exp)
@@ -372,38 +374,38 @@ class ParserTestCase(unittest.TestCase):
         ast = make_prog_ast_from_file("part14_2.pas")
         act = [str(el) for el in PostOrderIter(ast)]
         exp = [
-            'Var(value=x)', 
-            'Type(value=real)', 
-            'VarDecl()', 
-            'Var(value=y)', 
-            'Type(value=real)', 
-            'VarDecl()', 
-            'Var(value=a)', 
-            'Type(value=integer)', 
-            'Param()', 
-            'Var(value=b)', 
-            'Type(value=integer)', 
-            'Param()', 
-            'Var(value=c)', 
-            'Type(value=real)', 
-            'Param()', 
-            'Var(value=y)', 
-            'Type(value=integer)', 
-            'VarDecl()', 
-            'Var(value=x)', 
-            'Var(value=a)', 
-            'Var(value=x)', 
-            'Add(value=+)', 
-            'Var(value=y)', 
-            'Add(value=+)', 
-            'Assign(value=:=)', 
-            'NoOp()', 
-            'Compound()', 
-            'Block()', 
-            'ProcDecl(name=Alpha)', 
-            'NoOp()', 
-            'Compound()', 
-            'Block()', 
+            'Var(value=x)',
+            'Type(value=real)',
+            'VarDecl()',
+            'Var(value=y)',
+            'Type(value=real)',
+            'VarDecl()',
+            'Var(value=a)',
+            'Type(value=integer)',
+            'Param()',
+            'Var(value=b)',
+            'Type(value=integer)',
+            'Param()',
+            'Var(value=c)',
+            'Type(value=real)',
+            'Param()',
+            'Var(value=y)',
+            'Type(value=integer)',
+            'VarDecl()',
+            'Var(value=x)',
+            'Var(value=a)',
+            'Var(value=x)',
+            'Add(value=+)',
+            'Var(value=y)',
+            'Add(value=+)',
+            'Assign(value=:=)',
+            'NoOp()',
+            'Compound()',
+            'Block()',
+            'ProcDecl(name=Alpha)',
+            'NoOp()',
+            'Compound()',
+            'Block()',
             'Program(name=Main)'
         ]
         self.assertEqual(act, exp)
@@ -479,7 +481,7 @@ class InterpreterTestCase(unittest.TestCase):
             ast = make_expr_ast('   ')
         msg = e.exception.args[0]
         self.assertEqual(
-            msg, 
+            msg,
             "Invalid syntax: was expecting TokenType.ID, " + \
             "got TokenType.EOF at 1:4"
         )
@@ -545,23 +547,23 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         scopes = self._get_scopes_from_str(sb.getvalue())
         self.assertEqual(len(scopes), 2)
         self.assertEqual(
-            scopes[0], 
+            scopes[0],
             "(" + \
-                "name: global, " + \
-                "level: 1, " + \
-                "encl_scope: builtins, " + \
-                "symbols: ['<x:INTEGER>', '<y:REAL>']" + \
+            "name: global, " + \
+            "level: 1, " + \
+            "encl_scope: builtins, " + \
+            "symbols: ['<x:INTEGER>', '<y:REAL>']" + \
             ")",
             f"got {scopes[1]}"
         )
         self.assertEqual(
-            scopes[1], 
+            scopes[1],
             "(" + \
-                "name: builtins, " + \
-                "level: 0, " + \
-                "encl_scope: None, " + \
-                "symbols: ['INTEGER', 'REAL', " + \
-                    "'ProcSymbol(name=Part11, params=[])']" + \
+            "name: builtins, " + \
+            "level: 0, " + \
+            "encl_scope: None, " + \
+            "symbols: ['INTEGER', 'REAL', " + \
+            "'ProcSymbol(name=Part11, params=[])']" + \
             ")",
             f"got {scopes[0]}"
         )
@@ -593,47 +595,47 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
 
         self.assertEqual(len(scopes), 4)
         self.assertEqual(
-            scopes[0], 
+            scopes[0],
             "(" + \
-                "name: P2, " + \
-                "level: 3, " + \
-                "encl_scope: P1, " + \
-                "symbols: ['<a:INTEGER>', '<z:INTEGER>']" + \
+            "name: P2, " + \
+            "level: 3, " + \
+            "encl_scope: P1, " + \
+            "symbols: ['<a:INTEGER>', '<z:INTEGER>']" + \
             ")"
         )
         self.assertEqual(
             scopes[1],
             "(" + \
-                "name: P1, " + \
-                "level: 2, " + \
-                "encl_scope: global, " + \
-                "symbols: [" + \
-                    "'<a:REAL>', " + \
-                    "'<k:INTEGER>', " + \
-                    "'ProcSymbol(name=P2, params=[])'" + \
-                "]" + \
+            "name: P1, " + \
+            "level: 2, " + \
+            "encl_scope: global, " + \
+            "symbols: [" + \
+            "'<a:REAL>', " + \
+            "'<k:INTEGER>', " + \
+            "'ProcSymbol(name=P2, params=[])'" + \
+            "]" + \
             ")"
         )
         self.assertEqual(
             scopes[2],
             "(" + \
-                "name: global, " + \
-                "level: 1, " + \
-                "encl_scope: builtins, " + \
-                "symbols: [" + \
-                    "'<a:INTEGER>', " + \
-                    "'ProcSymbol(name=P1, params=[])'" + \
-                "]" + \
+            "name: global, " + \
+            "level: 1, " + \
+            "encl_scope: builtins, " + \
+            "symbols: [" + \
+            "'<a:INTEGER>', " + \
+            "'ProcSymbol(name=P1, params=[])'" + \
+            "]" + \
             ")"
         )
         self.assertEqual(
-            scopes[3], 
+            scopes[3],
             "(" + \
-                "name: builtins, " + \
-                "level: 0, " + \
-                "encl_scope: None, " + \
-                "symbols: ['INTEGER', 'REAL', " + \
-                    "'ProcSymbol(name=Part12, params=[])']" + \
+            "name: builtins, " + \
+            "level: 0, " + \
+            "encl_scope: None, " + \
+            "symbols: ['INTEGER', 'REAL', " + \
+            "'ProcSymbol(name=Part12, params=[])']" + \
             ")",
         )
 
@@ -682,21 +684,20 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "Lookup: y. (Scope name: Alpha)",
             "Insert: y",
             "(name: Alpha, level: 2, " + \
-                "encl_scope: global, symbols: ['<a:INTEGER>', '<y:INTEGER>'])",
+            "encl_scope: global, symbols: ['<a:INTEGER>', '<y:INTEGER>'])",
             "LEAVE scope Alpha",
             "(name: global, level: 1, encl_scope: builtins, " + \
-                "symbols: ['<x:REAL>', '<y:REAL>', " + \
-                "\"ProcSymbol(name=Alpha, " + \
-                    "params=[VarSymbol(name='a', type='INTEGER')])\"])",
+            "symbols: ['<x:REAL>', '<y:REAL>', " + \
+            "\"ProcSymbol(name=Alpha, " + \
+            "params=[VarSymbol(name='a', type='INTEGER')])\"])",
             "LEAVE scope global",
             "(name: builtins, level: 0, encl_scope: None, " + \
-                "symbols: ['INTEGER', 'REAL', " + \
-                "'ProcSymbol(name=Main, params=[])'])",
+            "symbols: ['INTEGER', 'REAL', " + \
+            "'ProcSymbol(name=Main, params=[])'])",
             "LEAVE scope builtins"
         ]
 
         self.assertEqual(actual, expected)
-
 
     def test_part14_dup_param(self):
         ast = make_prog_ast_from_file("part14_dup_param.pas")
@@ -719,51 +720,51 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
 
         self.assertEqual(len(scopes), 4)
         self.assertEqual(
-            scopes[0], 
+            scopes[0],
             "(" + \
-                "name: AlphaA, " + \
-                "level: 2, " + \
-                "encl_scope: global, " + \
-                "symbols: ['<a:INTEGER>', '<y:INTEGER>']" + \
+            "name: AlphaA, " + \
+            "level: 2, " + \
+            "encl_scope: global, " + \
+            "symbols: ['<a:INTEGER>', '<y:INTEGER>']" + \
             ")"
         )
         self.assertEqual(
-            scopes[1], 
+            scopes[1],
             "(" + \
-                "name: AlphaB, " + \
-                "level: 2, " + \
-                "encl_scope: global, " + \
-                "symbols: ['<a:INTEGER>', '<b:INTEGER>']" + \
+            "name: AlphaB, " + \
+            "level: 2, " + \
+            "encl_scope: global, " + \
+            "symbols: ['<a:INTEGER>', '<b:INTEGER>']" + \
             ")"
         )
         self.assertEqual(
-            scopes[2], 
+            scopes[2],
             "(" + \
-                "name: global, " + \
-                "level: 1, " + \
-                "encl_scope: builtins, " + \
-                "symbols: [" + \
-                    "'<x:REAL>', " + \
-                    "'<y:REAL>', " + \
-                    "\"ProcSymbol(" + \
-                        "name=AlphaA, " + \
-                        "params=[VarSymbol(name='a', type='INTEGER')]" + \
-                    ")\", " + \
-                    "\"ProcSymbol(" + \
-                        "name=AlphaB, " + \
-                        "params=[VarSymbol(name='a', type='INTEGER')]" + \
-                    ")\"" + \
-                "]" + \
+            "name: global, " + \
+            "level: 1, " + \
+            "encl_scope: builtins, " + \
+            "symbols: [" + \
+            "'<x:REAL>', " + \
+            "'<y:REAL>', " + \
+            "\"ProcSymbol(" + \
+            "name=AlphaA, " + \
+            "params=[VarSymbol(name='a', type='INTEGER')]" + \
+            ")\", " + \
+            "\"ProcSymbol(" + \
+            "name=AlphaB, " + \
+            "params=[VarSymbol(name='a', type='INTEGER')]" + \
+            ")\"" + \
+            "]" + \
             ")"
         )
         self.assertEqual(
-            scopes[3], 
+            scopes[3],
             "(" + \
-                "name: builtins, " + \
-                "level: 0, " + \
-                "encl_scope: None, " + \
-                "symbols: ['INTEGER', 'REAL', " + \
-                    "'ProcSymbol(name=Main, params=[])']" + \
+            "name: builtins, " + \
+            "level: 0, " + \
+            "encl_scope: None, " + \
+            "symbols: ['INTEGER', 'REAL', " + \
+            "'ProcSymbol(name=Main, params=[])']" + \
             ")",
         )
 
@@ -809,16 +810,16 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "Lookup: x. (Scope name: Alpha)",
             "Lookup: x. (Scope name: global)",
             "(name: Alpha, level: 2, encl_scope: global, " + \
-                "symbols: ['<a:INTEGER>', '<y:INTEGER>'])",
+            "symbols: ['<a:INTEGER>', '<y:INTEGER>'])",
             "LEAVE scope Alpha",
             "(name: global, level: 1, encl_scope: builtins, " + \
-                "symbols: ['<x:REAL>', '<y:REAL>', " + \
-                "\"ProcSymbol(name=Alpha, " + \
-                "params=[VarSymbol(name='a', type='INTEGER')])\"])",
+            "symbols: ['<x:REAL>', '<y:REAL>', " + \
+            "\"ProcSymbol(name=Alpha, " + \
+            "params=[VarSymbol(name='a', type='INTEGER')])\"])",
             "LEAVE scope global",
             "(name: builtins, level: 0, encl_scope: None, " + \
-                "symbols: ['INTEGER', 'REAL', " + \
-                "'ProcSymbol(name=Main, params=[])'])",
+            "symbols: ['INTEGER', 'REAL', " + \
+            "'ProcSymbol(name=Main, params=[])'])",
             "LEAVE scope builtins"
         ]
 
@@ -843,18 +844,21 @@ class DecoSrcBuilderTestCase(unittest.TestCase):
         lyz.analyze(ast)
         actual = lyz.deco_src()
         expect = 'program Main0;\n   var x1 : real0;\n   ' + \
-            'var y1 : real0;\n   var z1 : integer0;\n   ' + \
-            'var b1 : integer0;\n   var c1 : real0;\n   ' + \
-            'var d1 : integer0;\n   procedure Alpha1(a2 : integer0);\n      ' + \
-            'var y2 : integer0;\n      begin\n      ' + \
-            '<x1:REAL0> := <a2:INTEGER0> + <x1:REAL0> * <y2:INTEGER0>\n      ' + \
-            '<x1:REAL0> := - <a2:INTEGER0>\n      ' + \
-            '<x1:REAL0> := + <a2:INTEGER0>\n      ' + \
-            '<x1:REAL0> := - + <a2:INTEGER0>\n      end;    ' + \
-            '{END OF Alpha}\n   begin\n   ' + \
-            '<z1:INTEGER0> := <z1:INTEGER0> - ' + \
-            '<d1:INTEGER0> / <b1:INTEGER0> DIV <c1:REAL0>\n   end.    ' + \
-            '{END OF Main}'
+                 'var y1 : real0;\n   var z1 : integer0;\n   ' + \
+                 'var b1 : integer0;\n   var c1 : real0;\n   ' + \
+                 'var d1 : integer0;\n   procedure Alpha1(' + \
+                 'a2 : integer0);\n      ' + \
+                 'var y2 : integer0;\n      begin\n      ' + \
+                 '<x1:REAL0> := <a2:INTEGER0> + ' + \
+                 '<x1:REAL0> * <y2:INTEGER0>\n      ' + \
+                 '<x1:REAL0> := - <a2:INTEGER0>\n      ' + \
+                 '<x1:REAL0> := + <a2:INTEGER0>\n      ' + \
+                 '<x1:REAL0> := - + <a2:INTEGER0>\n      end;    ' + \
+                 '{END OF Alpha}\n   begin\n   ' + \
+                 '<z1:INTEGER0> := <z1:INTEGER0> - ' + \
+                 '<d1:INTEGER0> / <b1:INTEGER0> DIV ' + \
+                 '<c1:REAL0>\n   end.    ' + \
+                 '{END OF Main}'
         self.assertEqual(actual, expect)
 
     def test_deco_src_part14_2(self):
@@ -863,18 +867,19 @@ class DecoSrcBuilderTestCase(unittest.TestCase):
         lyz.analyze(ast)
         actual = lyz.deco_src()
         expect = 'program Main0;\n   ' + \
-            'var x1 : real0;\n   ' + \
-            'var y1 : real0;\n   ' + \
-            'var z1 : integer0;\n   ' + \
-            'procedure AlphaA1(a2 : integer0);\n      ' + \
-            'var y2 : integer0;\n      ' + \
-            'begin\n      ' + \
-            '<x1:REAL0> := <a2:INTEGER0> + <x1:REAL0> + <y2:INTEGER0>\n      ' + \
-            'end;    {END OF AlphaA}\n   ' + \
-            'procedure AlphaB1(a2 : integer0);\n      ' + \
-            'var b2 : integer0;\n      begin\n      ' + \
-            'end;    {END OF AlphaB}\n   begin\n   ' + \
-            'end.    {END OF Main}'
+                 'var x1 : real0;\n   ' + \
+                 'var y1 : real0;\n   ' + \
+                 'var z1 : integer0;\n   ' + \
+                 'procedure AlphaA1(a2 : integer0);\n      ' + \
+                 'var y2 : integer0;\n      ' + \
+                 'begin\n      ' + \
+                 '<x1:REAL0> := <a2:INTEGER0> + <x1:REAL0> ' + \
+                 '+ <y2:INTEGER0>\n      ' + \
+                 'end;    {END OF AlphaA}\n   ' + \
+                 'procedure AlphaB1(a2 : integer0);\n      ' + \
+                 'var b2 : integer0;\n      begin\n      ' + \
+                 'end;    {END OF AlphaB}\n   begin\n   ' + \
+                 'end.    {END OF Main}'
         self.assertEqual(actual, expect)
 
     def test_deco_src_part14_3(self):
@@ -883,23 +888,24 @@ class DecoSrcBuilderTestCase(unittest.TestCase):
         lyz.analyze(ast)
         actual = lyz.deco_src()
         expect = 'program Main0;\n   var b1 : real0;\n   ' + \
-            'var x1 : real0;\n   var y1 : real0;\n   ' + \
-            'var z1 : integer0;\n   procedure ' + \
-            'AlphaA1(a2 : integer0);\n      ' + \
-            'var b2 : integer0;\n      ' + \
-            'procedure Beta2(c3 : integer0);\n         ' + \
-            'var y3 : integer0;\n         ' + \
-            'procedure Gamma3(c4 : integer0);\n            ' + \
-            'var x4 : integer0;\n            begin\n            ' + \
-            '<x4:INTEGER0> := <a2:INTEGER0> + <b2:INTEGER0> + ' + \
-            '<c4:INTEGER0> + <x4:INTEGER0> + <y3:INTEGER0> + ' + \
-            '<z1:INTEGER0>\n            end;    ' + \
-            '{END OF Gamma}\n         begin\n         end;    ' + \
-            '{END OF Beta}\n      begin\n      end;    ' + \
-            '{END OF AlphaA}\n   procedure ' + \
-            'AlphaB1(a2 : integer0);\n      var c2 : real0;\n      ' + \
-            'begin\n      <c2:REAL0> := <a2:INTEGER0> + <b1:REAL0>\n      ' + \
-            'end;    {END OF AlphaB}\n   begin\n   end.    {END OF Main}'
+                 'var x1 : real0;\n   var y1 : real0;\n   ' + \
+                 'var z1 : integer0;\n   procedure ' + \
+                 'AlphaA1(a2 : integer0);\n      ' + \
+                 'var b2 : integer0;\n      ' + \
+                 'procedure Beta2(c3 : integer0);\n         ' + \
+                 'var y3 : integer0;\n         ' + \
+                 'procedure Gamma3(c4 : integer0);\n            ' + \
+                 'var x4 : integer0;\n            begin\n            ' + \
+                 '<x4:INTEGER0> := <a2:INTEGER0> + <b2:INTEGER0> + ' + \
+                 '<c4:INTEGER0> + <x4:INTEGER0> + <y3:INTEGER0> + ' + \
+                 '<z1:INTEGER0>\n            end;    ' + \
+                 '{END OF Gamma}\n         begin\n         end;    ' + \
+                 '{END OF Beta}\n      begin\n      end;    ' + \
+                 '{END OF AlphaA}\n   procedure ' + \
+                 'AlphaB1(a2 : integer0);\n      var c2 : real0;\n      ' + \
+                 'begin\n      <c2:REAL0> := <a2:INTEGER0> + ' + \
+                 '<b1:REAL0>\n      ' + \
+                 'end;    {END OF AlphaB}\n   begin\n   end.    {END OF Main}'
         self.assertEqual(actual, expect)
 
     def test_deco_src_part10(self):
@@ -908,15 +914,15 @@ class DecoSrcBuilderTestCase(unittest.TestCase):
         lyz.analyze(ast)
         actual = lyz.deco_src()
         expect = 'program Part10AST0;\n' + \
-            '   var a1 : INTEGER0;\n' + \
-            '   var b1 : INTEGER0;\n' + \
-            '   var y1 : REAL0;\n' + \
-            '   begin\n' + \
-            '   <a1:INTEGER0> := 2\n' + \
-            '   <b1:INTEGER0> := 10 * <a1:INTEGER0> + ' + \
-                    '10 * <a1:INTEGER0> DIV 4\n' + \
-            '   <y1:REAL0> := 20 / 7 + 3.14\n' + \
-            '   end.    {END OF Part10AST}'
+                 '   var a1 : INTEGER0;\n' + \
+                 '   var b1 : INTEGER0;\n' + \
+                 '   var y1 : REAL0;\n' + \
+                 '   begin\n' + \
+                 '   <a1:INTEGER0> := 2\n' + \
+                 '   <b1:INTEGER0> := 10 * <a1:INTEGER0> + ' + \
+                 '10 * <a1:INTEGER0> DIV 4\n' + \
+                 '   <y1:REAL0> := 20 / 7 + 3.14\n' + \
+                 '   end.    {END OF Part10AST}'
         self.assertEqual(actual, expect)
 
 
@@ -942,8 +948,10 @@ class Foo(unittest.TestCase):
                 lyz.analyze(ast)
         print(sb.getvalue())
 
+
 def listify_str(s):
     return s.strip().splitlines()
+
 
 def prettify_strlist(s):
     pretty_s = ""
@@ -956,25 +964,31 @@ def prettify_strlist(s):
     pretty_s += "]\n"
     return pretty_s
 
+
 def print_str_as_list_of_str(s):
     print(prettify_strlist(s))
+
 
 def make_parser(text):
     lexer = Lexer(text)
     return Parser(lexer)
 
+
 def make_expr_ast(txt):
     p = make_parser(txt)
     return p.parse_expr()
+
 
 def make_prog_ast(txt):
     parser = make_parser(txt)
     return parser.parse()
 
+
 def make_prog_ast_from_file(path):
     with open(path) as f:
         txt = f.read()
     return make_prog_ast(txt)
+
 
 LoggingToStrBuf.basic_config()
 if __name__ == '__main__':
