@@ -33,16 +33,17 @@ $ python3 -m mypy spi.py
 From the top-level:
 
 ```
-$ python3 spi.py -h
-usage: spi.py [-h] FILE
+usage: spi.py [-h] [-v] [-s] FILE
 
 simple pascal interpreter
 
 positional arguments:
-  FILE        pascal file
+  FILE              pascal source file
 
 optional arguments:
-  -h, --help  show this help message and exit
+  -h, --help        show this help message and exit
+  -v, --verbose     verbose debugging output
+  -s, --src-to-src  translate source in FILE to decorated source and print
 ```
 
 For example:
@@ -56,5 +57,17 @@ $ python3 spi.py tests/foo.pas
 From the top-level:
 
 ```
-$ python3 -m unittest discover -s tests -v
+$ cd tests
+$ python3 -m unittest -v -f
 ```
+
+## PyCharm
+
+To set up default .idea configuration:
+
+```
+$ git merge --no-ff origin/idea_config
+$ git reset HEAD~1
+```
+
+Tests can be ran by right clicking on `tests` folder in the project window and clicking on `Run 'Unittests in tests'`.
