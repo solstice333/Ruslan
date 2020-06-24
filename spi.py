@@ -71,10 +71,6 @@ class TokenType(Enum):
     def __repr__(self) -> str:
         return str(self)
 
-    @classmethod
-    def members(cls) -> Mapping[str, 'TokenType']:
-        return cls.__members__
-
     @staticmethod
     def pattern(ident: 'TokenType') -> str:
         pat = ident.value.pat or ''
@@ -326,6 +322,33 @@ class SemiTok(IToken):
         return cast(str, self._value)
 
 
+class ErrorCode(Enum):
+    UNEXPECTED_TOKEN = 'Unexpected token'
+    ID_NOT_FOUND = 'Identifier not found'
+    DUPLICATE_ID = 'Duplicate id found'
+
+
+class Error(Exception):
+    def __init__(self, error_code: Optional[ErrorCode] = None,
+                 token: Optional[IToken] = None, message: Optional[str] = None):
+        self.error_code = error_code
+        self.token = token
+        self.message = f"{type(self).__name__}: {message}"
+        super().__init__(self.error_code, self.token, self.message)
+
+
+class LexerError(Error):
+    pass
+
+
+class ParserError(Error):
+    pass
+
+
+class SemanticError(Error):
+    pass
+
+
 class Lexer(Iterable[IToken]):
     class TokenTypeInfo(NamedTuple):
         tokty: TokenType
@@ -345,12 +368,12 @@ class Lexer(Iterable[IToken]):
         if not cls.__TOKEN_NAME_TO_TTY_INFO:
             cls.__TOKEN_NAME_TO_TTY_INFO = \
                 {
-                    name:
+                    tty.name:
                         cls.TokenTypeInfo(
                             tokty=tty,
                             pattern=TokenType.pattern(tty)
                         )
-                    for name, tty in TokenType.members().items()
+                    for tty in TokenType
                 }
         return cls.__TOKEN_NAME_TO_TTY_INFO
 
