@@ -337,12 +337,18 @@ class Error(Exception):
         super().__init__(self.error_code, self.token, self.message)
 
 
-class LexerError(Error):
-    pass
-
-
 class ParserError(Error):
-    pass
+    def __init__(
+            self,
+            error_code: ErrorCode,
+            token: IToken,
+            message: Optional[str] = None,
+            appended_message: str = ""
+    ) -> None:
+        message = message or f"{error_code.value} -> {token!r}"
+        if appended_message:
+            message += f". {appended_message}"
+        super().__init__(error_code, token, message)
 
 
 class SemanticError(Error):
@@ -656,9 +662,6 @@ class Parser:
         self._it: Iterator[IToken] = iter(self.lexer)
         self.current_token: IToken = next(self._it)
 
-    def error(self, msg: str, pos: Position) -> None:
-        raise RuntimeError(f"Invalid syntax: {msg} at {pos.line}:{pos.col}")
-
     def eat(self, toktypes: Union[TokenType, Sequence[TokenType]]):
         if isinstance(toktypes, TokenType):
             toktypes = toktypes,
@@ -666,15 +669,16 @@ class Parser:
         assert len(toktypes) > 0
 
         if any_of(toktypes, lambda tokty: self.current_token.type == tokty):
-            self.current_token = next(self._it)
+            if self.current_token.type != TokenType.EOF:
+                self.current_token = next(self._it)
         else:
-            toktypes_s = \
-                toktypes[0] if len(toktypes) == 1 else f"one of {toktypes}"
-
-            self.error(
-                f"was expecting {toktypes_s}, " + \
-                f"got {self.current_token.type}",
-                self.current_token.pos
+            toktypes_s = [toktype.name for toktype in toktypes]
+            toktypes_flat_s = toktypes_s[0] if len(toktypes_s) == 1 \
+                else f"one of {toktypes_s}"
+            raise ParserError(
+                error_code=ErrorCode.UNEXPECTED_TOKEN,
+                token=self.current_token,
+                appended_message=f"Expected {toktypes_flat_s}"
             )
 
     def factor(self, lpar_b: bool = False) -> IAST:
@@ -691,10 +695,16 @@ class Parser:
         def assert_no_lpar_rpar():
             curtok = self.current_token
             if curtok.type == TokenType.LPAR:
-                self.error(f"found {curtok}", curtok.pos)
+                raise ParserError(
+                    error_code=ErrorCode.UNEXPECTED_TOKEN,
+                    token=curtok
+                )
             elif curtok.type == TokenType.RPAR and not lpar_b:
-                self.error(
-                    f"{TokenType.RPAR} with no matching {TokenType.LPAR}")
+                raise ParserError(
+                    error_code=ErrorCode.UNEXPECTED_TOKEN,
+                    token=curtok,
+                    appended_message="No matching left parentheses"
+                )
 
         curtok = self.current_token
         prevtok = curtok
@@ -769,8 +779,9 @@ class Parser:
         """variable: ID"""
         try:
             node = Var(cast(IdTok, self.current_token))
-        finally:
-            self.eat(TokenType.ID)
+        except AssertionError:
+            pass
+        self.eat(TokenType.ID)
         return node
 
     def assignment_statement(self) -> Assign:
@@ -804,9 +815,10 @@ class Parser:
             statements.append(self.statement())
 
         if self.current_token.type == TokenType.ID:
-            self.error(
-                f"found {self.current_token}. Expected semi-colon",
-                self.current_token.pos
+            raise ParserError(
+                error_code=ErrorCode.UNEXPECTED_TOKEN,
+                token=self.current_token,
+                appended_message="Expected semi-colon"
             )
 
         return statements
@@ -829,7 +841,7 @@ class Parser:
             tok = Type(cast(RealTok, curtok))
             self.eat(TokenType.REAL)
         else:
-            self.error(f"expected a type. Got {curtok}", curtok.pos)
+            self.eat([TokenType.INTEGER, TokenType.REAL])
 
         return tok
 
@@ -932,8 +944,7 @@ class Parser:
     def parse(self) -> Program:
         prog = self.program()
         curtok = self.current_token
-        if curtok.type != TokenType.EOF:
-            self.error(f"expected EOF. Got {curtok}", curtok.pos)
+        self.eat(TokenType.EOF)
         return prog
 
 

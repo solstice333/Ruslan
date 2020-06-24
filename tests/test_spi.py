@@ -326,14 +326,45 @@ class ParserTestCase(unittest.TestCase):
     def test_fail_parse(self):
         with open("bar.pas") as f:
             p = make_parser(f.read())
-        with self.assertRaises(RuntimeError) as e:
+        with self.assertRaises(ParserError) as e:
             p.parse_compound()
 
-        exp_msg = \
-            "Invalid syntax: found IdTok(_a). " + \
-            "Expected semi-colon at 6:17"
-        act_msg = e.exception.args[0]
-        self.assertEqual(act_msg, exp_msg)
+        errcode = e.exception.error_code
+        errtok = e.exception.token
+        self.assertEqual(errcode, ErrorCode.UNEXPECTED_TOKEN)
+        self.assertEqual(errtok, IdTok("_a", Position(line=6, col=17)))
+
+    def test_fail_parse_type_spec(self):
+        with open("bad_type_spec.pas") as f:
+            p = make_parser(f.read())
+        with self.assertRaises(ParserError) as e:
+            p.parse()
+
+        errcode = e.exception.error_code
+        errtok = e.exception.token
+        self.assertEqual(errcode, ErrorCode.UNEXPECTED_TOKEN)
+        self.assertEqual(errtok, IdTok("INTEGE", Position(line=3, col=8)))
+        self.assertEqual(
+            "ParserError: Unexpected token -> " + \
+            "IdTok(INTEGE, Position(line=3, col=8)). " + \
+            "Expected one of ['INTEGER', 'REAL']",
+            e.exception.message
+        )
+
+    def test_fail_bad_prog_end(self):
+        with open("bad_prog_end.pas") as f:
+            p = make_parser((f.read()))
+        with self.assertRaises(ParserError) as e:
+            p.parse()
+
+        errcode = e.exception.error_code
+        errtok = e.exception.token
+        self.assertEqual(ErrorCode.UNEXPECTED_TOKEN, errcode)
+        self.assertEqual(DotTok(".", Position(line=4, col=1)), errtok)
+        self.assertEqual("ParserError: Unexpected token -> " + \
+                         "DotTok(., Position(line=4, col=1)). " + \
+                         "Expected EOF",
+                         e.exception.message)
 
     def test_parser_proc_sig(self):
         ast = make_prog_ast_from_file("part14.pas")
@@ -476,21 +507,19 @@ class InterpreterTestCase(unittest.TestCase):
         self.assertEqual(result, 10)
 
     def test_no_expression(self):
-        with self.assertRaises(RuntimeError) as e:
+        with self.assertRaises(ParserError) as e:
             ast = make_expr_ast('   ')
-        msg = e.exception.args[0]
-        self.assertEqual(
-            msg,
-            "Invalid syntax: was expecting TokenType.ID, " + \
-            "got TokenType.EOF at 1:4"
-        )
+        errcode = e.exception.error_code
+        errtok = e.exception.token
+        self.assertEqual(errcode, ErrorCode.UNEXPECTED_TOKEN)
+        self.assertEqual(errtok, EofTok("", Position(line=1, col=4)))
 
     def test_expression_invalid_syntax1(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ParserError):
             ast = make_expr_ast('10 *')
 
     def test_expression_invalid_syntax2(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ParserError):
             ast = make_expr_ast('1 (1 + 2)')
 
     def test_expression_compound(self):
