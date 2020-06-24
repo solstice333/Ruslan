@@ -700,6 +700,7 @@ class Parser:
 
         curtok = self.current_token
         prevtok = curtok
+        num_tok_types = [TokenType.INT_CONST, TokenType.REAL_CONST]
 
         if curtok.type == TokenType.ADD:
             self.eat(TokenType.ADD)
@@ -707,13 +708,12 @@ class Parser:
         elif curtok.type == TokenType.SUB:
             self.eat(TokenType.SUB)
             ast = Neg(self.factor(lpar_b), cast(SubTok, prevtok))
-        elif curtok.type == TokenType.INT_CONST:
-            ast = Num(cast(IntConstTok, curtok))
-            self.eat(TokenType.INT_CONST)
-            assert_no_lpar_rpar()
-        elif curtok.type == TokenType.REAL_CONST:
-            ast = Num(cast(RealConstTok, curtok))
-            self.eat(TokenType.REAL_CONST)
+        elif any_of(
+                num_tok_types,
+                lambda numtype: curtok.type == numtype
+        ):
+            ast = Num(cast([IntConstTok, RealConstTok], curtok))
+            self.eat(num_tok_types)
             assert_no_lpar_rpar()
         elif curtok.type == TokenType.LPAR:
             self.eat(TokenType.LPAR)
