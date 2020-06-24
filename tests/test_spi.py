@@ -2,9 +2,7 @@ import sys
 import os
 import os.path
 import unittest
-import logging
 import io
-import re
 
 from anytree import PostOrderIter, RenderTree
 
