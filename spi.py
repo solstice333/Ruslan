@@ -668,8 +668,6 @@ class Parser:
         if any_of(toktypes, lambda tokty: self.current_token.type == tokty):
             self.current_token = next(self._it)
         else:
-            line = self.current_token.pos.line
-            col = self.current_token.pos.col
             toktypes_s = \
                 toktypes[0] if len(toktypes) == 1 else f"one of {toktypes}"
 
