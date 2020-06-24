@@ -4,6 +4,7 @@ import os.path
 import unittest
 import io
 
+from pprint import pprint
 from anytree import PostOrderIter, RenderTree
 
 
@@ -653,7 +654,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             with SemanticAnalyzer() as lyz:
                 lyz.analyze(ast)
 
-        actual = listify_str(sb.getvalue())
+        actual = to_list_of_lines(sb.getvalue())
 
         expected = [
             "ENTER scope builtins",
@@ -773,7 +774,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             with SemanticAnalyzer() as lyz:
                 lyz.analyze(ast)
 
-        actual = listify_str(sb.getvalue())
+        actual = to_list_of_lines(sb.getvalue())
 
         expect = [
             "ENTER scope builtins",
@@ -821,8 +822,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "LEAVE scope builtins"
         ]
 
-        errmsg = prettify_strlist(sb.getvalue())
-        self.assertEqual(actual, expect, f"got \n{errmsg}")
+        self.assertEqual(actual, expect)
 
 
 class DecoSrcBuilderTestCase(unittest.TestCase):
@@ -947,24 +947,8 @@ class Foo(unittest.TestCase):
         print(sb.getvalue())
 
 
-def listify_str(s):
+def to_list_of_lines(s):
     return s.strip().splitlines()
-
-
-def prettify_strlist(s):
-    pretty_s = ""
-    ls = s.strip().split("\n")
-    pretty_s += "[\n"
-    for i, elem in enumerate(ls):
-        comma = "" if i >= len(ls) - 1 else ","
-        elem = re.sub(r"\"", "\\\"", elem)
-        pretty_s += f"    \"{elem}\"{comma}\n"
-    pretty_s += "]\n"
-    return pretty_s
-
-
-def print_str_as_list_of_str(s):
-    print(prettify_strlist(s))
 
 
 def make_parser(text):
