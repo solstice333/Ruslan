@@ -885,13 +885,33 @@ class Parser:
             param_nodes += self.formal_parameters()
         return param_nodes
 
+    def procedure_declaration(self):
+        """
+        procedure_declaration:
+            PROCEDURE variable (LPAR formal_parameter_list RPAR)? SEMI
+            block SEMI
+        """
+        self.eat(TokenType.PROCEDURE)
+        var_n: Var = self.variable()
+        proc_name: str = var_n.value
+
+        params: List[Param] = []
+        if self.current_token.type == TokenType.LPAR:
+            self.eat(TokenType.LPAR)
+            params = self.formal_parameter_list()
+            self.eat(TokenType.RPAR)
+
+        self.eat(TokenType.SEMI)
+        block_n: Block = self.block()
+        self.eat(TokenType.SEMI)
+
+        return ProcDecl(proc_name, params, block_n)
+
     def declarations(self) -> List[IAST]:
         """
         declarations: 
-            (VAR (variable_declaration SEMI)+)* | 
-            (PROCEDURE variable (LPAR formal_parameter_list RPAR)? 
-                SEMI block SEMI)* | 
-            empty
+            (VAR (variable_declaration SEMI)+)*
+            procedure_declaration*
         """
         declarations: List[IAST] = []
 
@@ -902,20 +922,7 @@ class Parser:
                 self.eat(TokenType.SEMI)
 
         while self.current_token.type == TokenType.PROCEDURE:
-            self.eat(TokenType.PROCEDURE)
-            var_n: Var = self.variable()
-            proc_name: str = var_n.value
-
-            params: List[Param] = []
-            if self.current_token.type == TokenType.LPAR:
-                self.eat(TokenType.LPAR)
-                params = self.formal_parameter_list()
-                self.eat(TokenType.RPAR)
-
-            self.eat(TokenType.SEMI)
-            block_n: Block = self.block()
-            self.eat(TokenType.SEMI)
-            declarations.append(ProcDecl(proc_name, params, block_n))
+            declarations.append(self.procedure_declaration())
 
         return declarations
 
