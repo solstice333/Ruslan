@@ -326,6 +326,7 @@ class ErrorCode(Enum):
     UNEXPECTED_TOKEN = 'Unexpected token'
     ID_NOT_FOUND = 'Identifier not found'
     DUPLICATE_ID = 'Duplicate id found'
+    TYPE_NOT_FOUND = 'Type not found'
 
 
 class Error(Exception):
@@ -1765,7 +1766,7 @@ class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
         type_sym = self.safe_current_scope.lookup(type_name)
         self._assert(
             cond=type_sym is not None,
-            errcode=ErrorCode.ID_NOT_FOUND,
+            errcode=ErrorCode.TYPE_NOT_FOUND,
             token=ty.token
         )
 
