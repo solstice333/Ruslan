@@ -332,17 +332,15 @@ class Error(Exception):
     def __init__(
             self,
             error_code: ErrorCode,
-            token: Optional[IToken] = None,
+            token: IToken,
             appended_message: Optional[str] = None,
             message: Optional[str] = None
     ):
         self.error_code: ErrorCode = error_code
-        self.token: Optional[IToken] = token
+        self.token: IToken = token
 
         if message is None:
-            message = f"{error_code.value}"
-            if token is not None:
-                message += f" -> {token!r}"
+            message = f"{error_code.value} -> {token!r}"
         if appended_message:
             message += f". {appended_message}"
 
@@ -351,14 +349,7 @@ class Error(Exception):
 
 
 class ParserError(Error):
-    def __init__(
-            self,
-            error_code: ErrorCode,
-            token: IToken,
-            appended_message: Optional[str] = None,
-            message: Optional[str] = None
-    ):
-        super().__init__(error_code, token, appended_message, message)
+    pass
 
 
 class SemanticError(Error):
@@ -672,6 +663,22 @@ class Parser:
         self.lexer: Lexer = lexer
         self._it: Iterator[IToken] = iter(self.lexer)
         self.current_token: IToken = next(self._it)
+
+    def _assert(
+            self,
+            cond,
+            errcode: ErrorCode,
+            token: IToken,
+            msg: Optional[str] = None
+    ) -> None:
+        _assert_with(
+            cond,
+            ParserError(
+                error_code=errcode,
+                token=token,
+                appended_message=msg
+            )
+        )
 
     def eat(self, toktypes: Union[TokenType, Sequence[TokenType]]):
         if isinstance(toktypes, TokenType):
