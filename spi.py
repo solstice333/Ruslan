@@ -1914,12 +1914,12 @@ class Interpreter(NodeVisitor):
         return val
 
 
-def assert_with(cond: bool, err: Exception):
+def assert_with(cond: bool, err: Exception) -> None:
     if not cond:
         raise err
 
 
-def any_of(vals: Iterable[T], pred: Callable[[T], bool]):
+def any_of(vals: Iterable[T], pred: Callable[[T], bool]) -> bool:
     for val in vals:
         if pred(val):
             return True
