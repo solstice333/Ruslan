@@ -1643,7 +1643,7 @@ class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
             self,
             cond,
             errcode: ErrorCode,
-            token: Optional[IToken] = None,
+            token: IToken,
             msg: Optional[str] = None
     ) -> None:
         _assert_with(
