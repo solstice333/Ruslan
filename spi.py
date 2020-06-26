@@ -1795,7 +1795,6 @@ class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
 
         for param in node.params:
             param_name = param.var.value
-            param_pos = param.var.token.pos
             param_ty = self.current_scope.lookup(param.type.value)
 
             assert param_ty is not None
