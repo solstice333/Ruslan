@@ -333,18 +333,22 @@ class Error(Exception):
             self,
             error_code: ErrorCode,
             token: IToken,
-            appended_message: Optional[str] = None,
-            message: Optional[str] = None
+            appended_message: Optional[Union[str, Callable[[], str]]] = None,
+            message: Optional[Union[str, Callable[[], str]]] = None
     ):
         self.error_code: ErrorCode = error_code
         self.token: IToken = token
 
-        if message is None:
-            message = f"{error_code.value} -> {token!r}"
-        if appended_message:
-            message += f". {appended_message}"
+        message2 = message() if callable(message) else message
+        appended_message2 = appended_message() if callable(appended_message) \
+            else appended_message
 
-        self.message = f"{type(self).__name__}: {message}"
+        if message2 is None:
+            message2 = f"{error_code.value} -> {token!r}"
+        if appended_message2:
+            message2 += f". {appended_message2}"
+
+        self.message = f"{type(self).__name__}: {message2}"
         super().__init__(self.message)
 
 
@@ -657,7 +661,6 @@ class Eof(NoOp):
     pass
 
 
-# TODO replace conditional raise ParserError with an _assert
 class Parser:
     def __init__(self, lexer: Lexer) -> None:
         self.lexer: Lexer = lexer
@@ -669,9 +672,9 @@ class Parser:
             cond,
             errcode: ErrorCode,
             token: IToken,
-            msg: Optional[str] = None
+            msg: Optional[Union[str, Callable[[], str]]] = None
     ) -> None:
-        _assert_with(
+        assert_with(
             cond,
             ParserError(
                 error_code=errcode,
@@ -684,20 +687,27 @@ class Parser:
         if isinstance(toktypes, TokenType):
             toktypes = toktypes,
 
-        assert len(toktypes) > 0
+        assert len(toktypes) > 0, "toktypes must have at least one TokenType"
 
-        if any_of(toktypes, lambda tokty: self.current_token.type == tokty):
-            if self.current_token.type != TokenType.EOF:
-                self.current_token = next(self._it)
-        else:
-            toktypes_s = [toktype.name for toktype in toktypes]
+        def gen_msg() -> str:
+            toktypes_s = [toktype.name
+                          for toktype in cast([tuple, list], toktypes)]
             toktypes_flat_s = toktypes_s[0] if len(toktypes_s) == 1 \
                 else f"one of {toktypes_s}"
-            raise ParserError(
-                error_code=ErrorCode.UNEXPECTED_TOKEN,
-                token=self.current_token,
-                appended_message=f"Expected {toktypes_flat_s}"
-            )
+            return f"Expected {toktypes_flat_s}"
+
+        self._assert(
+            cond=any_of(
+                toktypes,
+                lambda tokty: self.current_token.type == tokty
+            ),
+            errcode=ErrorCode.UNEXPECTED_TOKEN,
+            token=self.current_token,
+            msg=gen_msg
+        )
+
+        if self.current_token.type != TokenType.EOF:
+            self.current_token = next(self._it)
 
     def factor(self, lpar_b: bool = False) -> IAST:
         """
@@ -709,21 +719,6 @@ class Parser:
             LPAREN expr RPAREN | 
             variable
         """
-
-        def assert_no_lpar_rpar():
-            curtok = self.current_token
-            if curtok.type == TokenType.LPAR:
-                raise ParserError(
-                    error_code=ErrorCode.UNEXPECTED_TOKEN,
-                    token=curtok
-                )
-            elif curtok.type == TokenType.RPAR and not lpar_b:
-                raise ParserError(
-                    error_code=ErrorCode.UNEXPECTED_TOKEN,
-                    token=curtok,
-                    appended_message="No matching left parentheses"
-                )
-
         curtok = self.current_token
         prevtok = curtok
         num_tok_types = [TokenType.INT_CONST, TokenType.REAL_CONST]
@@ -740,7 +735,20 @@ class Parser:
         ):
             ast = Num(cast([IntConstTok, RealConstTok], curtok))
             self.eat(num_tok_types)
-            assert_no_lpar_rpar()
+
+            curtok = self.current_token
+            self._assert(
+                cond=curtok.type != TokenType.LPAR,
+                errcode=ErrorCode.UNEXPECTED_TOKEN,
+                token=curtok
+            )
+            if curtok.type == TokenType.RPAR:
+                self._assert(
+                    cond=lpar_b,
+                    errcode=ErrorCode.UNEXPECTED_TOKEN,
+                    token=curtok,
+                    msg="No matching left parentheses"
+                )
         elif curtok.type == TokenType.LPAR:
             self.eat(TokenType.LPAR)
             ast = self.expr(True)
@@ -832,12 +840,12 @@ class Parser:
             self.eat(TokenType.SEMI)
             statements.append(self.statement())
 
-        if self.current_token.type == TokenType.ID:
-            raise ParserError(
-                error_code=ErrorCode.UNEXPECTED_TOKEN,
-                token=self.current_token,
-                appended_message="Expected semi-colon"
-            )
+        self._assert(
+            cond=self.current_token.type != TokenType.ID,
+            errcode=ErrorCode.UNEXPECTED_TOKEN,
+            token=self.current_token,
+            msg=f"Expected {TokenType.SEMI}"
+        )
 
         return statements
 
@@ -1050,11 +1058,9 @@ class ScopedSymbolTable:
         return "\n".join(lines)
 
     def __getitem__(self, name: str) -> Symbol:
-        if not isinstance(name, str):
-            raise TypeError("name must be a str")
+        assert isinstance(name, str), f"name msut be a str"
         sym: Optional[Symbol] = self.lookup(name)
-        if sym is None:
-            raise KeyError(f"{name} does not exist in {type(self).__name__}")
+        assert sym is not None, f"{name} does not exist"
         return cast(Symbol, sym)
 
     def __iter__(self) -> Iterator[Symbol]:
@@ -1093,11 +1099,11 @@ class NodeVisitor(ABC):
 
     def visit(self, node: IAST) -> Union[int, float, None]:
         method_name = self._gen_visit_method_name(node)
-        return getattr(self, method_name, self.raise_visit_error)(node)
 
-    def raise_visit_error(self, node: IAST) -> None:
-        method_name = self._gen_visit_method_name(node)
-        raise RuntimeError(f"No {method_name} method")
+        def raise_visit_error(_: IAST) -> None:
+            assert False, f"No {method_name} method"
+
+        return getattr(self, method_name, raise_visit_error)(node)
 
     @abstractmethod
     def _visit_pos(self, node: Pos) -> Union[int, float, None]:
@@ -1653,7 +1659,7 @@ class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
             token: IToken,
             msg: Optional[str] = None
     ) -> None:
-        _assert_with(
+        assert_with(
             cond,
             SemanticError(
                 error_code=errcode,
@@ -1767,7 +1773,8 @@ class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
         var_name = var.value
         var_sym = VarSymbol(var_name, cast(BuiltinTypeSymbol, type_sym))
         self._assert(
-            cond=self.safe_current_scope.lookup_this_scope(var_sym.name) is None,
+            cond=self.safe_current_scope.lookup_this_scope(
+                var_sym.name) is None,
             errcode=ErrorCode.DUPLICATE_ID,
             token=node.var.token,
         )
@@ -1882,8 +1889,7 @@ class Interpreter(NodeVisitor):
     def _visit_var(self, node: Var) -> Union[int, float]:
         name = node.value
         val = self.GLOBAL_SCOPE.get(name.lower())
-        if val is None:
-            raise NameError(repr(name))
+        assert val is not None
         return val
 
     def _visit_program(self, node: Program) -> None:
@@ -1908,7 +1914,7 @@ class Interpreter(NodeVisitor):
         return val
 
 
-def _assert_with(cond: bool, err: Error):
+def assert_with(cond: bool, err: Exception):
     if not cond:
         raise err
 
