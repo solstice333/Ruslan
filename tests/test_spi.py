@@ -600,17 +600,33 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         ast = make_prog_ast_from_file("name_err.pas")
         lyz = SemanticAnalyzer()
 
-        with self.assertRaises(NameError) as e:
+        with self.assertRaises(SemanticError) as e:
             lyz.visit(ast)
-        self.assertEqual(e.exception.args[0], "b is not declared at 6:13")
+        self.assertEqual(
+            IdTok("b", Position(line=6, col=13)),
+            e.exception.token
+        )
+        self.assertEqual(ErrorCode.ID_NOT_FOUND, e.exception.error_code)
+        self.assertEqual(
+            "SemanticError: Identifier not found "
+            "-> IdTok(b, Position(line=6, col=13)). "
+            "b is not declared",
+            e.exception.message
+        )
 
     def test_builder_name_error2(self):
         ast = make_prog_ast_from_file("name_err2.pas")
         lyz = SemanticAnalyzer()
 
-        with self.assertRaises(NameError) as e:
+        with self.assertRaises(SemanticError) as e:
             lyz.visit(ast)
-        self.assertEqual(e.exception.args[0], "a is not declared at 7:4")
+        self.assertEqual(ErrorCode.ID_NOT_FOUND, e.exception.error_code)
+        self.assertEqual(IdTok("a", Position(7, 4)), e.exception.token)
+        self.assertEqual(
+            "SemanticError: Identifier not found -> "
+            "IdTok(a, Position(line=7, col=4)). a is not declared",
+            e.exception.message
+        )
 
     def test_builder_part12(self):
         ast = make_prog_ast_from_file("part12.pas")
@@ -671,10 +687,16 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         ast = make_prog_ast_from_file("dup_var_err.pas")
         lyz = SemanticAnalyzer()
 
-        with self.assertRaises(NameError) as e:
+        with self.assertRaises(SemanticError) as e:
             lyz.analyze(ast)
+        sem_err = e.exception
+        self.assertEqual(ErrorCode.DUPLICATE_ID, sem_err.error_code)
+        self.assertEqual(IdTok("y", Position(3, 8)), sem_err.token)
         self.assertEqual(
-            e.exception.args[0], "duplicate identifier y found at 3:8")
+            "SemanticError: Duplicate id found -> "
+            "IdTok(y, Position(line=3, col=8))",
+            sem_err.message
+        )
 
     def test_part14_decl_only_chained_scope(self):
         ast = make_prog_ast_from_file("part14_decl_only.pas")
@@ -731,10 +753,16 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         ast = make_prog_ast_from_file("part14_dup_param.pas")
         lyz = SemanticAnalyzer()
 
-        with self.assertRaises(NameError) as e:
+        with self.assertRaises(SemanticError) as e:
             lyz.analyze(ast)
+        sem_err = e.exception
+        self.assertEqual(ErrorCode.DUPLICATE_ID, sem_err.error_code)
+        self.assertEqual(IdTok("a", Position(4, 33)), sem_err.token)
         self.assertEqual(
-            e.exception.args[0], "duplicate identifier a found 4:33")
+            "SemanticError: Duplicate id found -> "
+            "IdTok(a, Position(line=4, col=33))",
+            sem_err.message
+        )
 
     def test_part14_sibling_scopes(self):
         ast = make_prog_ast_from_file(

@@ -329,12 +329,25 @@ class ErrorCode(Enum):
 
 
 class Error(Exception):
-    def __init__(self, error_code: Optional[ErrorCode] = None,
-                 token: Optional[IToken] = None, message: Optional[str] = None):
-        self.error_code = error_code
-        self.token = token
+    def __init__(
+            self,
+            error_code: ErrorCode,
+            token: Optional[IToken] = None,
+            appended_message: Optional[str] = None,
+            message: Optional[str] = None
+    ):
+        self.error_code: ErrorCode = error_code
+        self.token: Optional[IToken] = token
+
+        if message is None:
+            message = f"{error_code.value}"
+            if token is not None:
+                message += f" -> {token!r}"
+        if appended_message:
+            message += f". {appended_message}"
+
         self.message = f"{type(self).__name__}: {message}"
-        super().__init__(self.error_code, self.token, self.message)
+        super().__init__(self.message)
 
 
 class ParserError(Error):
@@ -342,13 +355,10 @@ class ParserError(Error):
             self,
             error_code: ErrorCode,
             token: IToken,
-            message: Optional[str] = None,
-            appended_message: str = ""
-    ) -> None:
-        message = message or f"{error_code.value} -> {token!r}"
-        if appended_message:
-            message += f". {appended_message}"
-        super().__init__(error_code, token, message)
+            appended_message: Optional[str] = None,
+            message: Optional[str] = None
+    ):
+        super().__init__(error_code, token, appended_message, message)
 
 
 class SemanticError(Error):
@@ -656,6 +666,7 @@ class Eof(NoOp):
     pass
 
 
+# TODO replace conditional raise ParserError with an _assert
 class Parser:
     def __init__(self, lexer: Lexer) -> None:
         self.lexer: Lexer = lexer
@@ -1628,6 +1639,22 @@ class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
     ) -> None:
         self.close()
 
+    def _assert(
+            self,
+            cond,
+            errcode: ErrorCode,
+            token: Optional[IToken] = None,
+            msg: Optional[str] = None
+    ) -> None:
+        _assert_with(
+            cond,
+            SemanticError(
+                error_code=errcode,
+                token=token,
+                appended_message=msg
+            )
+        )
+
     @property
     def safe_current_scope(self) -> ScopedSymbolTable:
         assert self.current_scope is not None
@@ -1691,10 +1718,12 @@ class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
 
     def _visit_var(self, node: Var) -> None:
         var_name = node.value
-        pos = node.token.pos
-        if self.safe_current_scope.lookup(var_name) is None:
-            raise NameError(
-                f"{var_name} is not declared at {pos.line}:{pos.col}")
+        self._assert(
+            cond=self.safe_current_scope.lookup(var_name) is not None,
+            errcode=ErrorCode.ID_NOT_FOUND,
+            token=node.token,
+            msg=f"{var_name} is not declared"
+        )
 
     def _visit_program(self, node: Program) -> None:
         assert isinstance(self.current_scope, ScopedSymbolTable)
@@ -1718,30 +1747,23 @@ class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
             self.visit(n)
 
     def _visit_vardecl(self, node: VarDecl) -> None:
-        var = node.var
         ty = node.type
-
-        var_pos = var.token.pos
-        ty_pos = ty.token.pos
-
         type_name = ty.value
         type_sym = self.safe_current_scope.lookup(type_name)
+        self._assert(
+            cond=type_sym is not None,
+            errcode=ErrorCode.ID_NOT_FOUND,
+            token=ty.token
+        )
 
-        if type_sym is None:
-            raise TypeError(
-                f"{type_name} not in symbol table " + \
-                f"at {ty_pos.line}:{ty_pos.col}"
-            )
-
+        var = node.var
         var_name = var.value
         var_sym = VarSymbol(var_name, cast(BuiltinTypeSymbol, type_sym))
-
-        if self.safe_current_scope.lookup_this_scope(var_sym.name) is not None:
-            pos = node.var.token.pos
-            raise NameError(
-                f"duplicate identifier {var_sym.name} " + \
-                f"found at {pos.line}:{pos.col}"
-            )
+        self._assert(
+            cond=self.safe_current_scope.lookup_this_scope(var_sym.name) is None,
+            errcode=ErrorCode.DUPLICATE_ID,
+            token=node.var.token,
+        )
 
         self.safe_current_scope.insert(var_sym)
 
@@ -1765,11 +1787,12 @@ class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
             assert isinstance(param_ty, BuiltinTypeSymbol)
 
             param_sym = self.safe_current_scope.lookup_this_scope(param_name)
-            if param_sym is not None:
-                raise NameError(
-                    f"duplicate identifier {param_name} " + \
-                    f"found {param_pos.line}:{param_pos.col}"
-                )
+
+            self._assert(
+                cond=param_sym is None,
+                errcode=ErrorCode.DUPLICATE_ID,
+                token=param.var.token
+            )
 
             var_sym = VarSymbol(param_name, cast(BuiltinTypeSymbol, param_ty))
             proc_symbol.params.append(var_sym)
@@ -1782,7 +1805,7 @@ class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
         logging.info(f"LEAVE scope {proc_scope.name}")
 
     def _visit_type(self, node: Type) -> None:
-        raise NotImplementedError()
+        pass
 
     def analyze(self, node: IAST) -> None:
         assert not self._closed
@@ -1878,6 +1901,11 @@ class Interpreter(NodeVisitor):
         return val
 
 
+def _assert_with(cond: bool, err: Error):
+    if not cond:
+        raise err
+
+
 def any_of(vals: Iterable[T], pred: Callable[[T], bool]):
     for val in vals:
         if pred(val):
@@ -1885,7 +1913,7 @@ def any_of(vals: Iterable[T], pred: Callable[[T], bool]):
     return False
 
 
-def to_camel_case(s):
+def to_camel_case(s: str) -> str:
     s = s.lower()
     s = re.sub(r"^\w", lambda m: m[0].upper(), s)
     s = re.sub(r"_(\w)", lambda m: m[1].upper(), s)
