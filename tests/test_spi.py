@@ -440,6 +440,75 @@ class ParserTestCase(unittest.TestCase):
         ]
         self.assertEqual(act, exp)
 
+    def test_peek_and_advance(self):
+        p = make_parser_from_file("foo.pas")
+        tok = p.advance()
+        self.assertEqual(BeginTok("BEGIN", Position(line=3, col=5)), tok)
+        tok = p.advance()
+        self.assertEqual(IdTok("number", Position(line=4, col=9)), tok)
+        tok = p.peek()
+        self.assertEqual(AssignTok(":=", Position(line=4, col=16)), tok)
+        tok = p.advance()
+        self.assertEqual(AssignTok(":=", Position(line=4, col=16)), tok)
+        tok = p.advance()
+        self.assertEqual(IntConstTok(2, Position(line=4, col=33)), tok)
+        tok = p.peek(18)
+        self.assertEqual(IdTok("c", Position(line=7, col=9)), tok)
+        tok = p.advance()
+        self.assertEqual(SemiTok(";", Position(line=4, col=34)), tok)
+        tok = p.peek(17)
+        self.assertEqual(IdTok("c", Position(line=7, col=9)), tok)
+        tok = p.peek(18)
+        self.assertEqual(AssignTok(":=", Position(line=7, col=11)), tok)
+        tok = p.advance()
+        self.assertEqual(IdTok("_a", Position(line=5, col=9)), tok)
+        tok = p.peek(30)
+        self.assertEqual(EofTok("", Position(line=12, col=1)), tok)
+
+        with self.assertRaises(StopIteration):
+            p.peek(31)
+
+        tok = p.peek()
+        self.assertEqual(AssignTok(":=", Position(line=5, col=12)), tok)
+        tok = p.peek()
+        self.assertEqual(AssignTok(":=", Position(line=5, col=12)), tok)
+
+    def test_proccall(self):
+        ast = make_prog_ast_from_file("part16.pas")
+        act = [str(n) for n in list(PostOrderIter(ast))]
+        exp = [
+            'Var(value=a)',
+            'Type(value=integer)',
+            'Param()',
+            'Var(value=b)',
+            'Type(value=integer)',
+            'Param()',
+            'Var(value=x)',
+            'Type(value=integer)',
+            'VarDecl()',
+            'Var(value=x)',
+            'Var(value=a)',
+            'Var(value=b)',
+            'Add(value=+)',
+            'Num(value=2)',
+            'Mul(value=*)',
+            'Assign(value=:=)',
+            'NoOp()',
+            'Compound()',
+            'Block()',
+            'ProcDecl(name=Alpha)',
+            'Num(value=3)',
+            'Num(value=5)',
+            'Add(value=+)',
+            'Num(value=7)',
+            'ProcCall(proc_name=Alpha)',
+            'NoOp()',
+            'Compound()',
+            'Block()',
+            'Program(name=Main)'
+        ]
+        self.assertEqual(exp, act)
+
 
 class InterpreterTestCase(unittest.TestCase):
     def setUp(self):
@@ -1011,6 +1080,12 @@ def to_list_of_lines(s):
 def make_parser(text):
     lexer = Lexer(text)
     return Parser(lexer)
+
+
+def make_parser_from_file(path):
+    with open(path) as f:
+        text = f.read()
+    return make_parser(text)
 
 
 def make_expr_ast(txt):

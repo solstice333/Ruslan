@@ -653,6 +653,21 @@ class Assign(IAST):
         return f"{type(self).__name__}(value={self.value})"
 
 
+class ProcCall(IAST):
+    def __init__(
+            self,
+            token: IToken,
+            actual_params: List[IAST]
+    ) -> None:
+        self.token: IToken = token
+        self.proc_name: str = cast(str, self.token.value)
+        self.actual_params: List[IAST] = actual_params
+        super().__init__(self.actual_params)
+
+    def __str__(self) -> str:
+        return f"{type(self).__name__}(proc_name={self.proc_name})"
+
+
 class NoOp(IAST):
     def __str__(self) -> str:
         return f"{type(self).__name__}()"
@@ -667,6 +682,7 @@ class Parser:
         self.lexer: Lexer = lexer
         self._it: Iterator[IToken] = iter(self.lexer)
         self.current_token: IToken = next(self._it)
+        self._tokbuf: List[IToken] = []
 
     def _assert(
             self,
@@ -684,7 +700,23 @@ class Parser:
             )
         )
 
-    def eat(self, toktypes: Union[TokenType, Sequence[TokenType]]):
+    def advance(self) -> IToken:
+        if self._tokbuf:
+            self.current_token = self._tokbuf.pop(0)
+        elif self.current_token.type != TokenType.EOF:
+            self.current_token = next(self._it)
+        return self.current_token
+
+    def peek(self, offset: int = 1) -> IToken:
+        if len(self._tokbuf) >= offset:
+            return self._tokbuf[offset - 1]
+
+        for i in range(0, offset - len(self._tokbuf)):
+            self._tokbuf.append(next(self._it))
+
+        return self._tokbuf[offset - 1]
+
+    def eat(self, toktypes: Union[TokenType, Sequence[TokenType]]) -> IToken:
         if isinstance(toktypes, TokenType):
             toktypes = toktypes,
 
@@ -707,10 +739,9 @@ class Parser:
             msg=gen_msg
         )
 
-        if self.current_token.type != TokenType.EOF:
-            self.current_token = next(self._it)
+        return self.advance()
 
-    def factor(self, lpar_b: bool = False) -> IAST:
+    def factor(self) -> IAST:
         """
         factor : 
             ADD factor | 
@@ -726,10 +757,10 @@ class Parser:
 
         if curtok.type == TokenType.ADD:
             self.eat(TokenType.ADD)
-            ast = Pos(self.factor(lpar_b), cast(AddTok, prevtok))
+            ast = Pos(self.factor(), cast(AddTok, prevtok))
         elif curtok.type == TokenType.SUB:
             self.eat(TokenType.SUB)
-            ast = Neg(self.factor(lpar_b), cast(SubTok, prevtok))
+            ast = Neg(self.factor(), cast(SubTok, prevtok))
         elif any_of(
                 num_tok_types,
                 lambda numtype: curtok.type == numtype
@@ -743,56 +774,50 @@ class Parser:
                 errcode=ErrorCode.UNEXPECTED_TOKEN,
                 token=curtok
             )
-            if curtok.type == TokenType.RPAR:
-                self._assert(
-                    cond=lpar_b,
-                    errcode=ErrorCode.UNEXPECTED_TOKEN,
-                    token=curtok,
-                    msg="No matching left parentheses"
-                )
+
         elif curtok.type == TokenType.LPAR:
             self.eat(TokenType.LPAR)
-            ast = self.expr(True)
+            ast = self.expr()
             self.eat(TokenType.RPAR)
         else:
             ast = self.variable()
         return ast
 
-    def term(self, lpar_b: bool = False) -> BinOp:
+    def term(self) -> IAST:
         """term : factor ((MUL | INT_DIV | FLOAT_DIV) factor)*"""
-        node: IAST = self.factor(lpar_b)
+        node: IAST = self.factor()
 
         while True:
             curtok: IToken = self.current_token
             if curtok.type == TokenType.MUL:
                 self.eat(TokenType.MUL)
                 node = Mul(
-                    node, self.factor(lpar_b), cast(MulTok, curtok))
+                    node, self.factor(), cast(MulTok, curtok))
             elif curtok.type == TokenType.INT_DIV:
                 self.eat(TokenType.INT_DIV)
                 node = IntDiv(
-                    node, self.factor(lpar_b), cast(IntDivTok, curtok))
+                    node, self.factor(), cast(IntDivTok, curtok))
             elif curtok.type == TokenType.FLOAT_DIV:
                 self.eat(TokenType.FLOAT_DIV)
                 node = FloatDiv(
-                    node, self.factor(lpar_b), cast(FloatDivTok, curtok))
+                    node, self.factor(), cast(FloatDivTok, curtok))
             else:
                 break
 
         return node
 
-    def expr(self, lpar_b: bool = False) -> IAST:
+    def expr(self) -> IAST:
         """expr: term ((ADD | SUB) term)* """
-        node: IAST = self.term(lpar_b)
+        node: IAST = self.term()
 
         while True:
             curtok: IToken = self.current_token
             if curtok.type == TokenType.ADD:
                 self.eat(TokenType.ADD)
-                node = Add(node, self.term(lpar_b), cast(AddTok, curtok))
+                node = Add(node, self.term(), cast(AddTok, curtok))
             elif curtok.type == TokenType.SUB:
                 self.eat(TokenType.SUB)
-                node = Sub(node, self.term(lpar_b), cast(SubTok, curtok))
+                node = Sub(node, self.term(), cast(SubTok, curtok))
             else:
                 break
 
@@ -819,14 +844,62 @@ class Parser:
         right = self.expr()
         return Assign(left, right, cast(AssignTok, assign_tok))
 
+    def actual_parameter_list(self) -> List[IAST]:
+        """arglist: expr (COMMA expr)*"""
+        actual_params = []
+        start = True
+        while self.current_token.type != TokenType.RPAR:
+            if start:
+                start = False
+            else:
+                self.eat(TokenType.COMMA)
+            node = self.expr()
+            actual_params.append(node)
+        return actual_params
+
+    def proccall_statement(self) -> ProcCall:
+        """proccall_statement: ID LPAR actual_parameter_list? RPAR"""
+        idtok = self.current_token
+
+        self.eat(TokenType.ID)
+        self.eat(TokenType.LPAR)
+        actual_params = self.actual_parameter_list()
+        self.eat(TokenType.RPAR)
+
+        return ProcCall(
+            token=idtok,
+            actual_params=actual_params
+        )
+
     def statement(self) -> IAST:
-        """statement: compound_statement | assignment_statement | empty"""
+        """
+        statement:
+            compound_statement |
+            proccall_statement |
+            assignment_statement |
+            empty
+        """
         tokty = self.current_token.type
 
         if tokty == TokenType.BEGIN:
             node = self.compound_statement()
         elif tokty == TokenType.ID:
-            node = self.assignment_statement()
+            ahead_tok = self.peek()
+
+            self._assert(
+                cond=any_of(
+                    [TokenType.ASSIGN, TokenType.LPAR],
+                    lambda tty: ahead_tok.type == tty
+                ),
+                errcode=ErrorCode.UNEXPECTED_TOKEN,
+                token=ahead_tok
+            )
+
+            node = Eof()
+            if ahead_tok.type == TokenType.ASSIGN:
+                node = self.assignment_statement()
+            elif ahead_tok.type == TokenType.LPAR:
+                node = self.proccall_statement()
         else:
             node = self.empty()
 
@@ -1093,7 +1166,7 @@ class ScopedSymbolTable:
         self._symbols[sym.name.lower()] = sym
 
 
-class NodeVisitor(ABC):
+class INodeVisitor(ABC):
     def _gen_visit_method_name(self, node: IAST) -> str:
         method_name = '_visit_' + type(node).__name__
         return method_name.lower()
@@ -1168,6 +1241,10 @@ class NodeVisitor(ABC):
 
     @abstractmethod
     def _visit_procdecl(self, node: ProcDecl) -> None:
+        pass
+
+    @abstractmethod
+    def _visit_proccall(self, node: ProcCall) -> None:
         pass
 
     @abstractmethod
@@ -1630,7 +1707,7 @@ class DecoSrcBuilder(IDecoSrcBuilder):
         pass
 
 
-class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
+class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
     def __init__(self, s2s: bool = False):
         self.s2s: bool = s2s
         self._dsb: DecoSrcBuilder = DecoSrcBuilder()
@@ -1818,6 +1895,10 @@ class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
         self.current_scope = self.current_scope.encl_scope
         logging.info(f"LEAVE scope {proc_scope.name}")
 
+    def _visit_proccall(self, node: ProcCall) -> None:
+        for child in node.children:
+            self.visit(child)
+
     def _visit_type(self, node: Type) -> None:
         pass
 
@@ -1837,7 +1918,7 @@ class SemanticAnalyzer(NodeVisitor, ContextManager['SemanticAnalyzer']):
         self._closed = True
 
 
-class Interpreter(NodeVisitor):
+class Interpreter(INodeVisitor):
     def __init__(self):
         self.GLOBAL_SCOPE: Dict[str, Union[int, float]] = {}
 
@@ -1903,6 +1984,9 @@ class Interpreter(NodeVisitor):
         pass
 
     def _visit_procdecl(self, node: ProcDecl) -> None:
+        pass
+
+    def _visit_proccall(self, node: ProcCall) -> None:
         pass
 
     def _visit_type(self, node: Type) -> None:
