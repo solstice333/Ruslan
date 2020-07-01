@@ -327,6 +327,8 @@ class ErrorCode(Enum):
     ID_NOT_FOUND = 'Identifier not found'
     DUPLICATE_ID = 'Duplicate id found'
     TYPE_NOT_FOUND = 'Type not found'
+    PROC_NOT_FOUND = 'Proc not found'
+    BAD_PARAMS = 'Parameter list does not match declaration'
 
 
 class Error(Exception):
@@ -1896,6 +1898,31 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
         logging.info(f"LEAVE scope {proc_scope.name}")
 
     def _visit_proccall(self, node: ProcCall) -> None:
+        proc_sym = self.safe_current_scope.lookup(node.proc_name)
+
+        self._assert(
+            cond=proc_sym is not None,
+            errcode=ErrorCode.ID_NOT_FOUND,
+            token=node.token
+        )
+
+        self._assert(
+            cond=isinstance(proc_sym, ProcSymbol),
+            errcode=ErrorCode.PROC_NOT_FOUND,
+            token=node.token,
+            msg=f"{proc_sym} is not a ProcSymbol"
+        )
+
+        proc_sym2 = cast(ProcSymbol, proc_sym)
+        exp_num_args = len(proc_sym2.params)
+        act_num_args = len(node.children)
+        self._assert(
+            cond=act_num_args == exp_num_args,
+            errcode=ErrorCode.BAD_PARAMS,
+            token=node.token,
+            msg=f"Expected {exp_num_args} args, got {act_num_args} args"
+        )
+
         for child in node.children:
             self.visit(child)
 

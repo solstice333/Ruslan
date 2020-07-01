@@ -950,6 +950,67 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
 
         self.assertEqual(actual, expect)
 
+    def test_part16_argcheck(self):
+        ast = make_prog_ast_from_file("part16_badarg.pas")
+
+        with self.assertRaises(SemanticError) as e:
+            with SemanticAnalyzer() as lyz:
+                lyz.analyze(ast)
+
+        exc = e.exception
+        self.assertEqual(
+            "SemanticError: Parameter list does not match "
+            "declaration -> IdTok(alpha, Position(line=9, col=3)). "
+            "Expected 2 args, got 0 args",
+            exc.message
+        )
+        self.assertEqual(ErrorCode.BAD_PARAMS, exc.error_code)
+
+        ast = make_prog_ast_from_file("part16_badarg2.pas")
+
+        with self.assertRaises(SemanticError) as e:
+            with SemanticAnalyzer() as lyz:
+                lyz.analyze(ast)
+
+        exc = e.exception
+        self.assertEqual(
+            "SemanticError: Proc not found -> "
+            "IdTok(beta, Position(line=9, col=3)). "
+            "<beta:INTEGER> is not a ProcSymbol",
+            exc.message
+        )
+        self.assertEqual(ErrorCode.PROC_NOT_FOUND, exc.error_code)
+
+        ast = make_prog_ast_from_file("part16_badarg3.pas")
+
+        with self.assertRaises(SemanticError) as e:
+            with SemanticAnalyzer() as lyz:
+                lyz.analyze(ast)
+
+        exc = e.exception
+        self.assertEqual(
+            "SemanticError: Parameter list does not match declaration "
+            "-> IdTok(alpha, Position(line=9, col=3)). "
+            "Expected 2 args, got 1 args",
+            exc.message
+        )
+        self.assertEqual(ErrorCode.BAD_PARAMS, exc.error_code)
+
+        ast = make_prog_ast_from_file("part16_badarg4.pas")
+
+        with self.assertRaises(SemanticError) as e:
+            with SemanticAnalyzer() as lyz:
+                lyz.analyze(ast)
+
+        exc = e.exception
+        self.assertEqual(
+            "SemanticError: Parameter list does not match declaration "
+            "-> IdTok(alpha, Position(line=9, col=3)). "
+            "Expected 2 args, got 3 args",
+            exc.message
+        )
+        self.assertEqual(ErrorCode.BAD_PARAMS, exc.error_code)
+
 
 class DecoSrcBuilderTestCase(unittest.TestCase):
     def test_deco_src_part11(self):
