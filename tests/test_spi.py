@@ -680,6 +680,16 @@ class InterpreterTestCase(unittest.TestCase):
         self.assertEqual(len(self.interpreter.GLOBAL_SCOPE), 1)
         self.assertEqual(self.interpreter.GLOBAL_SCOPE['a'], 10)
 
+    def test_bool_expr(self):
+        ast = make_prog_ast_from_file("bool_test2.pas")
+        self.interpreter.interpret(ast)
+        self.assertEqual(len(self.interpreter.GLOBAL_SCOPE), 4)
+        self.assertEqual(self.interpreter.GLOBAL_SCOPE['foo'], True)
+        self.assertEqual(self.interpreter.GLOBAL_SCOPE['res'], True)
+        self.assertEqual(self.interpreter.GLOBAL_SCOPE['res2'], True)
+        self.assertEqual(self.interpreter.GLOBAL_SCOPE['res3'], False)
+
+
 
 class SemanticAnalyzerTestCase(unittest.TestCase):
     def _get_scopes_from_str(self, s):
@@ -696,25 +706,23 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         scopes = self._get_scopes_from_str(sb.getvalue())
         self.assertEqual(len(scopes), 2)
         self.assertEqual(
-            scopes[0],
             "(" + \
             "name: global, " + \
             "level: 1, " + \
             "encl_scope: builtins, " + \
             "symbols: ['<x:INTEGER>', '<y:REAL>']" + \
             ")",
-            f"got {scopes[1]}"
+            scopes[0],
         )
         self.assertEqual(
-            scopes[1],
             "(" + \
             "name: builtins, " + \
             "level: 0, " + \
             "encl_scope: None, " + \
-            "symbols: ['INTEGER', 'REAL', " + \
+            "symbols: ['INTEGER', 'REAL', 'BOOLEAN', " + \
             "'ProcSymbol(name=Part11, params=[])']" + \
             ")",
-            f"got {scopes[0]}"
+            scopes[1],
         )
 
     def test_builder_name_error(self):
@@ -760,16 +768,15 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
 
         self.assertEqual(len(scopes), 4)
         self.assertEqual(
-            scopes[0],
             "(" + \
             "name: P2, " + \
             "level: 3, " + \
             "encl_scope: P1, " + \
             "symbols: ['<a:INTEGER>', '<z:INTEGER>']" + \
-            ")"
+            ")",
+            scopes[0]
         )
         self.assertEqual(
-            scopes[1],
             "(" + \
             "name: P1, " + \
             "level: 2, " + \
@@ -779,10 +786,10 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "'<k:INTEGER>', " + \
             "'ProcSymbol(name=P2, params=[])'" + \
             "]" + \
-            ")"
+            ")",
+            scopes[1]
         )
         self.assertEqual(
-            scopes[2],
             "(" + \
             "name: global, " + \
             "level: 1, " + \
@@ -791,17 +798,18 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "'<a:INTEGER>', " + \
             "'ProcSymbol(name=P1, params=[])'" + \
             "]" + \
-            ")"
+            ")",
+            scopes[2]
         )
         self.assertEqual(
-            scopes[3],
             "(" + \
             "name: builtins, " + \
             "level: 0, " + \
             "encl_scope: None, " + \
-            "symbols: ['INTEGER', 'REAL', " + \
+            "symbols: ['INTEGER', 'REAL', 'BOOLEAN', " + \
             "'ProcSymbol(name=Part12, params=[])']" + \
             ")",
+            scopes[3]
         )
 
     def test_dup_var(self):
@@ -832,6 +840,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "ENTER scope builtins",
             "Insert: INTEGER",
             "Insert: REAL",
+            "Insert: BOOLEAN",
             "Insert: Main",
             "ENTER scope global",
             "Lookup: real. (Scope name: global)",
@@ -863,12 +872,12 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "params=[VarSymbol(name='a', type='INTEGER')])\"])",
             "LEAVE scope global",
             "(name: builtins, level: 0, encl_scope: None, " + \
-            "symbols: ['INTEGER', 'REAL', " + \
+            "symbols: ['INTEGER', 'REAL', 'BOOLEAN', " + \
             "'ProcSymbol(name=Main, params=[])'])",
             "LEAVE scope builtins"
         ]
 
-        self.assertEqual(actual, expected)
+        self.assertEqual(expected, actual)
 
     def test_part14_dup_param(self):
         ast = make_prog_ast_from_file("part14_dup_param.pas")
@@ -940,7 +949,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "name: builtins, " + \
             "level: 0, " + \
             "encl_scope: None, " + \
-            "symbols: ['INTEGER', 'REAL', " + \
+            "symbols: ['INTEGER', 'REAL', 'BOOLEAN', " + \
             "'ProcSymbol(name=Main, params=[])']" + \
             ")",
         )
@@ -958,6 +967,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "ENTER scope builtins",
             "Insert: INTEGER",
             "Insert: REAL",
+            "Insert: BOOLEAN",
             "Insert: Main",
             "ENTER scope global",
             "Lookup: real. (Scope name: global)",
@@ -995,12 +1005,12 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "params=[VarSymbol(name='a', type='INTEGER')])\"])",
             "LEAVE scope global",
             "(name: builtins, level: 0, encl_scope: None, " + \
-            "symbols: ['INTEGER', 'REAL', " + \
+            "symbols: ['INTEGER', 'REAL', 'BOOLEAN', " + \
             "'ProcSymbol(name=Main, params=[])'])",
             "LEAVE scope builtins"
         ]
 
-        self.assertEqual(actual, expect)
+        self.assertEqual(expect, actual)
 
     def test_part16_argcheck(self):
         ast = make_prog_ast_from_file("part16_badarg.pas")

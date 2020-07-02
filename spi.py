@@ -16,7 +16,7 @@ from typing import \
     Iterable
 from types import TracebackType
 from abc import ABC, abstractmethod
-from anytree import NodeMixin
+from anytree import NodeMixin  # type:ignore
 
 import re
 import argparse
@@ -30,10 +30,7 @@ T = TypeVar('T')
 def to_bool(s: str) -> bool:
     s = s.strip()
     assert re.fullmatch(r"true|false", s, re.I)
-    if re.fullmatch(r"true", s, re.I):
-        return True
-    elif re.fullmatch(r"false", s, re.I):
-        return False
+    return bool(re.fullmatch(r"true", s, re.I))
 
 
 def assert_with(cond: bool, err: Exception) -> None:
@@ -113,8 +110,8 @@ class TokenType(Enum):
     END = TokenTypeValue(pat=r"[eE][nN][dD]", re=True)
     IF = TokenTypeValue(pat=r"[iI][fF]", re=True)
     THEN = TokenTypeValue(pat=r"[tT][hH][eE][nN]", re=True)
-    TRUE = TokenTypeValue( pat=r"[tT][rR][uU][eE]", type=to_bool, re=True)
-    FALSE = TokenTypeValue( pat=r"[fF][aA][lL][sS][eE]", type=to_bool, re=True)
+    TRUE = TokenTypeValue(pat=r"[tT][rR][uU][eE]", type=to_bool, re=True)
+    FALSE = TokenTypeValue(pat=r"[fF][aA][lL][sS][eE]", type=to_bool, re=True)
 
     COMMA = TokenTypeValue(pat=",")
     REAL_CONST = TokenTypeValue(pat=r"\d+\.\d*", re=True, type=float)
@@ -130,7 +127,7 @@ class TokenType(Enum):
     ASSIGN = TokenTypeValue(pat=":=")
     COLON = TokenTypeValue(pat=":")
     SEMI = TokenTypeValue(pat=";")
-    COMMENT = TokenTypeValue(pat=r"\{.*\}", re=True)
+    COMMENT = TokenTypeValue(pat=r"\{(?:.|\n)*?\}", re=True)
     NEWLINE = TokenTypeValue(pat=r"\n", re=True)
     EOF = TokenTypeValue(pat=r"$", re=True)
 
@@ -968,7 +965,7 @@ class Parser:
             self.eat(TokenType.FALSE)
         elif curtok.type == TokenType.LPAR:
             self.eat(TokenType.LPAR)
-            ast = self.expr()
+            ast = self.bool_expr()
             self.eat(TokenType.RPAR)
         else:
             ast = self.variable()
@@ -1022,7 +1019,6 @@ class Parser:
     # TODO: add rule for bitwise XOR
     # TODO: add rule for bitwise OR
 
-    # TODO: add rule for logical AND/OR
     def bool_expr(self) -> IAST:
         """bool_expr: expr ((AND | OR) expr)*"""
         node: IAST = self.expr()
@@ -1055,11 +1051,11 @@ class Parser:
         return cast(Var, node)
 
     def assignment_statement(self) -> Assign:
-        """assignment_statement: variable ASSIGN expr"""
+        """assignment_statement: variable ASSIGN bool_expr"""
         left = self.variable()
         assign_tok = self.current_token
         self.eat(TokenType.ASSIGN)
-        right = self.expr()
+        right = self.bool_expr()
         return Assign(left, right, cast(AssignTok, assign_tok))
 
     def actual_parameter_list(self) -> List[IAST]:
@@ -1161,7 +1157,7 @@ class Parser:
         elif curtok.type == TokenType.BOOLEAN:
             ty = Type(cast(BooleanTok, curtok))
             self.eat(TokenType.BOOLEAN)
-        else: # error message to user
+        else:  # error message to user
             self.eat(
                 [
                     TokenType.INTEGER,
@@ -1398,7 +1394,7 @@ class INodeVisitor(ABC):
         method_name = '_visit_' + type(node).__name__
         return method_name.lower()
 
-    def visit(self, node: IAST) -> Union[int, float, None]:
+    def visit(self, node: IAST) -> Union[int, float, bool, None]:
         method_name = self._gen_visit_method_name(node)
 
         def raise_visit_error(_: IAST) -> None:
@@ -1407,35 +1403,47 @@ class INodeVisitor(ABC):
         return getattr(self, method_name, raise_visit_error)(node)
 
     @abstractmethod
-    def _visit_pos(self, node: Pos) -> Union[int, float, None]:
+    def _visit_pos(self, node: Pos) -> Union[int, float, bool, None]:
         pass
 
     @abstractmethod
-    def _visit_neg(self, node: Neg) -> Union[int, float, None]:
+    def _visit_neg(self, node: Neg) -> Union[int, float, bool, None]:
         pass
 
     @abstractmethod
-    def _visit_add(self, node: Add) -> Union[int, float, None]:
+    def _visit_add(self, node: Add) -> Union[int, float, bool, None]:
         pass
 
     @abstractmethod
-    def _visit_sub(self, node: Sub) -> Union[int, float, None]:
+    def _visit_sub(self, node: Sub) -> Union[int, float, bool, None]:
         pass
 
     @abstractmethod
-    def _visit_mul(self, node: Mul) -> Union[int, float, None]:
+    def _visit_mul(self, node: Mul) -> Union[int, float, bool, None]:
         pass
 
     @abstractmethod
-    def _visit_intdiv(self, node: IntDiv) -> Union[int, float, None]:
+    def _visit_intdiv(self, node: IntDiv) -> Union[int, float, bool, None]:
         pass
 
     @abstractmethod
-    def _visit_floatdiv(self, node: FloatDiv) -> Union[int, float, None]:
+    def _visit_floatdiv(self, node: FloatDiv) -> Union[int, float, bool, None]:
         pass
 
     @abstractmethod
-    def _visit_num(self, node: Num) -> Union[int, float, None]:
+    def _visit_and(self, node: And) -> Union[int, float, bool, None]:
+        pass
+
+    @abstractmethod
+    def _visit_or(self, node: Or) -> Union[int, float, bool, None]:
+        pass
+
+    @abstractmethod
+    def _visit_num(self, node: Num) -> Union[int, float, bool, None]:
+        pass
+
+    @abstractmethod
+    def _visit_bool(self, node: Bool) -> Union[int, float, bool, None]:
         pass
 
     @abstractmethod
@@ -1451,7 +1459,7 @@ class INodeVisitor(ABC):
         pass
 
     @abstractmethod
-    def _visit_var(self, node: Var) -> Union[int, float, None]:
+    def _visit_var(self, node: Var) -> Union[int, float, bool, None]:
         pass
 
     @abstractmethod
@@ -1945,6 +1953,7 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
         logging.info(f"ENTER scope {self.current_scope.name}")
         self.current_scope.insert(BuiltinTypeSymbol("INTEGER"))
         self.current_scope.insert(BuiltinTypeSymbol("REAL"))
+        self.current_scope.insert(BuiltinTypeSymbol("BOOLEAN"))
 
     def __enter__(self) -> 'SemanticAnalyzer':
         return self
@@ -1978,7 +1987,7 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
         assert self.current_scope is not None
         return cast(ScopedSymbolTable, self.current_scope)
 
-    def visit(self, node: IAST) -> Union[int, float, None]:
+    def visit(self, node: IAST) -> Union[int, float, bool, None]:
         if self.s2s:
             self._dsb.build_pre_visit(self.current_scope, node)
         val = super().visit(node)
@@ -2019,7 +2028,16 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
     def _visit_floatdiv(self, node: FloatDiv) -> None:
         self._visit_binop(node)
 
+    def _visit_and(self, node: And) -> None:
+        self._visit_binop(node)
+
+    def _visit_or(self, node: Or) -> None:
+        self._visit_binop(node)
+
     def _visit_num(self, node: Num) -> None:
+        pass
+
+    def _visit_bool(self, node: Bool) -> None:
         pass
 
     def _visit_compound(self, node: Compound) -> None:
@@ -2172,7 +2190,7 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
 
 class Interpreter(INodeVisitor):
     def __init__(self):
-        self.GLOBAL_SCOPE: Dict[str, Union[int, float]] = {}
+        self.GLOBAL_SCOPE: Dict[str, Union[int, float, bool]] = {}
 
     def _visit_pos(self, node: Pos) -> Union[int, float]:
         return +cast([int, float], self.visit(node.right))
@@ -2180,6 +2198,7 @@ class Interpreter(INodeVisitor):
     def _visit_neg(self, node: Neg) -> Union[int, float]:
         return -cast([int, float], self.visit(node.right))
 
+    # TODO: cleanup type annotations
     def _visit_add(self, node: IAST) -> Union[int, float]:
         return \
             cast([int, float], self.visit(node.left)) + \
@@ -2205,7 +2224,16 @@ class Interpreter(INodeVisitor):
             cast([int, float], self.visit(node.left)) / \
             cast([int, float], self.visit(node.right))
 
+    def _visit_and(self, node: And) -> bool:
+        return bool(self.visit(node.left) and self.visit(node.right))
+
+    def _visit_or(self, node: Or) -> bool:
+        return bool(self.visit(node.left) or self.visit(node.right))
+
     def _visit_num(self, node: Num) -> Union[int, float]:
+        return node.value
+
+    def _visit_bool(self, node: Bool) -> bool:
         return node.value
 
     def _visit_compound(self, node: Compound) -> None:
@@ -2217,7 +2245,10 @@ class Interpreter(INodeVisitor):
 
     def _visit_assign(self, node: Assign) -> None:
         self.GLOBAL_SCOPE[node.left.value] = \
-            cast([int, float], self.visit(node.right))
+            cast(
+                [int, float, bool],
+                self.visit(node.right)
+            )
 
     def _visit_var(self, node: Var) -> Union[int, float]:
         name = node.value

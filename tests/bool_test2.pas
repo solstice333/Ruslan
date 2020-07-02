@@ -1,4 +1,4 @@
-PROGRAM bool_test;
+PROGRAM bool_test2;
 VAR
   foo: boolean;
   res: boolean;
@@ -7,7 +7,7 @@ VAR
 
 BEGIN
   foo := true;
-  res := 1 * 2 and 3 + 4 or false; {true}
-  res2 := (foo and false) or true; {true}
-  res3 := foo and 1 * 2 and false; {false}
+  res := 1 * 2 and 3 + 4 or falsE; {true}
+  res2 := (foo and false) or True; {true}
+  res3 := foo and 1 * 2 and fALse; {false}
 END.
