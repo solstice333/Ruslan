@@ -807,6 +807,17 @@ class Compound(IAST):
         return f"{type(self).__name__}()"
 
 
+class Branch(IAST):
+    def __init__(self, cond: IAST, if_blk: IAST, else_blk: IAST) -> None:
+        self.cond: IAST = cond
+        self.if_blk: IAST = if_blk
+        self.else_blk: IAST = else_blk
+        super().__init__([self.cond, self.if_blk, self.else_blk])
+
+    def __str__(self) -> str:
+        return f"{type(self).__name__}()"
+
+
 class Var(IAST):
     def __init__(self, idtok: IdTok) -> None:
         super().__init__()
@@ -1019,6 +1030,7 @@ class Parser:
     # TODO: add rule for bitwise XOR
     # TODO: add rule for bitwise OR
 
+    # TODO bug fix to give more precedence to AND
     def bool_expr(self) -> IAST:
         """bool_expr: expr ((AND | OR) expr)*"""
         node: IAST = self.expr()
@@ -1085,12 +1097,24 @@ class Parser:
             actual_params=actual_params
         )
 
+    # TODO: update grammar to include an actual else block
+    def if_statement(self) -> IAST:
+        """if_statement: IF LPAR bool_expr RPAR THEN statement"""
+        self.eat(TokenType.IF)
+        self.eat(TokenType.LPAR)
+        cond_node = self.bool_expr()
+        self.eat(TokenType.RPAR)
+        self.eat(TokenType.THEN)
+        statement_node = self.statement()
+        return Branch(cond_node, statement_node, NoOp())
+
     def statement(self) -> IAST:
         """
         statement:
             compound_statement |
-            proccall_statement |
             assignment_statement |
+            proccall_statement |
+            if_statement |
             empty
         """
         tokty = self.current_token.type
@@ -1114,6 +1138,8 @@ class Parser:
                 node = self.assignment_statement()
             elif ahead_tok.type == TokenType.LPAR:
                 node = self.proccall_statement()
+        elif tokty == TokenType.IF:
+            node = self.if_statement()
         else:
             node = self.empty()
 
@@ -2250,7 +2276,7 @@ class Interpreter(INodeVisitor):
                 self.visit(node.right)
             )
 
-    def _visit_var(self, node: Var) -> Union[int, float]:
+    def _visit_var(self, node: Var) -> Union[int, float, bool]:
         name = node.value
         val = self.GLOBAL_SCOPE.get(name.lower())
         assert val is not None

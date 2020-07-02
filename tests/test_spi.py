@@ -561,6 +561,49 @@ class ParserTestCase(unittest.TestCase):
         act = [str(n) for n in PostOrderIter(ast)]
         self.assertEqual(exp, act)
 
+    def test_cond(self):
+        ast = make_prog_ast_from_file("cond_test.pas")
+        act = [str(n) for n in PostOrderIter(ast)]
+        exp = [
+            'Var(value=foo_res)',
+            'Type(value=integer)',
+            'VarDecl()',
+            'Var(value=foo)',
+            'Type(value=boolean)',
+            'VarDecl()',
+            'Var(value=foo_res)',
+            'Num(value=0)',
+            'Assign(value=:=)',
+            'Var(value=foo)',
+            'Bool(value=True)',
+            'Assign(value=:=)',
+            'Var(value=foo)',
+            'Var(value=foo_res)',
+            'Num(value=1)',
+            'Assign(value=:=)',
+            'NoOp()',
+            'Branch()',
+            'Var(value=foo)',
+            'Var(value=foo_res)',
+            'Var(value=foo_res)',
+            'Num(value=2)',
+            'Add(value=+)',
+            'Assign(value=:=)',
+            'Var(value=foo_res)',
+            'Var(value=foo_res)',
+            'Num(value=4)',
+            'Add(value=+)',
+            'Assign(value=:=)',
+            'Compound()',
+            'NoOp()',
+            'Branch()',
+            'NoOp()',
+            'Compound()',
+            'Block()',
+            'Program(name=cond_test)'
+        ]
+        self.assertEqual(exp, act)
+
 
 class InterpreterTestCase(unittest.TestCase):
     def setUp(self):
@@ -688,7 +731,6 @@ class InterpreterTestCase(unittest.TestCase):
         self.assertEqual(self.interpreter.GLOBAL_SCOPE['res'], True)
         self.assertEqual(self.interpreter.GLOBAL_SCOPE['res2'], True)
         self.assertEqual(self.interpreter.GLOBAL_SCOPE['res3'], False)
-
 
 
 class SemanticAnalyzerTestCase(unittest.TestCase):
