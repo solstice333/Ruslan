@@ -19,8 +19,38 @@ def append_spi_dir_to_sys_path():
 
 
 append_spi_dir_to_sys_path()
-
 from spi import *
+
+
+def to_list_of_lines(s):
+    return s.strip().splitlines()
+
+
+def make_parser(text):
+    lexer = Lexer(text)
+    return Parser(lexer)
+
+
+def make_parser_from_file(path):
+    with open(path) as f:
+        text = f.read()
+    return make_parser(text)
+
+
+def make_expr_ast(txt):
+    p = make_parser(txt)
+    return p.parse_expr()
+
+
+def make_prog_ast(txt):
+    parser = make_parser(txt)
+    return parser.parse()
+
+
+def make_prog_ast_from_file(path):
+    with open(path) as f:
+        txt = f.read()
+    return make_prog_ast(txt)
 
 
 class Float:
@@ -347,7 +377,7 @@ class ParserTestCase(unittest.TestCase):
         self.assertEqual(
             "ParserError: Unexpected token -> " + \
             "IdTok(INTEGE, Position(line=3, col=8)). " + \
-            "Expected one of ['INTEGER', 'REAL']",
+            "Expected one of ['INTEGER', 'REAL', 'BOOLEAN']",
             e.exception.message
         )
 
@@ -507,6 +537,28 @@ class ParserTestCase(unittest.TestCase):
             'Block()',
             'Program(name=Main)'
         ]
+        self.assertEqual(exp, act)
+
+    def test_bool(self):
+        ast = make_prog_ast_from_file("bool_test.pas")
+        exp = [
+            'Var(value=foo)',
+            'Type(value=boolean)',
+            'VarDecl()',
+            'Var(value=bar)',
+            'Type(value=boolean)',
+            'VarDecl()',
+            'Var(value=foo)',
+            'Bool(value=True)',
+            'Assign(value=:=)',
+            'Var(value=bar)',
+            'Bool(value=False)',
+            'Assign(value=:=)',
+            'Compound()',
+            'Block()',
+            'Program(name=bool_test)'
+        ]
+        act = [str(n) for n in PostOrderIter(ast)]
         self.assertEqual(exp, act)
 
 
@@ -1132,37 +1184,6 @@ class Foo(unittest.TestCase):
             with SemanticAnalyzer() as lyz:
                 lyz.analyze(ast)
         print(sb.getvalue())
-
-
-def to_list_of_lines(s):
-    return s.strip().splitlines()
-
-
-def make_parser(text):
-    lexer = Lexer(text)
-    return Parser(lexer)
-
-
-def make_parser_from_file(path):
-    with open(path) as f:
-        text = f.read()
-    return make_parser(text)
-
-
-def make_expr_ast(txt):
-    p = make_parser(txt)
-    return p.parse_expr()
-
-
-def make_prog_ast(txt):
-    parser = make_parser(txt)
-    return parser.parse()
-
-
-def make_prog_ast_from_file(path):
-    with open(path) as f:
-        txt = f.read()
-    return make_prog_ast(txt)
 
 
 LoggingToStrBuf.basic_config()

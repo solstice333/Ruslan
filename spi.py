@@ -16,17 +16,75 @@ from typing import \
     Iterable
 from types import TracebackType
 from abc import ABC, abstractmethod
-from anytree import RenderTree  # type:ignore
-from anytree import \
-    PostOrderIter, \
-    NodeMixin
+from anytree import NodeMixin
 
 import re
 import argparse
 import logging
 import typing
 
+
 T = TypeVar('T')
+
+
+def to_bool(s: str) -> bool:
+    s = s.strip()
+    assert re.fullmatch(r"true|false", s, re.I)
+    if re.fullmatch(r"true", s, re.I):
+        return True
+    elif re.fullmatch(r"false", s, re.I):
+        return False
+
+
+def assert_with(cond: bool, err: Exception) -> None:
+    if not cond:
+        raise err
+
+
+def any_of(vals: Iterable[T], pred: Callable[[T], bool]) -> bool:
+    for val in vals:
+        if pred(val):
+            return True
+    return False
+
+
+def to_camel_case(s: str) -> str:
+    s = s.lower()
+    s = re.sub(r"^\w", lambda m: m[0].upper(), s)
+    s = re.sub(r"_(\w)", lambda m: m[1].upper(), s)
+    return s
+
+
+@overload
+def cast(ty: typing.Type[T], val: Any) -> T:
+    pass
+
+
+@overload
+def cast(ty: Iterable[typing.Type], val: Any) -> Any:
+    pass
+
+
+@overload
+def cast(ty: None, val: Any) -> None:
+    pass
+
+
+def cast(ty, val):
+    ty = type(None) if ty is None else ty
+    tys = ty if isinstance(ty, Iterable) else [ty]
+
+    assert any_of(tys, lambda ty2: isinstance(val, ty2)), \
+        f"val is type {type(val)} which is not a subtype of any of {tys}"
+    return val
+
+
+def setup_logging(verbose: bool) -> None:
+    logging.disable(logging.NOTSET)
+    logging.basicConfig(format="{message}", style="{")
+    if verbose:
+        root_logger = logging.getLogger()
+        root_logger.setLevel(logging.INFO)
 
 
 class TokenTypeValue(NamedTuple):
@@ -45,20 +103,28 @@ class TokenType(Enum):
     VAR = TokenTypeValue(pat=r"[vV][aA][rR]", re=True)
     PROCEDURE = TokenTypeValue(
         pat=r"[pP][rR][oO][cC][eE][dD][uU][rR][eE]", re=True)
-    COMMA = TokenTypeValue(pat=",")
     INTEGER = TokenTypeValue(pat=r"[iI][nN][tT][eE][gG][eE][rR]", re=True)
     REAL = TokenTypeValue(pat=r"[rR][eE][aA][lL]", re=True)
+    BOOLEAN = TokenTypeValue(pat=r"[bB][oO][oO][lL][eE][aA][nN]", re=True)
+    INT_DIV = TokenTypeValue(pat=r"[dD][iI][vV]", re=True)
+    AND = TokenTypeValue(pat=r"[aA][nN][dD]", re=True)
+    OR = TokenTypeValue(pat=r"[oO][rR]", re=True)
+    BEGIN = TokenTypeValue(pat=r"[bB][eE][gG][iI][nN]", re=True)
+    END = TokenTypeValue(pat=r"[eE][nN][dD]", re=True)
+    IF = TokenTypeValue(pat=r"[iI][fF]", re=True)
+    THEN = TokenTypeValue(pat=r"[tT][hH][eE][nN]", re=True)
+    TRUE = TokenTypeValue( pat=r"[tT][rR][uU][eE]", type=to_bool, re=True)
+    FALSE = TokenTypeValue( pat=r"[fF][aA][lL][sS][eE]", type=to_bool, re=True)
+
+    COMMA = TokenTypeValue(pat=",")
     REAL_CONST = TokenTypeValue(pat=r"\d+\.\d*", re=True, type=float)
     INT_CONST = TokenTypeValue(pat=r"\d+", re=True, type=int)
     ADD = TokenTypeValue(pat='+')
     SUB = TokenTypeValue(pat='-')
     MUL = TokenTypeValue(pat='*')
-    INT_DIV = TokenTypeValue(pat=r"[dD][iI][vV]", re=True)
     FLOAT_DIV = TokenTypeValue(pat='/')
     LPAR = TokenTypeValue(pat='(')
     RPAR = TokenTypeValue(pat=')')
-    BEGIN = TokenTypeValue(pat=r"[bB][eE][gG][iI][nN]", re=True)
-    END = TokenTypeValue(pat=r"[eE][nN][dD]", re=True)
     DOT = TokenTypeValue(pat=".")
     ID = TokenTypeValue(pat=r"[a-zA-Z_]\w*", re=True)
     ASSIGN = TokenTypeValue(pat=":=")
@@ -90,7 +156,7 @@ class IToken(ABC):
 
     @property  # type:ignore
     @abstractmethod
-    def value(self) -> Union[str, int, float]:
+    def value(self) -> Union[str, int, float, bool]:
         return self._value
 
     def __str__(self) -> str:
@@ -163,6 +229,15 @@ class IntegerTok(IToken):
 class RealTok(IToken):
     def __init__(self, value: str, pos: Position) -> None:
         super().__init__(TokenType.REAL, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class BooleanTok(IToken):
+    def __init__(self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.BOOLEAN, value, pos)
 
     @property
     def value(self) -> str:
@@ -320,6 +395,60 @@ class SemiTok(IToken):
     @property
     def value(self) -> str:
         return cast(str, self._value)
+
+
+class IfTok(IToken):
+    def __init__(self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.IF, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class ThenTok(IToken):
+    def __init__(self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.THEN, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class AndTok(IToken):
+    def __init__(self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.AND, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class OrTok(IToken):
+    def __init__(self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.OR, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class TrueTok(IToken):
+    def __init__(self, value: bool, pos: Position) -> None:
+        super().__init__(TokenType.TRUE, value, pos)
+
+    @property
+    def value(self) -> bool:
+        return cast(bool, self._value)
+
+
+class FalseTok(IToken):
+    def __init__(self, value: bool, pos: Position) -> None:
+        super().__init__(TokenType.FALSE, value, pos)
+
+    @property
+    def value(self) -> bool:
+        return cast(bool, self._value)
 
 
 class ErrorCode(Enum):
@@ -498,11 +627,19 @@ class ProcDecl(IAST):
 
 
 class Type(IAST):
-    def __init__(self, arg: Union[IntegerTok, RealTok, 'Type']) -> None:
+    def __init__(
+            self,
+            arg: Union[
+                IntegerTok,
+                RealTok,
+                BooleanTok,
+                'Type'
+            ]
+    ) -> None:
         super().__init__()
 
-        if isinstance(arg, (IntegerTok, RealTok)):
-            self.token: Union[IntegerTok, RealTok] = arg
+        if isinstance(arg, (IntegerTok, RealTok, BooleanTok)):
+            self.token: Union[IntegerTok, RealTok, BooleanTok] = arg
             self.value: str = cast(str, self.token.value)
         else:
             ty = cast(Type, arg)
@@ -518,10 +655,25 @@ class BinOp(IAST):
             self,
             left: IAST,
             right: IAST,
-            optok: Union[AddTok, SubTok, MulTok, IntDivTok, FloatDivTok]
+            optok: Union[
+                AddTok,
+                SubTok,
+                MulTok,
+                IntDivTok,
+                FloatDivTok,
+                AndTok,
+                OrTok
+            ]
     ) -> None:
-        self.token: Union[AddTok, SubTok, MulTok, IntDivTok, FloatDivTok] = \
-            optok
+        self.token: Union[
+            AddTok,
+            SubTok,
+            MulTok,
+            IntDivTok,
+            FloatDivTok,
+            AndTok,
+            OrTok
+        ] = optok
         self.value: str = self.token.value
         self.left: IAST = left
         self.right: IAST = right
@@ -581,6 +733,26 @@ class FloatDiv(BinOp):
         super().__init__(left, right, optok)
 
 
+class And(BinOp):
+    def __init__(
+            self,
+            left: IAST,
+            right: IAST,
+            optok: AndTok
+    ) -> None:
+        super().__init__(left, right, optok)
+
+
+class Or(BinOp):
+    def __init__(
+            self,
+            left: IAST,
+            right: IAST,
+            optok: OrTok
+    ) -> None:
+        super().__init__(left, right, optok)
+
+
 class UnOp(IAST):
     def __init__(self, right: IAST, optok: Union[AddTok, SubTok]) -> None:
         self.right: IAST = right
@@ -615,6 +787,16 @@ class Num(IAST):
         super().__init__()
         self.token: Union[IntConstTok, RealConstTok] = numtok
         self.value: Union[int, float] = self.token.value
+
+    def __str__(self) -> str:
+        return f"{type(self).__name__}(value={self.value})"
+
+
+class Bool(IAST):
+    def __init__(self, booltok: Union[TrueTok, FalseTok]) -> None:
+        super().__init__()
+        self.value: bool = booltok.value
+        self.token: Union[TrueTok, FalseTok] = booltok
 
     def __str__(self) -> str:
         return f"{type(self).__name__}(value={self.value})"
@@ -749,7 +931,9 @@ class Parser:
             ADD factor | 
             SUB factor | 
             INT_CONST | 
-            REAL_CONST | 
+            REAL_CONST |
+            True |
+            False |
             LPAREN expr RPAREN | 
             variable
         """
@@ -776,7 +960,12 @@ class Parser:
                 errcode=ErrorCode.UNEXPECTED_TOKEN,
                 token=curtok
             )
-
+        elif curtok.type == TokenType.TRUE:
+            ast = Bool(cast(TrueTok, curtok))
+            self.eat(TokenType.TRUE)
+        elif curtok.type == TokenType.FALSE:
+            ast = Bool(cast(FalseTok, curtok))
+            self.eat(TokenType.FALSE)
         elif curtok.type == TokenType.LPAR:
             self.eat(TokenType.LPAR)
             ast = self.expr()
@@ -825,18 +1014,45 @@ class Parser:
 
         return node
 
+    # TODO: add rule for bitwise left and right shift
+    # TODO: add rule for relational operators < and <=
+    # TODO: add rule for relational operators > and >=
+    # TODO: add rule for relational operators == and !=
+    # TODO: add rule for bitwise AND
+    # TODO: add rule for bitwise XOR
+    # TODO: add rule for bitwise OR
+
+    # TODO: add rule for logical AND/OR
+    def bool_expr(self) -> IAST:
+        """bool_expr: expr ((AND | OR) expr)*"""
+        node: IAST = self.expr()
+
+        while True:
+            curtok: IToken = self.current_token
+            if curtok.type == TokenType.AND:
+                self.eat(TokenType.AND)
+                node = And(node, self.expr(), cast(AndTok, curtok))
+            elif curtok.type == TokenType.OR:
+                self.eat(TokenType.OR)
+                node = Or(node, self.expr(), cast(OrTok, curtok))
+            else:
+                break
+
+        return node
+
     def empty(self) -> NoOp:
         """empty rule"""
         return NoOp()
 
     def variable(self) -> Var:
         """variable: ID"""
+        node: Optional[Var] = None
         try:
             node = Var(cast(IdTok, self.current_token))
         except AssertionError:
             pass
         self.eat(TokenType.ID)
-        return node
+        return cast(Var, node)
 
     def assignment_statement(self) -> Assign:
         """assignment_statement: variable ASSIGN expr"""
@@ -933,19 +1149,28 @@ class Parser:
         return Compound(nodes)
 
     def type_spec(self) -> Type:
-        """type_spec: INTEGER | REAL"""
-
+        """type_spec: INTEGER | REAL | BOOLEAN"""
+        ty = None
         curtok = self.current_token
         if curtok.type == TokenType.INTEGER:
-            tok = Type(cast(IntegerTok, curtok))
+            ty = Type(cast(IntegerTok, curtok))
             self.eat(TokenType.INTEGER)
         elif curtok.type == TokenType.REAL:
-            tok = Type(cast(RealTok, curtok))
+            ty = Type(cast(RealTok, curtok))
             self.eat(TokenType.REAL)
-        else:
-            self.eat([TokenType.INTEGER, TokenType.REAL])
+        elif curtok.type == TokenType.BOOLEAN:
+            ty = Type(cast(BooleanTok, curtok))
+            self.eat(TokenType.BOOLEAN)
+        else: # error message to user
+            self.eat(
+                [
+                    TokenType.INTEGER,
+                    TokenType.REAL,
+                    TokenType.BOOLEAN
+                ]
+            )
 
-        return tok
+        return cast(Type, ty)
 
     def variable_declaration(self) -> List[VarDecl]:
         """
@@ -2023,57 +2248,6 @@ class Interpreter(INodeVisitor):
         val = self.visit(ast)
         logging.info(f"global runtime memory: {self.GLOBAL_SCOPE}")
         return val
-
-
-def assert_with(cond: bool, err: Exception) -> None:
-    if not cond:
-        raise err
-
-
-def any_of(vals: Iterable[T], pred: Callable[[T], bool]) -> bool:
-    for val in vals:
-        if pred(val):
-            return True
-    return False
-
-
-def to_camel_case(s: str) -> str:
-    s = s.lower()
-    s = re.sub(r"^\w", lambda m: m[0].upper(), s)
-    s = re.sub(r"_(\w)", lambda m: m[1].upper(), s)
-    return s
-
-
-@overload
-def cast(ty: typing.Type[T], val: Any) -> T:
-    pass
-
-
-@overload
-def cast(ty: Iterable[typing.Type], val: Any) -> Any:
-    pass
-
-
-@overload
-def cast(ty: None, val: Any) -> None:
-    pass
-
-
-def cast(ty, val):
-    ty = type(None) if ty is None else ty
-    tys = ty if isinstance(ty, Iterable) else [ty]
-
-    assert any_of(tys, lambda ty2: isinstance(val, ty2)), \
-        f"val is type {type(val)} which is not a subtype of any of {tys}"
-    return val
-
-
-def setup_logging(verbose: bool) -> None:
-    logging.disable(logging.NOTSET)
-    logging.basicConfig(format="{message}", style="{")
-    if verbose:
-        root_logger = logging.getLogger()
-        root_logger.setLevel(logging.INFO)
 
 
 def main() -> None:
