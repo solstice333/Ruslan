@@ -942,7 +942,7 @@ class Parser:
             REAL_CONST |
             True |
             False |
-            LPAREN expr RPAREN | 
+            LPAREN root_expr RPAREN |
             variable
         """
         curtok = self.current_token
@@ -976,7 +976,7 @@ class Parser:
             self.eat(TokenType.FALSE)
         elif curtok.type == TokenType.LPAR:
             self.eat(TokenType.LPAR)
-            ast = self.bool_expr()
+            ast = self.root_expr()
             self.eat(TokenType.RPAR)
         else:
             ast = self.variable()
@@ -1030,23 +1030,33 @@ class Parser:
     # TODO: add rule for bitwise XOR
     # TODO: add rule for bitwise OR
 
-    # TODO bug fix to give more precedence to AND
-    def bool_expr(self) -> IAST:
-        """bool_expr: expr ((AND | OR) expr)*"""
+    def and_expr(self) -> IAST:
+        """and_expr: expr (AND expr)*"""
         node: IAST = self.expr()
-
         while True:
             curtok: IToken = self.current_token
             if curtok.type == TokenType.AND:
                 self.eat(TokenType.AND)
                 node = And(node, self.expr(), cast(AndTok, curtok))
-            elif curtok.type == TokenType.OR:
-                self.eat(TokenType.OR)
-                node = Or(node, self.expr(), cast(OrTok, curtok))
             else:
                 break
-
         return node
+
+    def or_expr(self) -> IAST:
+        """or_expr: and_expr (OR and_expr)*"""
+        node: IAST = self.and_expr()
+        while True:
+            curtok: IToken = self.current_token
+            if curtok.type == TokenType.OR:
+                self.eat(TokenType.OR)
+                node = Or(node, self.and_expr(), cast(OrTok, curtok))
+            else:
+                break
+        return node
+
+    def root_expr(self) -> IAST:
+        """root_expr: or_expr"""
+        return self.or_expr()
 
     def empty(self) -> NoOp:
         """empty rule"""
@@ -1063,15 +1073,15 @@ class Parser:
         return cast(Var, node)
 
     def assignment_statement(self) -> Assign:
-        """assignment_statement: variable ASSIGN bool_expr"""
+        """assignment_statement: variable ASSIGN root_expr"""
         left = self.variable()
         assign_tok = self.current_token
         self.eat(TokenType.ASSIGN)
-        right = self.bool_expr()
+        right = self.root_expr()
         return Assign(left, right, cast(AssignTok, assign_tok))
 
     def actual_parameter_list(self) -> List[IAST]:
-        """arglist: expr (COMMA expr)*"""
+        """arglist: root_expr (COMMA root_expr)*"""
         actual_params = []
         start = True
         while self.current_token.type != TokenType.RPAR:
@@ -1079,7 +1089,7 @@ class Parser:
                 start = False
             else:
                 self.eat(TokenType.COMMA)
-            node = self.expr()
+            node = self.root_expr()
             actual_params.append(node)
         return actual_params
 
@@ -1099,10 +1109,10 @@ class Parser:
 
     # TODO: update grammar to include an actual else block
     def if_statement(self) -> IAST:
-        """if_statement: IF LPAR bool_expr RPAR THEN statement"""
+        """if_statement: IF LPAR root_expr RPAR THEN statement"""
         self.eat(TokenType.IF)
         self.eat(TokenType.LPAR)
-        cond_node = self.bool_expr()
+        cond_node = self.root_expr()
         self.eat(TokenType.RPAR)
         self.eat(TokenType.THEN)
         statement_node = self.statement()
@@ -1292,7 +1302,7 @@ class Parser:
         return Program(prog_name, block_node)
 
     def parse_expr(self) -> Union[BinOp, NoOp]:
-        return self.expr()
+        return self.root_expr()
 
     def parse_compound(self) -> Compound:
         return self.compound_statement()

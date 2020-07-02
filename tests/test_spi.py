@@ -726,11 +726,12 @@ class InterpreterTestCase(unittest.TestCase):
     def test_bool_expr(self):
         ast = make_prog_ast_from_file("bool_test2.pas")
         self.interpreter.interpret(ast)
-        self.assertEqual(len(self.interpreter.GLOBAL_SCOPE), 4)
+        self.assertEqual(len(self.interpreter.GLOBAL_SCOPE), 5)
         self.assertEqual(self.interpreter.GLOBAL_SCOPE['foo'], True)
         self.assertEqual(self.interpreter.GLOBAL_SCOPE['res'], True)
         self.assertEqual(self.interpreter.GLOBAL_SCOPE['res2'], True)
         self.assertEqual(self.interpreter.GLOBAL_SCOPE['res3'], False)
+        self.assertEqual(self.interpreter.GLOBAL_SCOPE['res4'], True)
 
 
 class SemanticAnalyzerTestCase(unittest.TestCase):
