@@ -9,6 +9,7 @@ from typing import \
     overload, \
     Sequence, \
     List, \
+    Tuple, \
     Dict, \
     Mapping, \
     NamedTuple, \
@@ -22,7 +23,6 @@ import re
 import argparse
 import logging
 import typing
-
 
 T = TypeVar('T')
 
@@ -109,6 +109,7 @@ class TokenType(Enum):
     BEGIN = TokenTypeValue(pat=r"[bB][eE][gG][iI][nN]", re=True)
     END = TokenTypeValue(pat=r"[eE][nN][dD]", re=True)
     IF = TokenTypeValue(pat=r"[iI][fF]", re=True)
+    ELSE = TokenTypeValue(pat=r"[eE][lL][sS][eE]", re=True)
     THEN = TokenTypeValue(pat=r"[tT][hH][eE][nN]", re=True)
     TRUE = TokenTypeValue(pat=r"[tT][rR][uU][eE]", type=to_bool, re=True)
     FALSE = TokenTypeValue(pat=r"[fF][aA][lL][sS][eE]", type=to_bool, re=True)
@@ -403,6 +404,15 @@ class IfTok(IToken):
         return cast(str, self._value)
 
 
+class ElseTok(IToken):
+    def __init__(self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.ELSE, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
 class ThenTok(IToken):
     def __init__(self, value: str, pos: Position) -> None:
         super().__init__(TokenType.THEN, value, pos)
@@ -558,11 +568,11 @@ class Lexer(Iterable[IToken]):
 
 class IAST(ABC, NodeMixin):
     def __init__(self, children: Optional[List['IAST']] = None):
-        self.children: List['IAST'] = children or []
+        self.children: Tuple['IAST', ...] = tuple(children or [])
 
     @property
-    def kids(self) -> List['IAST']:
-        assert isinstance(self.children, list)
+    def kids(self) -> Tuple['IAST', ...]:
+        assert isinstance(self.children, tuple)
         return self.children
 
     @abstractmethod
@@ -1064,13 +1074,9 @@ class Parser:
 
     def variable(self) -> Var:
         """variable: ID"""
-        node: Optional[Var] = None
-        try:
-            node = Var(cast(IdTok, self.current_token))
-        except AssertionError:
-            pass
+        curtok = self.current_token
         self.eat(TokenType.ID)
-        return cast(Var, node)
+        return Var(cast(IdTok, curtok))
 
     def assignment_statement(self) -> Assign:
         """assignment_statement: variable ASSIGN root_expr"""
@@ -1107,16 +1113,24 @@ class Parser:
             actual_params=actual_params
         )
 
-    # TODO: update grammar to include an actual else block
     def if_statement(self) -> IAST:
-        """if_statement: IF LPAR root_expr RPAR THEN statement"""
+        """
+        if_statement:
+            IF LPAR root_expr RPAR THEN statement (ELSE statement)?
+        """
         self.eat(TokenType.IF)
         self.eat(TokenType.LPAR)
         cond_node = self.root_expr()
         self.eat(TokenType.RPAR)
         self.eat(TokenType.THEN)
         statement_node = self.statement()
-        return Branch(cond_node, statement_node, NoOp())
+
+        statement_node2 = NoOp()
+        if self.current_token.type == TokenType.ELSE:
+            self.eat(TokenType.ELSE)
+            statement_node2 = self.statement()
+
+        return Branch(cond_node, statement_node, statement_node2)
 
     def statement(self) -> IAST:
         """
@@ -1309,7 +1323,6 @@ class Parser:
 
     def parse(self) -> Program:
         prog = self.program()
-        curtok = self.current_token
         self.eat(TokenType.EOF)
         return prog
 
@@ -1520,6 +1533,10 @@ class INodeVisitor(ABC):
 
     @abstractmethod
     def _visit_type(self, node: Type) -> None:
+        pass
+
+    @abstractmethod
+    def _visit_branch(self, node: Branch) -> None:
         pass
 
 
@@ -2077,7 +2094,7 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
         pass
 
     def _visit_compound(self, node: Compound) -> None:
-        for n in node.children:
+        for n in node.kids:
             self.visit(n)
 
     def _visit_noop(self, node: NoOp) -> None:
@@ -2115,7 +2132,7 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
         logging.info(f"LEAVE scope {global_scope.name}")
 
     def _visit_block(self, node: Block) -> None:
-        for n in node.children:
+        for n in node.kids:
             self.visit(n)
 
     def _visit_vardecl(self, node: VarDecl) -> None:
@@ -2177,36 +2194,41 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
         logging.info(f"LEAVE scope {proc_scope.name}")
 
     def _visit_proccall(self, node: ProcCall) -> None:
-        proc_sym = self.safe_current_scope.lookup(node.proc_name)
+        if node.proc_name != 'writeln':
+            proc_sym = self.safe_current_scope.lookup(node.proc_name)
 
-        self._assert(
-            cond=proc_sym is not None,
-            errcode=ErrorCode.ID_NOT_FOUND,
-            token=node.token
-        )
+            self._assert(
+                cond=proc_sym is not None,
+                errcode=ErrorCode.ID_NOT_FOUND,
+                token=node.token
+            )
 
-        self._assert(
-            cond=isinstance(proc_sym, ProcSymbol),
-            errcode=ErrorCode.PROC_NOT_FOUND,
-            token=node.token,
-            msg=f"{proc_sym} is not a ProcSymbol"
-        )
+            self._assert(
+                cond=isinstance(proc_sym, ProcSymbol),
+                errcode=ErrorCode.PROC_NOT_FOUND,
+                token=node.token,
+                msg=f"{proc_sym} is not a ProcSymbol"
+            )
 
-        proc_sym2 = cast(ProcSymbol, proc_sym)
-        exp_num_args = len(proc_sym2.params)
-        act_num_args = len(node.children)
-        self._assert(
-            cond=act_num_args == exp_num_args,
-            errcode=ErrorCode.BAD_PARAMS,
-            token=node.token,
-            msg=f"Expected {exp_num_args} args, got {act_num_args} args"
-        )
+            proc_sym2 = cast(ProcSymbol, proc_sym)
+            exp_num_args = len(proc_sym2.params)
+            act_num_args = len(node.kids)
+            self._assert(
+                cond=act_num_args == exp_num_args,
+                errcode=ErrorCode.BAD_PARAMS,
+                token=node.token,
+                msg=f"Expected {exp_num_args} args, got {act_num_args} args"
+            )
 
-        for child in node.children:
+        for child in node.kids:
             self.visit(child)
 
     def _visit_type(self, node: Type) -> None:
         pass
+
+    def _visit_branch(self, node: Branch) -> None:
+        for node in node.kids:
+            self.visit(node)
 
     def analyze(self, node: IAST) -> None:
         assert not self._closed
@@ -2273,7 +2295,7 @@ class Interpreter(INodeVisitor):
         return node.value
 
     def _visit_compound(self, node: Compound) -> None:
-        for child in node.children:
+        for child in node.kids:
             self.visit(child)
 
     def _visit_noop(self, node: NoOp) -> None:
@@ -2296,7 +2318,7 @@ class Interpreter(INodeVisitor):
         self.visit(node.block)
 
     def _visit_block(self, node: Block) -> None:
-        for ast in node.children:
+        for ast in node.kids:
             self.visit(ast)
 
     def _visit_vardecl(self, node: VarDecl) -> None:
@@ -2306,10 +2328,19 @@ class Interpreter(INodeVisitor):
         pass
 
     def _visit_proccall(self, node: ProcCall) -> None:
-        pass
+        if node.proc_name == 'writeln':
+            data = "".join(
+                [str(self.visit(param)) for param in node.actual_params])
+            print(data)
 
     def _visit_type(self, node: Type) -> None:
         pass
+
+    def _visit_branch(self, node: Branch) -> None:
+        if self.visit(node.cond):
+            self.visit(node.if_blk)
+        else:
+            self.visit(node.else_blk)
 
     def interpret(self, ast: IAST) -> Union[int, float, None]:
         val = self.visit(ast)
