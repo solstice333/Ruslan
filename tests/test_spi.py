@@ -3,6 +3,7 @@ import os
 import os.path
 import unittest
 import io
+import subprocess
 
 from pprint import pprint
 from anytree import PostOrderIter, RenderTree
@@ -1307,6 +1308,17 @@ class DecoSrcBuilderTestCase(unittest.TestCase):
                  '   <y1:REAL0> := 20 / 7 + 3.14\n' + \
                  '   end.    {END OF Part10AST}'
         self.assertEqual(actual, expect)
+
+
+class MypyTest(unittest.TestCase):
+    def test_typing(self):
+        proc = subprocess.run(
+            [sys.executable, "-m", "mypy", os.path.join("..", "spi.py")],
+            text=True,
+            capture_output=True,
+            check=True
+        )
+        self.assertEqual(0, proc.returncode)
 
 
 class Foo(unittest.TestCase):
