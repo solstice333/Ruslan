@@ -2256,28 +2256,27 @@ class Interpreter(INodeVisitor):
     def _visit_neg(self, node: Neg) -> Union[int, float]:
         return -cast([int, float], self.visit(node.right))
 
-    # TODO: cleanup type annotations
-    def _visit_add(self, node: IAST) -> Union[int, float]:
+    def _visit_add(self, node: Add) -> Union[int, float]:
         return \
             cast([int, float], self.visit(node.left)) + \
             cast([int, float], self.visit(node.right))
 
-    def _visit_sub(self, node: IAST) -> Union[int, float]:
+    def _visit_sub(self, node: Sub) -> Union[int, float]:
         return \
             cast([int, float], self.visit(node.left)) - \
             cast([int, float], self.visit(node.right))
 
-    def _visit_mul(self, node: IAST) -> Union[int, float]:
+    def _visit_mul(self, node: Mul) -> Union[int, float]:
         return \
             cast([int, float], self.visit(node.left)) * \
             cast([int, float], self.visit(node.right))
 
-    def _visit_intdiv(self, node: IAST) -> Union[int, float]:
+    def _visit_intdiv(self, node: IntDiv) -> Union[int, float]:
         return \
             cast([int, float], self.visit(node.left)) // \
             cast([int, float], self.visit(node.right))
 
-    def _visit_floatdiv(self, node: IAST) -> Union[int, float]:
+    def _visit_floatdiv(self, node: FloatDiv) -> Union[int, float]:
         return \
             cast([int, float], self.visit(node.left)) / \
             cast([int, float], self.visit(node.right))
