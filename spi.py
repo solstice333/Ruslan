@@ -1504,7 +1504,7 @@ class ScopedSymbolTable:
 
 class INodeVisitor(ABC):
     def _gen_visit_method_name(self, node: IAST) -> str:
-        method_name = '_visit_' + type(node).__name__
+        method_name = '_visit_' + to_snake_case(type(node).__name__)
         return method_name.lower()
 
     def visit(self, node: IAST) -> Union[int, float, bool, None]:
@@ -1536,25 +1536,25 @@ class INodeVisitor(ABC):
         pass
 
     @abstractmethod
-    def _visit_intdiv(self, node: IntDiv) -> Union[int, float, bool, None]:
+    def _visit_int_div(self, node: IntDiv) -> Union[int, float, bool, None]:
         pass
 
     @abstractmethod
-    def _visit_floatdiv(self, node: FloatDiv) -> Union[int, float, bool, None]:
+    def _visit_float_div(self, node: FloatDiv) -> Union[int, float, bool, None]:
         pass
 
     @abstractmethod
-    def _visit_logicaland(
+    def _visit_logical_and(
             self, node: LogicalAnd) -> Union[int, float, bool, None]:
         pass
 
     @abstractmethod
-    def _visit_logicalor(
+    def _visit_logical_or(
             self, node: LogicalOr) -> Union[int, float, bool, None]:
         pass
 
     @abstractmethod
-    def _visit_bitwiseor(
+    def _visit_bitwise_or(
             self, node: BitwiseOr) -> Union[int, float, bool, None]:
         pass
 
@@ -1571,7 +1571,7 @@ class INodeVisitor(ABC):
         pass
 
     @abstractmethod
-    def _visit_noop(self, node: NoOp) -> None:
+    def _visit_no_op(self, node: NoOp) -> None:
         pass
 
     @abstractmethod
@@ -1591,15 +1591,15 @@ class INodeVisitor(ABC):
         pass
 
     @abstractmethod
-    def _visit_vardecl(self, node: VarDecl) -> None:
+    def _visit_var_decl(self, node: VarDecl) -> None:
         pass
 
     @abstractmethod
-    def _visit_procdecl(self, node: ProcDecl) -> None:
+    def _visit_proc_decl(self, node: ProcDecl) -> None:
         pass
 
     @abstractmethod
-    def _visit_proccall(self, node: ProcCall) -> None:
+    def _visit_proc_call(self, node: ProcCall) -> None:
         pass
 
     @abstractmethod
@@ -2123,43 +2123,43 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
         if self.s2s:
             self._dsb.build_in_visit(self.current_scope, node)
 
-    def _visit_binop(self, node: BinOp) -> None:
+    def _visit_bin_op(self, node: BinOp) -> None:
         self.visit(node.left)
         self._build_in_visit(node)
         self.visit(node.right)
 
-    def _visit_unop(self, node: UnOp) -> None:
+    def _visit_un_op(self, node: UnOp) -> None:
         self.visit(node.right)
 
     def _visit_pos(self, node: Pos) -> None:
-        self._visit_unop(node)
+        self._visit_un_op(node)
 
     def _visit_neg(self, node: Neg) -> None:
-        self._visit_unop(node)
+        self._visit_un_op(node)
 
     def _visit_add(self, node: Add) -> None:
-        self._visit_binop(node)
+        self._visit_bin_op(node)
 
     def _visit_sub(self, node: Sub) -> None:
-        self._visit_binop(node)
+        self._visit_bin_op(node)
 
     def _visit_mul(self, node: Mul) -> None:
-        self._visit_binop(node)
+        self._visit_bin_op(node)
 
-    def _visit_intdiv(self, node: IntDiv) -> None:
-        self._visit_binop(node)
+    def _visit_int_div(self, node: IntDiv) -> None:
+        self._visit_bin_op(node)
 
-    def _visit_floatdiv(self, node: FloatDiv) -> None:
-        self._visit_binop(node)
+    def _visit_float_div(self, node: FloatDiv) -> None:
+        self._visit_bin_op(node)
 
-    def _visit_logicaland(self, node: LogicalAnd) -> None:
-        self._visit_binop(node)
+    def _visit_logical_and(self, node: LogicalAnd) -> None:
+        self._visit_bin_op(node)
 
-    def _visit_logicalor(self, node: LogicalOr) -> None:
-        self._visit_binop(node)
+    def _visit_logical_or(self, node: LogicalOr) -> None:
+        self._visit_bin_op(node)
 
-    def _visit_bitwiseor(self, node: BitwiseOr) -> None:
-        self._visit_binop(node)
+    def _visit_bitwise_or(self, node: BitwiseOr) -> None:
+        self._visit_bin_op(node)
 
     def _visit_num(self, node: Num) -> None:
         pass
@@ -2171,7 +2171,7 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
         for n in node.kids:
             self.visit(n)
 
-    def _visit_noop(self, node: NoOp) -> None:
+    def _visit_no_op(self, node: NoOp) -> None:
         return None
 
     def _visit_assign(self, node: Assign) -> None:
@@ -2209,7 +2209,7 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
         for n in node.kids:
             self.visit(n)
 
-    def _visit_vardecl(self, node: VarDecl) -> None:
+    def _visit_var_decl(self, node: VarDecl) -> None:
         ty = node.type
         type_name = ty.value
         type_sym = self.safe_current_scope.lookup(type_name)
@@ -2231,7 +2231,7 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
 
         self.safe_current_scope.insert(var_sym)
 
-    def _visit_procdecl(self, node: ProcDecl) -> None:
+    def _visit_proc_decl(self, node: ProcDecl) -> None:
         proc_name = node.name
         proc_symbol = ProcSymbol(proc_name)
         self.safe_current_scope.insert(proc_symbol)
@@ -2267,7 +2267,7 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
         self.current_scope = self.current_scope.encl_scope
         logging.info(f"LEAVE scope {proc_scope.name}")
 
-    def _visit_proccall(self, node: ProcCall) -> None:
+    def _visit_proc_call(self, node: ProcCall) -> None:
         if node.proc_name != 'writeln':
             proc_sym = self.safe_current_scope.lookup(node.proc_name)
 
@@ -2345,23 +2345,23 @@ class Interpreter(INodeVisitor):
             cast([int, float], self.visit(node.left)) * \
             cast([int, float], self.visit(node.right))
 
-    def _visit_intdiv(self, node: IntDiv) -> Union[int, float]:
+    def _visit_int_div(self, node: IntDiv) -> Union[int, float]:
         return \
             cast([int, float], self.visit(node.left)) // \
             cast([int, float], self.visit(node.right))
 
-    def _visit_floatdiv(self, node: FloatDiv) -> Union[int, float]:
+    def _visit_float_div(self, node: FloatDiv) -> Union[int, float]:
         return \
             cast([int, float], self.visit(node.left)) / \
             cast([int, float], self.visit(node.right))
 
-    def _visit_logicaland(self, node: LogicalAnd) -> bool:
+    def _visit_logical_and(self, node: LogicalAnd) -> bool:
         return bool(self.visit(node.left) and self.visit(node.right))
 
-    def _visit_logicalor(self, node: LogicalOr) -> bool:
+    def _visit_logical_or(self, node: LogicalOr) -> bool:
         return bool(self.visit(node.left) or self.visit(node.right))
 
-    def _visit_bitwiseor(self, node: BitwiseOr) -> int:
+    def _visit_bitwise_or(self, node: BitwiseOr) -> int:
         return cast(int, self.visit(node.left)) | \
                cast(int, self.visit(node.right))
 
@@ -2375,7 +2375,7 @@ class Interpreter(INodeVisitor):
         for child in node.kids:
             self.visit(child)
 
-    def _visit_noop(self, node: NoOp) -> None:
+    def _visit_no_op(self, node: NoOp) -> None:
         pass
 
     def _visit_assign(self, node: Assign) -> None:
@@ -2398,13 +2398,13 @@ class Interpreter(INodeVisitor):
         for ast in node.kids:
             self.visit(ast)
 
-    def _visit_vardecl(self, node: VarDecl) -> None:
+    def _visit_var_decl(self, node: VarDecl) -> None:
         pass
 
-    def _visit_procdecl(self, node: ProcDecl) -> None:
+    def _visit_proc_decl(self, node: ProcDecl) -> None:
         pass
 
-    def _visit_proccall(self, node: ProcCall) -> None:
+    def _visit_proc_call(self, node: ProcCall) -> None:
         if node.proc_name == 'writeln':
             data = "".join(
                 [str(self.visit(param)) for param in node.actual_params])
