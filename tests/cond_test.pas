@@ -2,6 +2,7 @@ program cond_test;
 var
   foo_res: integer;
   foo_res2: integer;
+  foo_res3: integer;
 
   foo_t: boolean;
   foo_f: boolean;
@@ -9,8 +10,12 @@ var
 begin
   foo_res := 0;
   foo_res2 := 0;
+  foo_res3 := 0;
   foo_t := true;
   foo_f := false;
+
+  if (true) then
+    foo_res3 := foo_res3 + 1;
 
   if (false) then
     foo_res := 0

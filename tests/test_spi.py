@@ -561,7 +561,6 @@ class ParserTestCase(unittest.TestCase):
         act = [str(n) for n in PostOrderIter(ast)]
         self.assertEqual(exp, act)
 
-    # TODO re-enable once cond_test.pas is frozen
     def test_cond(self):
         ast = make_prog_ast_from_file("cond_test.pas")
         act = [str(n) for n in PostOrderIter(ast)]
@@ -572,6 +571,9 @@ class ParserTestCase(unittest.TestCase):
             'Var(value=foo_res2)',
             'Type(value=integer)',
             'VarDecl()',
+            'Var(value=foo_res3)',
+            'Type(value=integer)',
+            'VarDecl()',
             'Var(value=foo_t)',
             'Type(value=boolean)',
             'VarDecl()',
@@ -584,12 +586,23 @@ class ParserTestCase(unittest.TestCase):
             'Var(value=foo_res2)',
             'Num(value=0)',
             'Assign(value=:=)',
+            'Var(value=foo_res3)',
+            'Num(value=0)',
+            'Assign(value=:=)',
             'Var(value=foo_t)',
             'Bool(value=True)',
             'Assign(value=:=)',
             'Var(value=foo_f)',
             'Bool(value=False)',
             'Assign(value=:=)',
+            'Bool(value=True)',
+            'Var(value=foo_res3)',
+            'Var(value=foo_res3)',
+            'Num(value=1)',
+            'Add(value=+)',
+            'Assign(value=:=)',
+            'NoOp()',
+            'Branch()',
             'Bool(value=False)',
             'Var(value=foo_res)',
             'Num(value=0)',
@@ -808,9 +821,10 @@ class InterpreterTestCase(unittest.TestCase):
     def test_cond(self):
         ast = make_prog_ast_from_file("cond_test.pas")
         self.interpreter.interpret(ast)
-        self.assertEqual(4, len(self.interpreter.GLOBAL_SCOPE))
+        self.assertEqual(5, len(self.interpreter.GLOBAL_SCOPE))
         self.assertEqual(7, self.interpreter.GLOBAL_SCOPE['foo_res'])
         self.assertEqual(24, self.interpreter.GLOBAL_SCOPE['foo_res2'])
+        self.assertEqual(1, self.interpreter.GLOBAL_SCOPE['foo_res3'])
 
 
 class SemanticAnalyzerTestCase(unittest.TestCase):
