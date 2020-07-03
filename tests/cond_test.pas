@@ -19,12 +19,12 @@ begin
 
   if (false) then
     foo_res := 0
-  else if (1 * 2 and 3 + 4 or falsE) then
+  else if (1 * 2 && 3 + 4 || falsE) then
     foo_res := 1
   else
     foo_res2 := 1;
 
-  if (True or False and False) then begin
+  if (True || False && False) then begin
     foo_res := foo_res + 2;
     foo_res := foo_res + 4
   end
@@ -38,7 +38,7 @@ begin
   else
     foo_res2 := foo_res2 + 8;
 
-  if (foo_t and 1 * 2 and fALse) then
+  if (foo_t && 1 * 2 && fALse) then
     foo_res := foo_res + 16
   else
     foo_res2 := foo_res2 + 16;
