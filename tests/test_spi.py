@@ -1315,10 +1315,10 @@ class MypyTest(unittest.TestCase):
         proc = subprocess.run(
             [sys.executable, "-m", "mypy", os.path.join("..", "spi.py")],
             text=True,
-            capture_output=True,
-            check=True
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT
         )
-        self.assertEqual(0, proc.returncode)
+        self.assertEqual(0, proc.returncode, proc.stdout)
 
 
 class Foo(unittest.TestCase):
