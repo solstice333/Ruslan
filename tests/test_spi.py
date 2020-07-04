@@ -827,6 +827,21 @@ class InterpreterTestCase(unittest.TestCase):
         self.assertEqual(24, self.interpreter.GLOBAL_SCOPE['foo_res2'])
         self.assertEqual(1, self.interpreter.GLOBAL_SCOPE['foo_res3'])
 
+    def test_bitwise_or(self):
+        ast = make_prog_ast_from_file("bitwise_or.pas")
+        self.interpreter.interpret(ast)
+        mem = self.interpreter.GLOBAL_SCOPE
+        self.assertEqual({'bar': 1,
+                          'baz': 3,
+                          'foo': 5,
+                          'res': 9}, mem)
+
+    def test_bitwise_xor(self):
+        ast = make_prog_ast_from_file("bitwise_xor.pas")
+        self.interpreter.interpret(ast)
+        mem = self.interpreter.GLOBAL_SCOPE
+        self.assertEqual({'res': 11}, mem)
+
 
 class SemanticAnalyzerTestCase(unittest.TestCase):
     def _get_scopes_from_str(self, s):

@@ -10,5 +10,4 @@ BEGIN
   bar := 0x1;
   baz := 0x3;
   res := (foo + baz)*2 - 8 | bar;
-  writeln(res);
 END.

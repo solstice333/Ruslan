@@ -25,6 +25,17 @@ import logging
 import typing
 
 T = TypeVar('T')
+BinOpTok = Union[
+    'AddTok',
+    'SubTok',
+    'MulTok',
+    'IntDivTok',
+    'FloatDivTok',
+    'LogicalAndTok',
+    'LogicalOrTok',
+    'BitwiseOrTok',
+    'BitwiseXorTok'
+]
 
 
 def to_bool(s: str) -> bool:
@@ -43,7 +54,7 @@ def to_snake_case(s: str) -> str:
 
 def to_int(s: str) -> int:
     s = s.strip()
-    m = re.fullmatch(r"\d+|(0[xX])[0-9a-fA-F]+", s)
+    m = re.fullmatch(r"(0[xX])[0-9a-fA-F]+|\d+", s)
     assert m
     return int(m[0], 16) if m[1] else int(m[0])
 
@@ -131,7 +142,7 @@ class TokenType(Enum):
     COMMA = TokenTypeValue(pat=",")
     REAL_CONST = TokenTypeValue(pat=r"\d+\.\d*", re=True, type=float)
     INT_CONST = TokenTypeValue(
-        pat=r"\d+|0[xX][0-9a-fA-F]+", re=True, type=to_int)
+        pat=r"0[xX][0-9a-fA-F]+|\d+", re=True, type=to_int)
     LOGICAL_OR = TokenTypeValue(pat=r'||')
     LOGICAL_AND = TokenTypeValue(pat='&&')
     BITWISE_OR = TokenTypeValue(pat='|')
@@ -478,6 +489,15 @@ class BitwiseAndTok(IToken):
         return cast(str, self._value)
 
 
+class BitwiseXorTok(IToken):
+    def __init__(self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.BITWISE_XOR, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
 class TrueTok(IToken):
     def __init__(self, value: bool, pos: Position) -> None:
         super().__init__(TokenType.TRUE, value, pos)
@@ -700,27 +720,9 @@ class BinOp(IAST):
             self,
             left: IAST,
             right: IAST,
-            optok: Union[
-                AddTok,
-                SubTok,
-                MulTok,
-                IntDivTok,
-                FloatDivTok,
-                LogicalAndTok,
-                LogicalOrTok,
-                BitwiseOrTok
-            ]
+            optok: BinOpTok
     ) -> None:
-        self.token: Union[
-            AddTok,
-            SubTok,
-            MulTok,
-            IntDivTok,
-            FloatDivTok,
-            LogicalAndTok,
-            LogicalOrTok,
-            BitwiseOrTok
-        ] = optok
+        self.token: BinOpTok = optok
         self.value: str = self.token.value
         self.left: IAST = left
         self.right: IAST = right
@@ -806,6 +808,16 @@ class BitwiseOr(BinOp):
             left: IAST,
             right: IAST,
             optok: BitwiseOrTok
+    ) -> None:
+        super().__init__(left, right, optok)
+
+
+class BitwiseXor(BinOp):
+    def __init__(
+            self,
+            left: IAST,
+            right: IAST,
+            optok: BitwiseXorTok
     ) -> None:
         super().__init__(left, right, optok)
 
@@ -1089,21 +1101,35 @@ class Parser:
     # TODO: add rule for relational operators > and >=
     # TODO: add rule for relational operators == and !=
     # TODO: add rule for bitwise AND
-    # TODO: add rule for bitwise XOR
 
-    def bitwise_or_expr(self) -> IAST:
+    def bitwise_xor_expr(self) -> IAST:
+        """bitwise_xor_expr: expr (BITWISE_XOR expr)*"""
         node: IAST = self.expr()
         while True:
             curtok: IToken = self.current_token
-            if curtok.type == TokenType.BITWISE_OR:
-                self.eat(TokenType.BITWISE_OR)
-                node = BitwiseOr(node, self.expr(), cast(BitwiseOrTok, curtok))
+            if curtok.type == TokenType.BITWISE_XOR:
+                self.eat(TokenType.BITWISE_XOR)
+                node = BitwiseXor(node, self.expr(),
+                                  cast(BitwiseXorTok, curtok))
             else:
                 break
         return node
 
-    def and_expr(self) -> IAST:
-        """and_expr: bitwise_or_expr (AND bitwise_or_expr)*"""
+    def bitwise_or_expr(self) -> IAST:
+        """bitwise_or_expr: bitwise_xor_expr (BITWISE_OR bitwise_xor_expr)*"""
+        node: IAST = self.bitwise_xor_expr()
+        while True:
+            curtok: IToken = self.current_token
+            if curtok.type == TokenType.BITWISE_OR:
+                self.eat(TokenType.BITWISE_OR)
+                node = BitwiseOr(node, self.bitwise_xor_expr(),
+                                 cast(BitwiseOrTok, curtok))
+            else:
+                break
+        return node
+
+    def logical_and_expr(self) -> IAST:
+        """logical_and_expr: bitwise_or_expr (LOGICAL_AND bitwise_or_expr)*"""
         node: IAST = self.bitwise_or_expr()
         while True:
             curtok: IToken = self.current_token
@@ -1115,22 +1141,22 @@ class Parser:
                 break
         return node
 
-    def or_expr(self) -> IAST:
-        """or_expr: and_expr (OR and_expr)*"""
-        node: IAST = self.and_expr()
+    def logical_or_expr(self) -> IAST:
+        """logical_or_expr: logical_and_expr (LOGICAL_OR logical_and_expr)*"""
+        node: IAST = self.logical_and_expr()
         while True:
             curtok: IToken = self.current_token
             if curtok.type == TokenType.LOGICAL_OR:
                 self.eat(TokenType.LOGICAL_OR)
-                node = LogicalOr(node, self.and_expr(),
+                node = LogicalOr(node, self.logical_and_expr(),
                                  cast(LogicalOrTok, curtok))
             else:
                 break
         return node
 
     def root_expr(self) -> IAST:
-        """root_expr: or_expr"""
-        return self.or_expr()
+        """root_expr: logical_or_expr"""
+        return self.logical_or_expr()
 
     def empty(self) -> NoOp:
         """empty rule"""
@@ -1556,6 +1582,11 @@ class INodeVisitor(ABC):
     @abstractmethod
     def _visit_bitwise_or(
             self, node: BitwiseOr) -> Union[int, float, bool, None]:
+        pass
+
+    @abstractmethod
+    def _visit_bitwise_xor(
+            self, node: BitwiseXor) -> Union[int, float, bool, None]:
         pass
 
     @abstractmethod
@@ -2161,6 +2192,9 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
     def _visit_bitwise_or(self, node: BitwiseOr) -> None:
         self._visit_bin_op(node)
 
+    def _visit_bitwise_xor(self, node: BitwiseXor) -> None:
+        self._visit_bin_op(node)
+
     def _visit_num(self, node: Num) -> None:
         pass
 
@@ -2363,6 +2397,10 @@ class Interpreter(INodeVisitor):
 
     def _visit_bitwise_or(self, node: BitwiseOr) -> int:
         return cast(int, self.visit(node.left)) | \
+               cast(int, self.visit(node.right))
+
+    def _visit_bitwise_xor(self, node: BitwiseXor) -> int:
+        return cast(int, self.visit(node.left)) ^ \
                cast(int, self.visit(node.right))
 
     def _visit_num(self, node: Num) -> Union[int, float]:
