@@ -842,6 +842,12 @@ class InterpreterTestCase(unittest.TestCase):
         mem = self.interpreter.GLOBAL_SCOPE
         self.assertEqual({'res': 11}, mem)
 
+    def test_bitwise_and(self):
+        ast = make_prog_ast_from_file("bitwise_and.pas")
+        self.interpreter.interpret(ast)
+        mem = self.interpreter.GLOBAL_SCOPE
+        self.assertEqual({'res': 5}, mem)
+
 
 class SemanticAnalyzerTestCase(unittest.TestCase):
     def _get_scopes_from_str(self, s):
