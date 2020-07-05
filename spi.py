@@ -35,7 +35,22 @@ BinOpTok = Union[
     'LogicalOrTok',
     'BitwiseOrTok',
     'BitwiseXorTok',
-    'BitwiseAndTok'
+    'BitwiseAndTok',
+    'ModulusTok',
+    'EqualTok',
+    'NotEqualTok',
+    'RightShiftTok',
+    'GreaterEqualTok',
+    'GreaterTok',
+    'LeftShiftTok',
+    'LessEqualTok',
+    'LessTok'
+]
+UnOpTok = Union[
+    'AddTok',
+    'SubTok',
+    'LogicalNotTok',
+    'BitwiseNotTok'
 ]
 
 
@@ -149,6 +164,17 @@ class TokenType(Enum):
     BITWISE_OR = TokenTypeValue(pat='|')
     BITWISE_AND = TokenTypeValue(pat='&')
     BITWISE_XOR = TokenTypeValue(pat='^')
+    MODULUS = TokenTypeValue(pat='%')
+    EQUAL = TokenTypeValue(pat='==')
+    NOT_EQUAL = TokenTypeValue(pat='!=')
+    LOGICAL_NOT = TokenTypeValue(pat='!')
+    BITWISE_NOT = TokenTypeValue(pat='~')
+    RIGHT_SHIFT = TokenTypeValue(pat='>>')
+    GREATER_EQUAL = TokenTypeValue(pat='>=')
+    GREATER = TokenTypeValue(pat='>')
+    LEFT_SHIFT = TokenTypeValue(pat='<<')
+    LESS_EQUAL = TokenTypeValue(pat='<=')
+    LESS = TokenTypeValue(pat='<')
     ADD = TokenTypeValue(pat='+')
     SUB = TokenTypeValue(pat='-')
     MUL = TokenTypeValue(pat='*')
@@ -517,6 +543,105 @@ class FalseTok(IToken):
         return cast(bool, self._value)
 
 
+class ModulusTok(IToken):
+    def __init__(self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.MODULUS, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class EqualTok(IToken):
+    def __init__(self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.EQUAL, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class NotEqualTok(IToken):
+    def __init__(self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.NOT_EQUAL, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class LogicalNotTok(IToken):
+    def __init__(self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.LOGICAL_NOT, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class BitwiseNotTok(IToken):
+    def __init__(self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.BITWISE_NOT, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class RightShiftTok(IToken):
+    def __init__(self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.RIGHT_SHIFT, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class GreaterEqualTok(IToken):
+    def __init__(self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.GREATER_EQUAL, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class GreaterTok(IToken):
+    def __init__(self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.GREATER, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class LeftShiftTok(IToken):
+    def __init__(self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.LEFT_SHIFT, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class LessEqualTok(IToken):
+    def __init__(self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.LESS_EQUAL, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
+class LessTok(IToken):
+    def __init__(self, value: str, pos: Position) -> None:
+        super().__init__(TokenType.LESS, value, pos)
+
+    @property
+    def value(self) -> str:
+        return cast(str, self._value)
+
+
 class ErrorCode(Enum):
     UNEXPECTED_TOKEN = 'Unexpected token'
     ID_NOT_FOUND = 'Identifier not found'
@@ -833,32 +958,89 @@ class BitwiseAnd(BinOp):
         super().__init__(left, right, optok)
 
 
+class Modulus(BinOp):
+    def __init__(self, left: IAST, right: IAST, optok: ModulusTok) -> None:
+        super().__init__(left, right, optok)
+
+
+class Equal(BinOp):
+    def __init__(self, left: IAST, right: IAST, optok: EqualTok):
+        super().__init__(left, right, optok)
+
+
+class NotEqual(BinOp):
+    def __init__(self, left: IAST, right: IAST, optok: NotEqualTok):
+        super().__init__(left, right, optok)
+
+
+class RightShift(BinOp):
+    def __init__(
+            self,
+            left: IAST,
+            right: IAST,
+            optok: RightShiftTok
+    ) -> None:
+        super().__init__(left, right, optok)
+
+
+class GreaterEqual(BinOp):
+    def __init__(
+            self,
+            left: IAST,
+            right: IAST,
+            optok: GreaterEqualTok
+    ) -> None:
+        super().__init__(left, right, optok)
+
+
+class Greater(BinOp):
+    def __init__(self, left: IAST, right: IAST, optok: GreaterTok) -> None:
+        super().__init__(left, right, optok)
+
+
+class LeftShift(BinOp):
+    def __init__(self, left: IAST, right: IAST, optok: LeftShiftTok) -> None:
+        super().__init__(left, right, optok)
+
+
+class LessEqual(BinOp):
+    def __init__(self, left: IAST, right: IAST, optok: LessEqualTok) -> None:
+        super().__init__(left, right, optok)
+
+
+class Less(BinOp):
+    def __init__(self, left: IAST, right: IAST, optok: LessTok) -> None:
+        super().__init__(left, right, optok)
+
+
 class UnOp(IAST):
-    def __init__(self, right: IAST, optok: Union[AddTok, SubTok]) -> None:
+    def __init__(self, right: IAST, optok: UnOpTok) -> None:
         self.right: IAST = right
         super().__init__([self.right])
-        self.token: Union[AddTok, SubTok] = optok
+        self.token: UnOpTok = optok
         self.value = self.token.value
 
     def __str__(self) -> str:
         return f"{type(self).__name__}(value={self.value})"
 
 
+class LogicalNot(UnOp):
+    def __init__(self, right: IAST, optok: LogicalNotTok) -> None:
+        super().__init__(right, optok)
+
+
+class BitwiseNot(UnOp):
+    def __init__(self, right: IAST, optok: BitwiseNotTok) -> None:
+        super().__init__(right, optok)
+
+
 class Pos(UnOp):
-    def __init__(
-            self,
-            right: IAST,
-            optok: AddTok
-    ) -> None:
+    def __init__(self, right: IAST, optok: AddTok) -> None:
         super().__init__(right, optok)
 
 
 class Neg(UnOp):
-    def __init__(
-            self,
-            right: IAST,
-            optok: SubTok
-    ) -> None:
+    def __init__(self, right: IAST, optok: SubTok) -> None:
         super().__init__(right, optok)
 
 
