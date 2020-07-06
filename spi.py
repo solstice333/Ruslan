@@ -1292,16 +1292,36 @@ class Parser:
     # TODO: add rule for bitwise left and right shift
     # TODO: add rule for relational operators < and <=
     # TODO: add rule for relational operators > and >=
-    # TODO: add rule for relational operators == and !=
+
+    def equal_not_equal_expr(self) -> IAST:
+        """
+        equal_not_equal_expr:
+            expr (EQUAL | NOT_EQUAL expr)
+        """
+        node: IAST = self.expr()
+        while True:
+            curtok: IToken = self.current_token
+            if curtok.type == TokenType.EQUAL:
+                self.eat(TokenType.EQUAL)
+                node = Equal(node, self.expr(), cast(EqualTok, curtok))
+            elif curtok.type == TokenType.NOT_EQUAL:
+                self.eat(TokenType.NOT_EQUAL)
+                node = NotEqual(node, self.expr(), cast(NotEqualTok, curtok))
+            else:
+                break
+        return node
 
     def bitwise_and_expr(self) -> IAST:
-        """bitwise_and_expr: expr (BITWISE_AND expr)*"""
-        node: IAST = self.expr()
+        """
+        bitwise_and_expr:
+            equal_not_equal_expr (BITWISE_AND equal_not_equal_expr)*
+        """
+        node: IAST = self.equal_not_equal_expr()
         while True:
             curtok: IToken = self.current_token
             if curtok.type == TokenType.BITWISE_AND:
                 self.eat(TokenType.BITWISE_AND)
-                node = BitwiseAnd(node, self.expr(),
+                node = BitwiseAnd(node, self.equal_not_equal_expr(),
                                   cast(BitwiseAndTok, curtok))
             else:
                 break
@@ -1800,6 +1820,14 @@ class INodeVisitor(ABC):
     @abstractmethod
     def _visit_bitwise_and(
             self, node: BitwiseAnd) -> Union[int, float, bool, None]:
+        pass
+
+    @abstractmethod
+    def _visit_equal(self, node: Equal) -> Union[int, float, bool, None]:
+        pass
+
+    @abstractmethod
+    def _visit_not_equal(self, node: NotEqual) -> Union[int, float, bool, None]:
         pass
 
     @abstractmethod
@@ -2411,6 +2439,12 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
     def _visit_bitwise_and(self, node: BitwiseAnd) -> None:
         self._visit_bin_op(node)
 
+    def _visit_equal(self, node: Equal) -> None:
+        self._visit_bin_op(node)
+
+    def _visit_not_equal(self, node: NotEqual) -> None:
+        self._visit_bin_op(node)
+
     def _visit_num(self, node: Num) -> None:
         pass
 
@@ -2518,7 +2552,7 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
         logging.info(f"LEAVE scope {proc_scope.name}")
 
     def _visit_proc_call(self, node: ProcCall) -> None:
-        if node.proc_name != 'writeln':
+        if node.proc_name.lower() != 'writeln':
             proc_sym = self.safe_current_scope.lookup(node.proc_name)
 
             self._assert(
@@ -2623,6 +2657,14 @@ class Interpreter(INodeVisitor):
         return cast(int, self.visit(node.left)) & \
                cast(int, self.visit(node.right))
 
+    def _visit_equal(self, node: Equal) -> Union[int, float, bool, None]:
+        return cast([int, float, bool], self.visit(node.left)) == \
+               cast([int, float, bool], self.visit(node.right))
+
+    def _visit_not_equal(self, node: NotEqual) -> Union[int, float, bool, None]:
+        return cast([int, float, bool], self.visit(node.left)) != \
+               cast([int, float, bool], self.visit(node.right))
+
     def _visit_num(self, node: Num) -> Union[int, float]:
         return node.value
 
@@ -2663,7 +2705,7 @@ class Interpreter(INodeVisitor):
         pass
 
     def _visit_proc_call(self, node: ProcCall) -> None:
-        if node.proc_name == 'writeln':
+        if node.proc_name.lower() == 'writeln':
             data = "".join(
                 [str(self.visit(param)) for param in node.actual_params])
             print(data)

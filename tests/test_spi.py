@@ -848,6 +848,12 @@ class InterpreterTestCase(unittest.TestCase):
         mem = self.interpreter.GLOBAL_SCOPE
         self.assertEqual({'res': 5}, mem)
 
+    def test_equal_not_equal(self):
+        ast = make_prog_ast_from_file("equal_not_equal.pas")
+        self.interpreter.interpret(ast)
+        mem = self.interpreter.GLOBAL_SCOPE
+        self.assertEqual({'res': 2, 'res2': 2}, mem)
+
 
 class SemanticAnalyzerTestCase(unittest.TestCase):
     def _get_scopes_from_str(self, s):
