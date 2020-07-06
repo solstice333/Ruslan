@@ -974,22 +974,12 @@ class NotEqual(BinOp):
 
 
 class RightShift(BinOp):
-    def __init__(
-            self,
-            left: IAST,
-            right: IAST,
-            optok: RightShiftTok
-    ) -> None:
+    def __init__(self, left: IAST, right: IAST, optok: RightShiftTok) -> None:
         super().__init__(left, right, optok)
 
 
 class GreaterEqual(BinOp):
-    def __init__(
-            self,
-            left: IAST,
-            right: IAST,
-            optok: GreaterEqualTok
-    ) -> None:
+    def __init__(self, left: IAST, right: IAST, optok: GreaterEqualTok) -> None:
         super().__init__(left, right, optok)
 
 
@@ -1249,6 +1239,7 @@ class Parser:
             ast = self.variable()
         return ast
 
+    # TODO: add rule for modulus
     def term(self) -> IAST:
         """term : factor ((MUL | INT_DIV | FLOAT_DIV) factor)*"""
         node: IAST = self.factor()
@@ -1289,32 +1280,64 @@ class Parser:
 
         return node
 
-    # TODO: add rule for bitwise left and right shift
-
-    def gt_gte_lt_lte_expr(self) -> IAST:
+    def bitwise_left_right_expr(self) -> IAST:
         """
-        gt_gte_lt_lte_expr: expr
-            ((GREATER | GREATER_EQUAL | LESS | LESS_EQUAL) expr)*
+        bitwise_left_right_expr: expr ((LEFT_SHIFT | RIGHT_SHIFT) expr)*
         """
         node: IAST = self.expr()
         while True:
             curtok: IToken = self.current_token
+            if curtok.type == TokenType.LEFT_SHIFT:
+                self.eat(TokenType.LEFT_SHIFT)
+                node = LeftShift(
+                    node, self.expr(), cast(LeftShiftTok, curtok))
+            elif curtok.type == TokenType.RIGHT_SHIFT:
+                self.eat(TokenType.RIGHT_SHIFT)
+                node = RightShift(
+                    node, self.expr(), cast(RightShiftTok, curtok))
+            else:
+                break
+        return node
+
+    def gt_gte_lt_lte_expr(self) -> IAST:
+        """
+        gt_gte_lt_lte_expr: bitwise_left_right_expr
+            (
+                (GREATER | GREATER_EQUAL | LESS | LESS_EQUAL)
+                bitwise_left_right_expr
+            )*
+        """
+        node: IAST = self.bitwise_left_right_expr()
+        while True:
+            curtok: IToken = self.current_token
             if curtok.type == TokenType.GREATER:
                 self.eat(TokenType.GREATER)
-                node = Greater(node, self.expr(), cast(GreaterTok, curtok))
+                node = Greater(
+                    node,
+                    self.bitwise_left_right_expr(),
+                    cast(GreaterTok, curtok)
+                )
             elif curtok.type == TokenType.GREATER_EQUAL:
                 self.eat(TokenType.GREATER_EQUAL)
                 node = GreaterEqual(
                     node,
-                    self.expr(),
+                    self.bitwise_left_right_expr(),
                     cast(GreaterEqualTok, curtok)
                 )
             elif curtok.type == TokenType.LESS:
                 self.eat(TokenType.LESS)
-                node = Less(node, self.expr(), cast(LessTok, curtok))
+                node = Less(
+                    node,
+                    self.bitwise_left_right_expr(),
+                    cast(LessTok, curtok)
+                )
             elif curtok.type == TokenType.LESS_EQUAL:
                 self.eat(TokenType.LESS_EQUAL)
-                node = LessEqual(node, self.expr(), cast(LessEqualTok, curtok))
+                node = LessEqual(
+                    node,
+                    self.bitwise_left_right_expr(),
+                    cast(LessEqualTok, curtok)
+                )
             else:
                 break
         return node
@@ -1880,6 +1903,16 @@ class INodeVisitor(ABC):
     @abstractmethod
     def _visit_less_equal(
             self, node: LessEqual) -> Union[int, float, bool, None]:
+        pass
+
+    @abstractmethod
+    def _visit_left_shift(
+            self, node: LeftShift) -> Union[int, float, bool, None]:
+        pass
+
+    @abstractmethod
+    def _visit_right_shift(
+            self, node: RightShift) -> Union[int, float, bool, None]:
         pass
 
     @abstractmethod
@@ -2509,6 +2542,12 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
     def _visit_less_equal(self, node: LessEqual) -> None:
         self._visit_bin_op(node)
 
+    def _visit_left_shift(self, node: LeftShift) -> None:
+        self._visit_bin_op(node)
+
+    def _visit_right_shift(self, node: RightShift) -> None:
+        self._visit_bin_op(node)
+
     def _visit_num(self, node: Num) -> None:
         pass
 
@@ -2744,6 +2783,14 @@ class Interpreter(INodeVisitor):
     def _visit_less_equal(self, node: LessEqual) -> bool:
         return cast([int, float], self.visit(node.left)) <= \
                cast([int, float], self.visit(node.right))
+
+    def _visit_left_shift(self, node: LeftShift) -> int:
+        return cast(int, self.visit(node.left)) << \
+               cast(int, self.visit(node.right))
+
+    def _visit_right_shift(self, node: RightShift) -> int:
+        return cast(int, self.visit(node.left)) >> \
+               cast(int, self.visit(node.right))
 
     def _visit_num(self, node: Num) -> Union[int, float]:
         return node.value

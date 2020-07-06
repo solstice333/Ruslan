@@ -876,6 +876,15 @@ class InterpreterTestCase(unittest.TestCase):
                           'res8': 3,
                           'res9': True}, mem)
 
+    def test_left_right_shift(self):
+        ast = make_prog_ast_from_file("left_right_shift.pas")
+        self.interpreter.interpret(ast)
+        mem = self.interpreter.GLOBAL_SCOPE
+        self.assertEqual({'res': 16,
+                          'res2': 1,
+                          'res3': 4,
+                          'res4': 5}, mem)
+
 
 class SemanticAnalyzerTestCase(unittest.TestCase):
     def _get_scopes_from_str(self, s):
