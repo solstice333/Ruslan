@@ -1290,23 +1290,57 @@ class Parser:
         return node
 
     # TODO: add rule for bitwise left and right shift
-    # TODO: add rule for relational operators < and <=
-    # TODO: add rule for relational operators > and >=
 
-    def equal_not_equal_expr(self) -> IAST:
+    def gt_gte_lt_lte_expr(self) -> IAST:
         """
-        equal_not_equal_expr:
-            expr (EQUAL | NOT_EQUAL expr)
+        gt_gte_lt_lte_expr: expr
+            ((GREATER | GREATER_EQUAL | LESS | LESS_EQUAL) expr)*
         """
         node: IAST = self.expr()
         while True:
             curtok: IToken = self.current_token
+            if curtok.type == TokenType.GREATER:
+                self.eat(TokenType.GREATER)
+                node = Greater(node, self.expr(), cast(GreaterTok, curtok))
+            elif curtok.type == TokenType.GREATER_EQUAL:
+                self.eat(TokenType.GREATER_EQUAL)
+                node = GreaterEqual(
+                    node,
+                    self.expr(),
+                    cast(GreaterEqualTok, curtok)
+                )
+            elif curtok.type == TokenType.LESS:
+                self.eat(TokenType.LESS)
+                node = Less(node, self.expr(), cast(LessTok, curtok))
+            elif curtok.type == TokenType.LESS_EQUAL:
+                self.eat(TokenType.LESS_EQUAL)
+                node = LessEqual(node, self.expr(), cast(LessEqualTok, curtok))
+            else:
+                break
+        return node
+
+    def equal_not_equal_expr(self) -> IAST:
+        """
+        equal_not_equal_expr:
+            gt_gte_lt_lte_expr ((EQUAL | NOT_EQUAL) gt_gte_lt_lte_expr)*
+        """
+        node: IAST = self.gt_gte_lt_lte_expr()
+        while True:
+            curtok: IToken = self.current_token
             if curtok.type == TokenType.EQUAL:
                 self.eat(TokenType.EQUAL)
-                node = Equal(node, self.expr(), cast(EqualTok, curtok))
+                node = Equal(
+                    node,
+                    self.gt_gte_lt_lte_expr(),
+                    cast(EqualTok, curtok)
+                )
             elif curtok.type == TokenType.NOT_EQUAL:
                 self.eat(TokenType.NOT_EQUAL)
-                node = NotEqual(node, self.expr(), cast(NotEqualTok, curtok))
+                node = NotEqual(
+                    node,
+                    self.gt_gte_lt_lte_expr(),
+                    cast(NotEqualTok, curtok)
+                )
             else:
                 break
         return node
@@ -1828,6 +1862,24 @@ class INodeVisitor(ABC):
 
     @abstractmethod
     def _visit_not_equal(self, node: NotEqual) -> Union[int, float, bool, None]:
+        pass
+
+    @abstractmethod
+    def _visit_greater(self, node: Greater) -> Union[int, float, bool, None]:
+        pass
+
+    @abstractmethod
+    def _visit_greater_equal(
+            self, node: GreaterEqual) -> Union[int, float, bool, None]:
+        pass
+
+    @abstractmethod
+    def _visit_less(self, node: Less) -> Union[int, float, bool, None]:
+        pass
+
+    @abstractmethod
+    def _visit_less_equal(
+            self, node: LessEqual) -> Union[int, float, bool, None]:
         pass
 
     @abstractmethod
@@ -2445,6 +2497,18 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
     def _visit_not_equal(self, node: NotEqual) -> None:
         self._visit_bin_op(node)
 
+    def _visit_greater(self, node: Greater) -> None:
+        self._visit_bin_op(node)
+
+    def _visit_greater_equal(self, node: GreaterEqual) -> None:
+        self._visit_bin_op(node)
+
+    def _visit_less(self, node: Less) -> None:
+        self._visit_bin_op(node)
+
+    def _visit_less_equal(self, node: LessEqual) -> None:
+        self._visit_bin_op(node)
+
     def _visit_num(self, node: Num) -> None:
         pass
 
@@ -2629,12 +2693,12 @@ class Interpreter(INodeVisitor):
             cast([int, float], self.visit(node.left)) * \
             cast([int, float], self.visit(node.right))
 
-    def _visit_int_div(self, node: IntDiv) -> Union[int, float]:
+    def _visit_int_div(self, node: IntDiv) -> int:
         return \
             cast([int, float], self.visit(node.left)) // \
             cast([int, float], self.visit(node.right))
 
-    def _visit_float_div(self, node: FloatDiv) -> Union[int, float]:
+    def _visit_float_div(self, node: FloatDiv) -> float:
         return \
             cast([int, float], self.visit(node.left)) / \
             cast([int, float], self.visit(node.right))
@@ -2657,13 +2721,29 @@ class Interpreter(INodeVisitor):
         return cast(int, self.visit(node.left)) & \
                cast(int, self.visit(node.right))
 
-    def _visit_equal(self, node: Equal) -> Union[int, float, bool, None]:
+    def _visit_equal(self, node: Equal) -> bool:
         return cast([int, float, bool], self.visit(node.left)) == \
                cast([int, float, bool], self.visit(node.right))
 
-    def _visit_not_equal(self, node: NotEqual) -> Union[int, float, bool, None]:
+    def _visit_not_equal(self, node: NotEqual) -> bool:
         return cast([int, float, bool], self.visit(node.left)) != \
                cast([int, float, bool], self.visit(node.right))
+
+    def _visit_greater(self, node: Greater) -> bool:
+        return cast([int, float], self.visit(node.left)) > \
+               cast([int, float], self.visit(node.right))
+
+    def _visit_greater_equal(self, node: GreaterEqual) -> bool:
+        return cast([int, float], self.visit(node.left)) >= \
+               cast([int, float], self.visit(node.right))
+
+    def _visit_less(self, node: Less) -> bool:
+        return cast([int, float], self.visit(node.left)) < \
+               cast([int, float], self.visit(node.right))
+
+    def _visit_less_equal(self, node: LessEqual) -> bool:
+        return cast([int, float], self.visit(node.left)) <= \
+               cast([int, float], self.visit(node.right))
 
     def _visit_num(self, node: Num) -> Union[int, float]:
         return node.value

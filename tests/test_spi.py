@@ -854,6 +854,28 @@ class InterpreterTestCase(unittest.TestCase):
         mem = self.interpreter.GLOBAL_SCOPE
         self.assertEqual({'res': 2, 'res2': 2}, mem)
 
+    def test_greater_greater_equal_less_less_equal(self):
+        ast = make_prog_ast_from_file(
+            "greater_greater_equal_less_less_equal.pas")
+        self.interpreter.interpret(ast)
+        mem = self.interpreter.GLOBAL_SCOPE
+        self.assertEqual({'res': False,
+                          'res10': 3,
+                          'res11': False,
+                          'res12': 2,
+                          'res13': True,
+                          'res14': 3,
+                          'res15': True,
+                          'res16': 3,
+                          'res2': 2,
+                          'res3': True,
+                          'res4': 3,
+                          'res5': True,
+                          'res6': 2,
+                          'res7': True,
+                          'res8': 3,
+                          'res9': True}, mem)
+
 
 class SemanticAnalyzerTestCase(unittest.TestCase):
     def _get_scopes_from_str(self, s):
