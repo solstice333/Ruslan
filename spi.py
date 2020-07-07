@@ -18,6 +18,7 @@ from typing import \
 from types import TracebackType
 from abc import ABC, abstractmethod
 from anytree import NodeMixin  # type:ignore
+from decimal import Decimal
 
 import re
 import argparse
@@ -1239,9 +1240,8 @@ class Parser:
             ast = self.variable()
         return ast
 
-    # TODO: add rule for modulus
     def term(self) -> IAST:
-        """term : factor ((MUL | INT_DIV | FLOAT_DIV) factor)*"""
+        """term : factor ((MUL | INT_DIV | FLOAT_DIV | MODULUS) factor)*"""
         node: IAST = self.factor()
 
         while True:
@@ -1258,6 +1258,10 @@ class Parser:
                 self.eat(TokenType.FLOAT_DIV)
                 node = FloatDiv(
                     node, self.factor(), cast(FloatDivTok, curtok))
+            elif curtok.type == TokenType.MODULUS:
+                self.eat(TokenType.MODULUS)
+                node = Modulus(
+                    node, self.factor(), cast(ModulusTok, curtok))
             else:
                 break
 
@@ -1852,6 +1856,10 @@ class INodeVisitor(ABC):
 
     @abstractmethod
     def _visit_float_div(self, node: FloatDiv) -> Union[int, float, bool, None]:
+        pass
+
+    @abstractmethod
+    def _visit_modulus(self, node: Modulus) -> Union[int, float, bool, None]:
         pass
 
     @abstractmethod
@@ -2524,6 +2532,9 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
     def _visit_bitwise_and(self, node: BitwiseAnd) -> None:
         self._visit_bin_op(node)
 
+    def _visit_modulus(self, node: Modulus) -> None:
+        self._visit_bin_op(node)
+
     def _visit_equal(self, node: Equal) -> None:
         self._visit_bin_op(node)
 
@@ -2759,6 +2770,11 @@ class Interpreter(INodeVisitor):
     def _visit_bitwise_and(self, node: BitwiseAnd) -> int:
         return cast(int, self.visit(node.left)) & \
                cast(int, self.visit(node.right))
+
+    def _visit_modulus(self, node: Modulus) -> int:
+        int1 = cast(int, self.visit(node.left))
+        int2 = cast(int, self.visit(node.right))
+        return int(Decimal(int1) % Decimal(int2))
 
     def _visit_equal(self, node: Equal) -> bool:
         return cast([int, float, bool], self.visit(node.left)) == \
