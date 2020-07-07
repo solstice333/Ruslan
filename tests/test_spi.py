@@ -892,6 +892,26 @@ class InterpreterTestCase(unittest.TestCase):
         self.assertEqual({'res': 4,
                           'res2': 3}, mem)
 
+    def test_logical_not(self):
+        ast = make_prog_ast_from_file("logical_not.pas")
+        self.interpreter.interpret(ast)
+        mem = self.interpreter.GLOBAL_SCOPE
+        self.assertEqual({'res': 4,
+                          'res2': False,
+                          'res3': True,
+                          'res4': True}, mem)
+
+    def test_bitwise_not(self):
+        ast = make_prog_ast_from_file("bitwise_not.pas")
+        self.interpreter.interpret(ast)
+        mem = self.interpreter.GLOBAL_SCOPE
+        self.assertEqual({'res': 6,
+                          'res2': -8,
+                          'res3': -1,
+                          'res4': -1,
+                          'res5': 3,
+                          'res6': -3}, mem)
+
 
 class SemanticAnalyzerTestCase(unittest.TestCase):
     def _get_scopes_from_str(self, s):

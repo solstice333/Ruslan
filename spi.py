@@ -1189,14 +1189,14 @@ class Parser:
 
         return self.advance()
 
-    # TODO: add rule for logical NOT and bitwise NOT
-
     def factor(self) -> IAST:
         """
-        factor : 
-            ADD factor | 
-            SUB factor | 
-            INT_CONST | 
+        factor :
+            ADD factor |
+            SUB factor |
+            LOGICAL_NOT factor |
+            BITWISE_NOT factor |
+            INT_CONST |
             REAL_CONST |
             True |
             False |
@@ -1213,6 +1213,12 @@ class Parser:
         elif curtok.type == TokenType.SUB:
             self.eat(TokenType.SUB)
             ast = Neg(self.factor(), cast(SubTok, prevtok))
+        elif curtok.type == TokenType.LOGICAL_NOT:
+            self.eat(TokenType.LOGICAL_NOT)
+            ast = LogicalNot(self.factor(), cast(LogicalNotTok, curtok))
+        elif curtok.type == TokenType.BITWISE_NOT:
+            self.eat(TokenType.BITWISE_NOT)
+            ast = BitwiseNot(self.factor(), cast(BitwiseNotTok, curtok))
         elif any_of(
                 num_tok_types,
                 lambda numtype: curtok.type == numtype
@@ -1661,7 +1667,7 @@ class Parser:
 
     def declarations(self) -> List[IAST]:
         """
-        declarations: 
+        declarations:
             (VAR (variable_declaration SEMI)+)*
             procedure_declaration*
         """
@@ -1870,6 +1876,16 @@ class INodeVisitor(ABC):
     @abstractmethod
     def _visit_logical_or(
             self, node: LogicalOr) -> Union[int, float, bool, None]:
+        pass
+
+    @abstractmethod
+    def _visit_logical_not(
+            self, node: LogicalNot) -> Union[int, float, bool, None]:
+        pass
+
+    @abstractmethod
+    def _visit_bitwise_not(
+            self, node: BitwiseNot) -> Union[int, float, bool, None]:
         pass
 
     @abstractmethod
@@ -2502,6 +2518,12 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
     def _visit_neg(self, node: Neg) -> None:
         self._visit_un_op(node)
 
+    def _visit_logical_not(self, node: LogicalNot) -> None:
+        self._visit_un_op(node)
+
+    def _visit_bitwise_not(self, node: BitwiseNot) -> None:
+        self._visit_un_op(node)
+
     def _visit_add(self, node: Add) -> None:
         self._visit_bin_op(node)
 
@@ -2727,6 +2749,14 @@ class Interpreter(INodeVisitor):
 
     def _visit_neg(self, node: Neg) -> Union[int, float]:
         return -cast([int, float], self.visit(node.right))
+
+    def _visit_logical_not(
+            self, node: LogicalNot) -> Union[int, float, bool, None]:
+        return not cast([int, float, bool], self.visit(node.right))
+
+    def _visit_bitwise_not(
+            self, node: BitwiseNot) -> Union[int, float, bool, None]:
+        return ~cast([int, float, bool], self.visit(node.right))
 
     def _visit_add(self, node: Add) -> Union[int, float]:
         return \
