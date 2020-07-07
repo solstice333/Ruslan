@@ -96,27 +96,42 @@ def to_camel_case(s: str) -> str:
 
 
 @overload
-def cast(ty: typing.Type[T], val: Any) -> T:
+def cast(
+        ty: typing.Type[T],
+        val: Any,
+        exc: Optional[Exception]=None
+) -> T:
     pass
 
 
 @overload
-def cast(ty: Iterable[typing.Type], val: Any) -> Any:
+def cast(
+        ty: Iterable[typing.Type],
+        val: Any,
+        exc: Optional[Exception]=None
+) -> Any:
     pass
 
 
 @overload
-def cast(ty: None, val: Any) -> None:
+def cast(
+        ty: None,
+        val: Any,
+        exc: Optional[Exception]=None
+) -> None:
     pass
 
 
-# TODO: allow cast() to accept a custom exception then update Interpreter
-def cast(ty, val):
+def cast(ty, val, exc=None):
     ty = type(None) if ty is None else ty
     tys = ty if isinstance(ty, Iterable) else [ty]
+    cond = any_of(tys, lambda ty2: isinstance(val, ty2))
 
-    assert any_of(tys, lambda ty2: isinstance(val, ty2)), \
-        f"val is type {type(val)} which is not a subtype of any of {tys}"
+    if exc:
+        assert_with(cond, exc)
+    else:
+        assert cond, \
+            f"val is type {type(val)} which is not a subtype of any of {tys}"
     return val
 
 
@@ -645,6 +660,7 @@ class LessTok(IToken):
 
 class ErrorCode(Enum):
     UNEXPECTED_TOKEN = 'Unexpected token'
+    UNEXPECTED_OPERAND_TYPE = 'Unexpected operand type'
     ID_NOT_FOUND = 'Identifier not found'
     DUPLICATE_ID = 'Duplicate id found'
     TYPE_NOT_FOUND = 'Type not found'
@@ -681,6 +697,10 @@ class ParserError(Error):
 
 
 class SemanticError(Error):
+    pass
+
+
+class InterpreterError(Error):
     pass
 
 
@@ -2756,7 +2776,7 @@ class Interpreter(INodeVisitor):
 
     def _visit_bitwise_not(
             self, node: BitwiseNot) -> Union[int, float, bool, None]:
-        return ~cast([int, float, bool], self.visit(node.right))
+        return ~cast([int, bool], self.visit(node.right))
 
     def _visit_add(self, node: Add) -> Union[int, float]:
         return \
