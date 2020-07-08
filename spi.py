@@ -61,7 +61,14 @@ def to_bool(s: str) -> bool:
     return bool(re.fullmatch(r"true", s, re.I))
 
 
-def to_snake_case(s: str) -> str:
+def to_int(s: str) -> int:
+    s = s.strip()
+    m = re.fullmatch(r"(0[xX])[0-9a-fA-F]+|\d+", s)
+    assert m
+    return int(m[0], 16) if m[1] else int(m[0])
+
+
+def to_lower_snake_case(s: str) -> str:
     s = s.strip()
     s = s[0].lower() + s[1:]
     s = re.sub(r"([A-Z])", r"_\1", s)
@@ -69,11 +76,12 @@ def to_snake_case(s: str) -> str:
     return s.lower()
 
 
-def to_int(s: str) -> int:
-    s = s.strip()
-    m = re.fullmatch(r"(0[xX])[0-9a-fA-F]+|\d+", s)
-    assert m
-    return int(m[0], 16) if m[1] else int(m[0])
+def to_upper_camel_case(s: str) -> str:
+    s = s.lower()
+    s = re.sub(r"^\w", lambda m: m[0].upper(), s)
+    s = re.sub(r"_(\w)", lambda m: m[1].upper(), s)
+    s = re.sub(r"_", "", s)
+    return s
 
 
 def assert_with(cond: bool, err: Exception) -> None:
@@ -86,13 +94,6 @@ def any_of(vals: Iterable[T], pred: Callable[[T], bool]) -> bool:
         if pred(val):
             return True
     return False
-
-
-def to_camel_case(s: str) -> str:
-    s = s.lower()
-    s = re.sub(r"^\w", lambda m: m[0].upper(), s)
-    s = re.sub(r"_(\w)", lambda m: m[1].upper(), s)
-    return s
 
 
 @overload
@@ -721,7 +722,7 @@ class Lexer(Iterable[IToken]):
     @staticmethod
     def token_ctor(name: str) -> \
             Callable[[Union[str, int, float], Position], IToken]:
-        ctor_name = to_camel_case(name) + "Tok"
+        ctor_name = to_upper_camel_case(name) + "Tok"
         return globals()[ctor_name]
 
     @classmethod
@@ -1851,7 +1852,7 @@ class ScopedSymbolTable:
 
 class INodeVisitor(ABC):
     def _gen_visit_method_name(self, node: IAST) -> str:
-        method_name = '_visit_' + to_snake_case(type(node).__name__)
+        method_name = '_visit_' + to_lower_snake_case(type(node).__name__)
         return method_name.lower()
 
     def visit(self, node: IAST) -> Union[int, float, bool, None]:
