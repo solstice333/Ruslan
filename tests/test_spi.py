@@ -925,6 +925,12 @@ class InterpreterTestCase(unittest.TestCase):
             exc.message
         )
 
+    def test_expr_stress(self):
+        ast = make_prog_ast_from_file("expr_stress.pas")
+        self.interpreter.interpret(ast)
+        mem = self.interpreter.GLOBAL_SCOPE
+        self.assertEqual({'res': -8}, mem)
+
 
 class SemanticAnalyzerTestCase(unittest.TestCase):
     def _get_scopes_from_str(self, s):
