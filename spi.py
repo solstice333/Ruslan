@@ -99,7 +99,8 @@ def to_camel_case(s: str) -> str:
 def cast(
         ty: typing.Type[T],
         val: Any,
-        exc: Optional[Exception]=None
+        exc_fn: Optional[
+            Callable[[Iterable[typing.Type], Any, str], Exception]] = None
 ) -> T:
     pass
 
@@ -108,7 +109,8 @@ def cast(
 def cast(
         ty: Iterable[typing.Type],
         val: Any,
-        exc: Optional[Exception]=None
+        exc_fn: Optional[
+            Callable[[Iterable[typing.Type], Any, str], Exception]] = None
 ) -> Any:
     pass
 
@@ -117,21 +119,25 @@ def cast(
 def cast(
         ty: None,
         val: Any,
-        exc: Optional[Exception]=None
+        exc_fn: Optional[
+            Callable[[Iterable[typing.Type], Any, str], Exception]] = None
 ) -> None:
     pass
 
 
-def cast(ty, val, exc=None):
+def cast(ty, val, exc_fn=None):
     ty = type(None) if ty is None else ty
     tys = ty if isinstance(ty, Iterable) else [ty]
     cond = any_of(tys, lambda ty2: isinstance(val, ty2))
+    default_error_msg = \
+        f"val is type {type(val).__name__} which is " \
+        f"not a subtype of any of {[ty.__name__ for ty in tys]}"
 
-    if exc:
-        assert_with(cond, exc)
+    if exc_fn is not None:
+        assert callable(exc_fn)
+        assert_with(cond, exc_fn(tys, val, default_error_msg))
     else:
-        assert cond, \
-            f"val is type {type(val)} which is not a subtype of any of {tys}"
+        assert cond, default_error_msg
     return val
 
 
@@ -2765,43 +2771,160 @@ class Interpreter(INodeVisitor):
         self.GLOBAL_SCOPE: Dict[str, Union[int, float, bool]] = {}
 
     def _visit_pos(self, node: Pos) -> Union[int, float]:
-        return +cast([int, float], self.visit(node.right))
+        return +cast(
+            [int, float],
+            self.visit(node.right),
+            lambda ty, val, msg: InterpreterError(
+                error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                token=node.token,
+                appended_message=msg
+            )
+        )
 
     def _visit_neg(self, node: Neg) -> Union[int, float]:
-        return -cast([int, float], self.visit(node.right))
+        return -cast(
+            [int, float],
+            self.visit(node.right),
+            lambda ty, val, msg: InterpreterError(
+                error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                token=node.token,
+                appended_message=msg
+            )
+        )
 
     def _visit_logical_not(
             self, node: LogicalNot) -> Union[int, float, bool, None]:
-        return not cast([int, float, bool], self.visit(node.right))
+        return not cast(
+            [int, float, bool],
+            self.visit(node.right),
+            lambda ty, val, msg: InterpreterError(
+                error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                token=node.token,
+                appended_message=msg
+            )
+        )
 
     def _visit_bitwise_not(
             self, node: BitwiseNot) -> Union[int, float, bool, None]:
-        return ~cast([int, bool], self.visit(node.right))
+        return ~cast(
+            [int, bool],
+            self.visit(node.right),
+            lambda ty, val, msg: InterpreterError(
+                error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                token=node.token,
+                appended_message=msg
+            )
+        )
 
     def _visit_add(self, node: Add) -> Union[int, float]:
         return \
-            cast([int, float], self.visit(node.left)) + \
-            cast([int, float], self.visit(node.right))
+            cast(
+                [int, float],
+                self.visit(node.left),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            ) \
+            + \
+            cast(
+                [int, float],
+                self.visit(node.right),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            )
 
     def _visit_sub(self, node: Sub) -> Union[int, float]:
         return \
-            cast([int, float], self.visit(node.left)) - \
-            cast([int, float], self.visit(node.right))
+            cast(
+                [int, float],
+                self.visit(node.left),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            ) \
+            - \
+            cast(
+                [int, float],
+                self.visit(node.right),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            )
 
     def _visit_mul(self, node: Mul) -> Union[int, float]:
         return \
-            cast([int, float], self.visit(node.left)) * \
-            cast([int, float], self.visit(node.right))
+            cast(
+                [int, float],
+                self.visit(node.left),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            ) \
+            * \
+            cast(
+                [int, float],
+                self.visit(node.right),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            )
 
     def _visit_int_div(self, node: IntDiv) -> int:
         return \
-            cast([int, float], self.visit(node.left)) // \
-            cast([int, float], self.visit(node.right))
+            cast(
+                [int, float],
+                self.visit(node.left),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            ) \
+            // \
+            cast(
+                [int, float],
+                self.visit(node.right),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            )
 
     def _visit_float_div(self, node: FloatDiv) -> float:
         return \
-            cast([int, float], self.visit(node.left)) / \
-            cast([int, float], self.visit(node.right))
+            cast(
+                [int, float],
+                self.visit(node.left),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            ) \
+            / \
+            cast(
+                [int, float],
+                self.visit(node.right),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            )
 
     def _visit_logical_and(self, node: LogicalAnd) -> bool:
         return bool(self.visit(node.left) and self.visit(node.right))
@@ -2810,53 +2933,265 @@ class Interpreter(INodeVisitor):
         return bool(self.visit(node.left) or self.visit(node.right))
 
     def _visit_bitwise_or(self, node: BitwiseOr) -> int:
-        return cast(int, self.visit(node.left)) | \
-               cast(int, self.visit(node.right))
+        return \
+            cast(
+                int,
+                self.visit(node.left),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            ) \
+            | \
+            cast(
+                int,
+                self.visit(node.right),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            )
 
     def _visit_bitwise_xor(self, node: BitwiseXor) -> int:
-        return cast(int, self.visit(node.left)) ^ \
-               cast(int, self.visit(node.right))
+        return \
+            cast(
+                int,
+                self.visit(node.left),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            ) \
+            ^ \
+            cast(
+                int,
+                self.visit(node.right),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            )
 
     def _visit_bitwise_and(self, node: BitwiseAnd) -> int:
-        return cast(int, self.visit(node.left)) & \
-               cast(int, self.visit(node.right))
+        return \
+            cast(
+                int,
+                self.visit(node.left),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            ) \
+            & \
+            cast(
+                int,
+                self.visit(node.right),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            )
 
     def _visit_modulus(self, node: Modulus) -> int:
-        int1 = cast(int, self.visit(node.left))
-        int2 = cast(int, self.visit(node.right))
+        int1 = cast(
+            int,
+            self.visit(node.left),
+            lambda ty, val, msg: InterpreterError(
+                error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                token=node.token,
+                appended_message=msg
+            )
+        )
+        int2 = cast(
+            int,
+            self.visit(node.right),
+            lambda ty, val, msg: InterpreterError(
+                error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                token=node.token,
+                appended_message=msg
+            )
+        )
         return int(Decimal(int1) % Decimal(int2))
 
     def _visit_equal(self, node: Equal) -> bool:
-        return cast([int, float, bool], self.visit(node.left)) == \
-               cast([int, float, bool], self.visit(node.right))
+        return \
+            cast(
+                [int, float, bool],
+                self.visit(node.left),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            ) \
+            == \
+            cast(
+                [int, float, bool],
+                self.visit(node.right),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            )
 
     def _visit_not_equal(self, node: NotEqual) -> bool:
-        return cast([int, float, bool], self.visit(node.left)) != \
-               cast([int, float, bool], self.visit(node.right))
+        return \
+            cast(
+                [int, float, bool],
+                self.visit(node.left),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            ) \
+            != \
+            cast(
+                [int, float, bool],
+                self.visit(node.right),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            )
 
     def _visit_greater(self, node: Greater) -> bool:
-        return cast([int, float], self.visit(node.left)) > \
-               cast([int, float], self.visit(node.right))
+        return \
+            cast(
+                [int, float],
+                self.visit(node.left),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            ) \
+            > \
+            cast(
+                [int, float],
+                self.visit(node.right),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            )
 
     def _visit_greater_equal(self, node: GreaterEqual) -> bool:
-        return cast([int, float], self.visit(node.left)) >= \
-               cast([int, float], self.visit(node.right))
+        return \
+            cast(
+                [int, float],
+                self.visit(node.left),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            ) \
+            >= \
+            cast(
+                [int, float],
+                self.visit(node.right),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            )
 
     def _visit_less(self, node: Less) -> bool:
-        return cast([int, float], self.visit(node.left)) < \
-               cast([int, float], self.visit(node.right))
+        return \
+            cast(
+                [int, float],
+                self.visit(node.left),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            ) \
+            < \
+            cast(
+                [int, float],
+                self.visit(node.right),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            )
 
     def _visit_less_equal(self, node: LessEqual) -> bool:
-        return cast([int, float], self.visit(node.left)) <= \
-               cast([int, float], self.visit(node.right))
+        return \
+            cast(
+                [int, float], self.visit(node.left),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            ) \
+            <= \
+            cast(
+                [int, float], self.visit(node.right),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            )
 
     def _visit_left_shift(self, node: LeftShift) -> int:
-        return cast(int, self.visit(node.left)) << \
-               cast(int, self.visit(node.right))
+        return \
+            cast(
+                int,
+                self.visit(node.left),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            ) \
+            << \
+            cast(
+                int,
+                self.visit(node.right),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            )
 
     def _visit_right_shift(self, node: RightShift) -> int:
-        return cast(int, self.visit(node.left)) >> \
-               cast(int, self.visit(node.right))
+        return \
+            cast(
+                int,
+                self.visit(node.left),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            ) \
+            >> \
+            cast(
+                int,
+                self.visit(node.right),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
+            )
 
     def _visit_num(self, node: Num) -> Union[int, float]:
         return node.value
@@ -2875,7 +3210,12 @@ class Interpreter(INodeVisitor):
         self.GLOBAL_SCOPE[node.left.value] = \
             cast(
                 [int, float, bool],
-                self.visit(node.right)
+                self.visit(node.right),
+                lambda ty, val, msg: InterpreterError(
+                    error_code=ErrorCode.UNEXPECTED_OPERAND_TYPE,
+                    token=node.token,
+                    appended_message=msg
+                )
             )
 
     def _visit_var(self, node: Var) -> Union[int, float, bool]:

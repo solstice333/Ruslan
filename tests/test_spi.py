@@ -912,6 +912,19 @@ class InterpreterTestCase(unittest.TestCase):
                           'res5': 3,
                           'res6': -3}, mem)
 
+    def test_bad_operand(self):
+        ast = make_prog_ast_from_file("bad_operand.pas")
+        with self.assertRaises(InterpreterError) as e:
+            self.interpreter.interpret(ast)
+        exc = e.exception
+        self.assertEqual(
+            "InterpreterError: Unexpected operand type -> "
+            "BitwiseNotTok(~, Position(line=6, col=10)). val is "
+            "type float which is not a subtype of any of "
+            "['int', 'bool']",
+            exc.message
+        )
+
 
 class SemanticAnalyzerTestCase(unittest.TestCase):
     def _get_scopes_from_str(self, s):
