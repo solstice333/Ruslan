@@ -2830,6 +2830,7 @@ class Frame(MutableMapping[str, Union[int, float, bool]]):
         return flattened_str(str(self))
 
 
+# TODO: implement this to use anytree so that we can track history
 class RuntimeStack:
     def __init__(self, frames: Optional[Iterable[Frame]] = None) -> None:
         self._frames: List[Frame] = list(frames) if frames else []
@@ -2892,7 +2893,11 @@ class RuntimeStack:
 
 class Interpreter(INodeVisitor):
     def __init__(self):
-        self.GLOBAL_SCOPE: Dict[str, Union[int, float, bool]] = {}
+        self.rts: RuntimeStack = RuntimeStack()
+
+        # TODO: eventually prune self.global_frame once RuntimeStack
+        #  is an immutable data structure
+        self.global_frame: Optional[Frame] = None
 
     def _visit_pos(self, node: Pos) -> Union[int, float]:
         return +cast(
@@ -3331,7 +3336,7 @@ class Interpreter(INodeVisitor):
         pass
 
     def _visit_assign(self, node: Assign) -> None:
-        self.GLOBAL_SCOPE[node.left.value] = \
+        self.rts.peek()[node.left.value] = \
             cast(
                 [int, float, bool],
                 self.visit(node.right),
@@ -3344,12 +3349,18 @@ class Interpreter(INodeVisitor):
 
     def _visit_var(self, node: Var) -> Union[int, float, bool]:
         name = node.value
-        val = self.GLOBAL_SCOPE.get(name.lower())
+        val = self.rts.peek().get(name.lower())
         assert val is not None
         return val
 
     def _visit_program(self, node: Program) -> None:
+        logging.info(f"ENTER: PROGRAM {node.name}")
+        self.rts.emplace_frame(name=node.name)
+        logging.info(self.rts)
         self.visit(node.block)
+        logging.info(f"LEAVE: PROGRAM {node.name}")
+        logging.info(self.rts)
+        self.global_frame = self.rts.pop()
 
     def _visit_block(self, node: Block) -> None:
         for ast in node.kids:
@@ -3376,10 +3387,13 @@ class Interpreter(INodeVisitor):
         else:
             self.visit(node.else_blk)
 
+    def interpret_compound(self, ast: Compound) -> None:
+        self.rts.emplace_frame("compound")
+        self.visit(ast)
+        self.global_frame = self.rts.pop()
+
     def interpret(self, ast: IAST) -> Union[int, float, None]:
-        val = self.visit(ast)
-        logging.info(f"global runtime memory: {self.GLOBAL_SCOPE}")
-        return val
+        return self.visit(ast)
 
 
 def main() -> None:
