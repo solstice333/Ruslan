@@ -1414,6 +1414,96 @@ class DecoSrcBuilderTestCase(unittest.TestCase):
         self.assertEqual(actual, expect)
 
 
+class FrameTest(unittest.TestCase):
+    def test_frame(self):
+        f = Frame("main", FrameType.PROGRAM, 1)
+        f["foo"] = 1
+        f["bar"] = 2
+
+        self.assertEqual(f["foo"], 1)
+        self.assertEqual(f["bar"], 2)
+
+        with self.assertRaises(KeyError):
+            f["baz"]
+
+        self.assertEqual(f.get("baz"), None)
+
+        self.assertEqual(f.name, "main")
+        self.assertEqual(f.nesting_lv, 1)
+
+        self.assertEqual(
+            'Frame(\n  name: main,\n  ty: FrameType.PROGRAM,\n  '
+            'nesting_lv: 1,\n  members: {\n    foo: 1,\n    '
+            'bar: 2\n  }\n)',
+            str(f)
+        )
+
+        self.assertEqual(
+            'Frame(name: main, ty: FrameType.PROGRAM, '
+            'nesting_lv: 1, members: {foo: 1, bar: 2})',
+            repr(f)
+        )
+
+    def test_frame_ctor(self):
+        f = Frame("main", FrameType.PROGRAM, 1, {"foo": 1, "bar": 2})
+        self.assertEqual(f["foo"], 1)
+        self.assertEqual(f["bar"], 2)
+
+
+class RuntimeStackTest(unittest.TestCase):
+    def test_callstack(self):
+        main_frame = Frame("main", FrameType.PROGRAM, 1)
+        main_frame["foo"] = 1
+        main_frame["bar"] = 2
+        func_frame = Frame("func", FrameType.PROCEDURE, 2)
+        func_frame["foo"] = 100
+        func_frame["baz"] = 3
+        stack = RuntimeStack()
+        stack.push(main_frame)
+        stack.push(func_frame)
+        self.assertEqual(
+            'RuntimeStack(\n  frames: [\n    Frame(\n      '
+            'name: func,\n      ty: FrameType.PROCEDURE,\n      '
+            'nesting_lv: 2,\n      members: {\n        '
+            'foo: 100,\n        baz: 3\n      }\n    ),\n    '
+            'Frame(\n      name: main,\n      ty: FrameType.PROGRAM,'
+            '\n      nesting_lv: 1,\n      members: {\n        '
+            'foo: 1,\n        bar: 2\n      }\n    )\n  ]\n)',
+            str(stack)
+        )
+        self.assertEqual(
+            'RuntimeStack(frames: [Frame(name: func, '
+            'ty: FrameType.PROCEDURE, nesting_lv: 2, '
+            'members: {foo: 100, baz: 3}), '
+            'Frame(name: main, ty: FrameType.PROGRAM, '
+            'nesting_lv: 1, members: {foo: 1, bar: 2})])',
+            repr(stack)
+        )
+
+    def test_callstack_2(self):
+        stack = RuntimeStack()
+        stack.push(Frame("main", FrameType.PROGRAM, 1, {"foo": 1}))
+        stack.push(Frame("foo", FrameType.PROCEDURE, 2, {"foo": 100}))
+        self.assertEqual(stack.peek()["foo"], 100)
+        self.assertEqual(stack.pop()["foo"], 100)
+        self.assertEqual(stack.peek()["foo"], 1)
+        self.assertEqual(stack.pop()["foo"], 1)
+        with self.assertRaises(IndexError):
+            stack.pop()
+
+    def test_callstack_emplace(self):
+        stack = RuntimeStack()
+        stack.emplace_frame(name="main", members={"foo": 1})
+        stack.emplace_frame("foo", {"foo": 2})
+        self.assertEqual(
+            'RuntimeStack(frames: [Frame(name: foo, '
+            'ty: FrameType.PROCEDURE, nesting_lv: 2, '
+            'members: {foo: 2}), Frame(name: main, '
+            'ty: FrameType.PROGRAM, nesting_lv: 1, members: {foo: 1})])',
+            repr(stack)
+        )
+
+
 class MypyTest(unittest.TestCase):
     def test_typing(self):
         proc = subprocess.run(

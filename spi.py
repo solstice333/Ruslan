@@ -12,6 +12,7 @@ from typing import \
     Tuple, \
     Dict, \
     Mapping, \
+    MutableMapping, \
     NamedTuple, \
     Iterator, \
     Iterable
@@ -19,6 +20,7 @@ from types import TracebackType
 from abc import ABC, abstractmethod
 from anytree import NodeMixin  # type:ignore
 from decimal import Decimal
+from io import StringIO
 
 import re
 import argparse
@@ -140,6 +142,12 @@ def cast(ty, val, exc_fn=None):
     else:
         assert cond, default_error_msg
     return val
+
+
+def flattened_str(s: str):
+    s = re.sub(r"\n", "", s)
+    s = re.sub(r"(?<!:|,)\s+", "", s)
+    return s
 
 
 def setup_logging(verbose: bool) -> None:
@@ -2765,6 +2773,121 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
         self.current_scope = self.current_scope.encl_scope
         logging.info(f"LEAVE scope {scope.name}")
         self._closed = True
+
+
+class FrameType(Enum):
+    PROGRAM = 'PROGRAM'
+    PROCEDURE = 'PROCEDURE'
+
+
+class Frame(MutableMapping[str, Union[int, float, bool]]):
+    def __init__(
+            self,
+            name: str,
+            ty: FrameType,
+            nesting_lv: int,
+            members: Optional[Mapping[str, Union[int, float, bool]]] = None
+    ) -> None:
+        self.name: str = name
+        self.ty: FrameType = ty
+        assert nesting_lv >= 0
+        self.nesting_lv: int = nesting_lv
+        self._members: Dict[str, Union[int, float, bool]] = \
+            dict(members) if members else {}
+
+    def __getitem__(self, name) -> Union[int, float, bool]:
+        return self._members[name]
+
+    def __setitem__(self, name, value) -> None:
+        self._members[name] = value
+
+    def __delitem__(self, name) -> None:
+        del self._members[name]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._members)
+
+    def __len__(self) -> int:
+        return len(self._members)
+
+    def __str__(self) -> str:
+        buf = StringIO()
+        print(f"{type(self).__name__}(", file=buf)
+        print(f"  name: {self.name},", file=buf)
+        print(f"  ty: {self.ty},", file=buf)
+        print(f"  nesting_lv: {self.nesting_lv},", file=buf)
+        print("  members: {", file=buf)
+        for i, (k, v) in enumerate(self._members.items()):
+            entry = f"    {k}: {v}"
+            if i != len(self._members) - 1:
+                entry += ","
+            print(entry, file=buf)
+        print("  }", file=buf)
+        print(")", end="", file=buf)
+        return buf.getvalue()
+
+    def __repr__(self) -> str:
+        return flattened_str(str(self))
+
+
+class RuntimeStack:
+    def __init__(self, frames: Optional[Iterable[Frame]] = None) -> None:
+        self._frames: List[Frame] = list(frames) if frames else []
+
+    def _assert_new_frame(self, frame) -> None:
+        assert frame.nesting_lv == self.next_level()
+        if len(self._frames) > 0:
+            assert frame.ty == FrameType.PROCEDURE
+        else:
+            assert frame.ty == FrameType.PROGRAM
+
+    def next_frame_type(self) -> FrameType:
+        return FrameType.PROGRAM \
+            if len(self._frames) == 0 \
+            else FrameType.PROCEDURE
+
+    def next_level(self) -> int:
+        return 1 if len(self._frames) == 0 else self.peek().nesting_lv + 1
+
+    def emplace_frame(
+            self,
+            name: str,
+            members: Optional[Mapping[str, Union[int, float, bool]]] = None
+    ) -> None:
+        self.push(
+            Frame(
+                name=name,
+                ty=self.next_frame_type(),
+                nesting_lv=self.next_level(),
+                members=members
+            )
+        )
+
+    def push(self, frame: Frame) -> None:
+        self._assert_new_frame(frame)
+        self._frames.append(frame)
+
+    def pop(self) -> Frame:
+        return self._frames.pop()
+
+    def peek(self) -> Frame:
+        return self._frames[-1]
+
+    def __str__(self) -> str:
+        buf = StringIO()
+        print(f"{type(self).__name__}(", file=buf)
+        print("  frames: [", file=buf)
+        for i, frame in enumerate(reversed(self._frames)):
+            frame_s = re.sub(r"^|\n", r"\g<0>    ", str(frame))
+            if i != len(self._frames) - 1:
+                frame_s += ","
+            print(frame_s, file=buf)
+        print("  ]", file=buf)
+        print(")", file=buf, end="")
+        return buf.getvalue()
+
+    def __repr__(self) -> str:
+        return flattened_str(str(self))
 
 
 class Interpreter(INodeVisitor):
