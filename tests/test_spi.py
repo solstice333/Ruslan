@@ -1503,6 +1503,30 @@ class RuntimeStackTest(unittest.TestCase):
             repr(stack)
         )
 
+    def test_callstack_broken_invariant(self):
+        stack = RuntimeStack()
+
+        f = Frame("main", FrameType.PROCEDURE, 1)
+        with self.assertRaises(AssertionError):
+            stack.push(f)
+
+        with self.assertRaises(AssertionError):
+            Frame("main", FrameType.PROGRAM, -1)
+
+        f = Frame("main", FrameType.PROGRAM, 2)
+        with self.assertRaises(AssertionError):
+            stack.push(f)
+
+        stack.push(Frame("main", FrameType.PROGRAM, 1))
+
+        f = Frame("main", FrameType.PROCEDURE, 3)
+        with self.assertRaises(AssertionError):
+            stack.push(f)
+
+        f = Frame("main", FrameType.PROGRAM, 2)
+        with self.assertRaises(AssertionError):
+            stack.push(f)
+
 
 class MypyTest(unittest.TestCase):
     def test_typing(self):
