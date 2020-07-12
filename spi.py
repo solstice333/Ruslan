@@ -2830,10 +2830,14 @@ class Frame(MutableMapping[str, Union[int, float, bool]]):
         return flattened_str(str(self))
 
 
-# TODO: implement this to use anytree so that we can track history
 class RuntimeStack:
-    def __init__(self, frames: Optional[Iterable[Frame]] = None) -> None:
-        self._frames: List[Frame] = list(frames) if frames else []
+    def __init__(
+            self,
+            frames: Optional[Iterable[Frame]] = None,
+            free_frames=False
+    ) -> None:
+        self._frames: List[Frame] = [] if frames is None else list(frames)
+        self._free_frames: Optional[List[Frame]] = [] if free_frames else None
 
     def _assert_new_frame(self, frame) -> None:
         assert frame.nesting_lv == self.next_level()
@@ -2869,7 +2873,10 @@ class RuntimeStack:
         self._frames.append(frame)
 
     def pop(self) -> Frame:
-        return self._frames.pop()
+        freed = self._frames.pop()
+        if self._free_frames is not None:
+            self._free_frames.append(freed)
+        return freed
 
     def peek(self) -> Frame:
         return self._frames[-1]
@@ -2892,12 +2899,8 @@ class RuntimeStack:
 
 
 class Interpreter(INodeVisitor):
-    def __init__(self):
-        self.rts: RuntimeStack = RuntimeStack()
-
-        # TODO: eventually prune self.global_frame once RuntimeStack
-        #  is an immutable data structure
-        self.global_frame: Optional[Frame] = None
+    def __init__(self, free_frames=False):
+        self.rts: RuntimeStack = RuntimeStack(free_frames=free_frames)
 
     def _visit_pos(self, node: Pos) -> Union[int, float]:
         return +cast(
@@ -3360,7 +3363,7 @@ class Interpreter(INodeVisitor):
         self.visit(node.block)
         logging.info(f"LEAVE: PROGRAM {node.name}")
         logging.info(self.rts)
-        self.global_frame = self.rts.pop()
+        self.rts.pop()
 
     def _visit_block(self, node: Block) -> None:
         for ast in node.kids:
@@ -3390,7 +3393,7 @@ class Interpreter(INodeVisitor):
     def interpret_compound(self, ast: Compound) -> None:
         self.rts.emplace_frame("compound")
         self.visit(ast)
-        self.global_frame = self.rts.pop()
+        self.rts.pop()
 
     def interpret(self, ast: IAST) -> Union[int, float, None]:
         return self.visit(ast)

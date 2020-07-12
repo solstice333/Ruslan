@@ -704,7 +704,7 @@ class ParserTestCase(unittest.TestCase):
 
 class InterpreterTestCase(unittest.TestCase):
     def setUp(self):
-        self.interpreter = Interpreter()
+        self.interpreter = Interpreter(free_frames=True)
 
     def make_compound_ast(self, txt):
         p = make_parser(txt)
@@ -786,15 +786,16 @@ class InterpreterTestCase(unittest.TestCase):
     def test_expression_compound(self):
         ast = make_compound_ast_from_file("foo.pas")
         self.interpreter.interpret_compound(ast)
+        mem = self.interpreter.rts._free_frames[-1]
         self.assertEqual(
-            self.interpreter.global_frame._members,
             {
                 'number': 2,
                 '_a': 2,
                 'b': 25,
                 'c': 27,
                 'x': 11
-            }
+            },
+            mem
         )
 
     def test_part10_program(self):
@@ -803,43 +804,43 @@ class InterpreterTestCase(unittest.TestCase):
 
         ast = make_prog_ast(txt)
         self.interpreter.interpret(ast)
-        self.assertEqual(len(self.interpreter.global_frame._members), 3)
-        self.assertEqual(self.interpreter.global_frame._members['a'], 2)
-        self.assertEqual(self.interpreter.global_frame._members['b'], 25)
+        self.assertEqual(len(self.interpreter.rts._free_frames[-1]), 3)
+        self.assertEqual(self.interpreter.rts._free_frames[-1]['a'], 2)
+        self.assertEqual(self.interpreter.rts._free_frames[-1]['b'], 25)
 
         self.assertTrue(
-            Float(self.interpreter.global_frame._members['y']).eq(0.01,
+            Float(self.interpreter.rts._free_frames[-1]['y']).eq(0.01,
                                                                   Float(5.99))
         )
 
     def test_part12_program(self):
         ast = make_prog_ast_from_file("part12.pas")
         self.interpreter.interpret(ast)
-        self.assertEqual(len(self.interpreter.global_frame._members), 1)
-        self.assertEqual(self.interpreter.global_frame._members['a'], 10)
+        self.assertEqual(len(self.interpreter.rts._free_frames[-1]), 1)
+        self.assertEqual(self.interpreter.rts._free_frames[-1]['a'], 10)
 
     def test_bool_expr(self):
         ast = make_prog_ast_from_file("bool_test2.pas")
         self.interpreter.interpret(ast)
-        self.assertEqual(len(self.interpreter.global_frame._members), 5)
-        self.assertEqual(self.interpreter.global_frame._members['foo'], True)
-        self.assertEqual(self.interpreter.global_frame._members['res'], True)
-        self.assertEqual(self.interpreter.global_frame._members['res2'], True)
-        self.assertEqual(self.interpreter.global_frame._members['res3'], False)
-        self.assertEqual(self.interpreter.global_frame._members['res4'], True)
+        self.assertEqual(len(self.interpreter.rts._free_frames[-1]), 5)
+        self.assertEqual(self.interpreter.rts._free_frames[-1]['foo'], True)
+        self.assertEqual(self.interpreter.rts._free_frames[-1]['res'], True)
+        self.assertEqual(self.interpreter.rts._free_frames[-1]['res2'], True)
+        self.assertEqual(self.interpreter.rts._free_frames[-1]['res3'], False)
+        self.assertEqual(self.interpreter.rts._free_frames[-1]['res4'], True)
 
     def test_cond(self):
         ast = make_prog_ast_from_file("cond_test.pas")
         self.interpreter.interpret(ast)
-        self.assertEqual(5, len(self.interpreter.global_frame._members))
-        self.assertEqual(7, self.interpreter.global_frame._members['foo_res'])
-        self.assertEqual(24, self.interpreter.global_frame._members['foo_res2'])
-        self.assertEqual(1, self.interpreter.global_frame._members['foo_res3'])
+        self.assertEqual(5, len(self.interpreter.rts._free_frames[-1]))
+        self.assertEqual(7, self.interpreter.rts._free_frames[-1]['foo_res'])
+        self.assertEqual(24, self.interpreter.rts._free_frames[-1]['foo_res2'])
+        self.assertEqual(1, self.interpreter.rts._free_frames[-1]['foo_res3'])
 
     def test_bitwise_or(self):
         ast = make_prog_ast_from_file("bitwise_or.pas")
         self.interpreter.interpret(ast)
-        mem = self.interpreter.global_frame._members
+        mem = self.interpreter.rts._free_frames[-1]
         self.assertEqual({'bar': 1,
                           'baz': 3,
                           'foo': 5,
@@ -848,26 +849,26 @@ class InterpreterTestCase(unittest.TestCase):
     def test_bitwise_xor(self):
         ast = make_prog_ast_from_file("bitwise_xor.pas")
         self.interpreter.interpret(ast)
-        mem = self.interpreter.global_frame._members
+        mem = self.interpreter.rts._free_frames[-1]
         self.assertEqual({'res': 11}, mem)
 
     def test_bitwise_and(self):
         ast = make_prog_ast_from_file("bitwise_and.pas")
         self.interpreter.interpret(ast)
-        mem = self.interpreter.global_frame._members
+        mem = self.interpreter.rts._free_frames[-1]
         self.assertEqual({'res': 5}, mem)
 
     def test_equal_not_equal(self):
         ast = make_prog_ast_from_file("equal_not_equal.pas")
         self.interpreter.interpret(ast)
-        mem = self.interpreter.global_frame._members
+        mem = self.interpreter.rts._free_frames[-1]
         self.assertEqual({'res': 2, 'res2': 2}, mem)
 
     def test_greater_greater_equal_less_less_equal(self):
         ast = make_prog_ast_from_file(
             "greater_greater_equal_less_less_equal.pas")
         self.interpreter.interpret(ast)
-        mem = self.interpreter.global_frame._members
+        mem = self.interpreter.rts._free_frames[-1]
         self.assertEqual({'res': False,
                           'res10': 3,
                           'res11': False,
@@ -888,7 +889,7 @@ class InterpreterTestCase(unittest.TestCase):
     def test_left_right_shift(self):
         ast = make_prog_ast_from_file("left_right_shift.pas")
         self.interpreter.interpret(ast)
-        mem = self.interpreter.global_frame._members
+        mem = self.interpreter.rts._free_frames[-1]
         self.assertEqual({'res': 16,
                           'res2': 1,
                           'res3': 4,
@@ -897,14 +898,14 @@ class InterpreterTestCase(unittest.TestCase):
     def test_modulus(self):
         ast = make_prog_ast_from_file("modulus.pas")
         self.interpreter.interpret(ast)
-        mem = self.interpreter.global_frame._members
+        mem = self.interpreter.rts._free_frames[-1]
         self.assertEqual({'res': 4,
                           'res2': 3}, mem)
 
     def test_logical_not(self):
         ast = make_prog_ast_from_file("logical_not.pas")
         self.interpreter.interpret(ast)
-        mem = self.interpreter.global_frame._members
+        mem = self.interpreter.rts._free_frames[-1]
         self.assertEqual({'res': 4,
                           'res2': False,
                           'res3': True,
@@ -913,7 +914,7 @@ class InterpreterTestCase(unittest.TestCase):
     def test_bitwise_not(self):
         ast = make_prog_ast_from_file("bitwise_not.pas")
         self.interpreter.interpret(ast)
-        mem = self.interpreter.global_frame._members
+        mem = self.interpreter.rts._free_frames[-1]
         self.assertEqual({'res': 6,
                           'res2': -8,
                           'res3': -1,
@@ -937,7 +938,7 @@ class InterpreterTestCase(unittest.TestCase):
     def test_expr_stress(self):
         ast = make_prog_ast_from_file("expr_stress.pas")
         self.interpreter.interpret(ast)
-        mem = self.interpreter.global_frame._members
+        mem = self.interpreter.rts._free_frames[-1]
         self.assertEqual({'res': -8}, mem)
 
 
