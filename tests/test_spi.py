@@ -75,39 +75,67 @@ class Float:
         return abs(self.val - other.val) < eps
 
 
-class LoggingToStrBuf():
-    _initd: bool = False
-    _sb = io.StringIO()
-    _sh = logging.StreamHandler(_sb)
+class StringBuffers(NamedTuple):
+    scope: io.StringIO
+    stack: io.StringIO
+
+
+class StringBufferLogger():
+    DEFAULT_FORMATTER = logging.Formatter()
+
+    def __init__(self, name):
+        self._name = name
+        self._logger = getLogger(self._name)
+        self._sbuf = None
+        self._handler = None
+
+    @property
+    def sbuf(self):
+        return self._sbuf
+
+    def reset_sbuf(self):
+        if self._handler is not None:
+            self._logger.removeHandler(self._handler)
+        self._sbuf = io.StringIO()
+        self._handler = logging.StreamHandler(self._sbuf)
+        self._handler.setFormatter(type(self).DEFAULT_FORMATTER)
+        self._logger.addHandler(self._handler)
+
+
+class StringBufferLoggers():
+    _initd = False
+    _scope = None
+    _stack = None
 
     @classmethod
-    def _update_handler(cls):
-        root_logger = logging.getLogger()
-        root_logger.removeHandler(cls._sh)
-        cls._sb = io.StringIO()
-        cls._sh = logging.StreamHandler(cls._sb)
-        root_logger.addHandler(cls._sh)
+    def _reset_sbufs(cls):
+        cls._scope.reset_sbuf()
+        cls._stack.reset_sbuf()
 
     @classmethod
-    def basic_config(cls):
-        logging.basicConfig(
-            format="{message}",
-            style="{",
-            level=logging.INFO,
-            handlers=[cls._sh]
-        )
+    def config(cls):
+        logging.config.dictConfig({
+            "version": 1,
+            "loggers": {
+                "stack": {
+                    "level": logging.DEBUG
+                },
+                "scope": {
+                    "level": logging.DEBUG
+                }
+            }
+        })
+        cls._scope = StringBufferLogger("scope")
+        cls._stack = StringBufferLogger("stack")
         cls._initd = True
 
     def __enter__(self):
         cls = type(self)
         logging.disable(logging.NOTSET)
-
-        if cls._initd:
-            cls._update_handler()
-        else:
-            cls.basic_config()
-
-        return cls._sb
+        if not cls._initd:
+            cls.config()
+        cls._reset_sbufs()
+        return StringBuffers(scope=cls._scope.sbuf, stack=cls._stack.sbuf)
 
     def __exit__(self, exc_ty, exc_val, tb):
         logging.disable()
@@ -810,7 +838,7 @@ class InterpreterTestCase(unittest.TestCase):
 
         self.assertTrue(
             Float(self.interpreter.rts._free_frames[-1]['y']).eq(0.01,
-                                                                  Float(5.99))
+                                                                 Float(5.99))
         )
 
     def test_part12_program(self):
@@ -949,12 +977,12 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
     def test_builder(self):
         ast = make_prog_ast_from_file("part11.pas")
 
-        with LoggingToStrBuf() as sb:
+        with StringBufferLoggers() as sbs:
             with SemanticAnalyzer() as lyz:
                 lyz.visit(ast)
 
-        self.assertNotEqual(sb.getvalue(), "")
-        scopes = self._get_scopes_from_str(sb.getvalue())
+        self.assertNotEqual(sbs.scope.getvalue(), "")
+        scopes = self._get_scopes_from_str(sbs.scope.getvalue())
         self.assertEqual(len(scopes), 2)
         self.assertEqual(
             "(" + \
@@ -1011,11 +1039,11 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
     def test_builder_part12(self):
         ast = make_prog_ast_from_file("part12.pas")
 
-        with LoggingToStrBuf() as sb:
+        with StringBufferLoggers() as sbs:
             with SemanticAnalyzer() as lyz:
                 lyz.analyze(ast)
 
-        scopes = self._get_scopes_from_str(sb.getvalue())
+        scopes = self._get_scopes_from_str(sbs.scope.getvalue())
 
         self.assertEqual(len(scopes), 4)
         self.assertEqual(
@@ -1081,11 +1109,11 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
     def test_part14_decl_only_chained_scope(self):
         ast = make_prog_ast_from_file("part14_decl_only.pas")
 
-        with LoggingToStrBuf() as sb:
+        with StringBufferLoggers() as sbs:
             with SemanticAnalyzer() as lyz:
                 lyz.analyze(ast)
 
-        actual = to_list_of_lines(sb.getvalue())
+        actual = to_list_of_lines(sbs.scope.getvalue())
 
         expected = [
             "ENTER scope builtins",
@@ -1149,11 +1177,11 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         ast = make_prog_ast_from_file(
             "part14_decl_only_sibling_scopes.pas")
 
-        with LoggingToStrBuf() as sb:
+        with StringBufferLoggers() as sbs:
             with SemanticAnalyzer() as lyz:
                 lyz.analyze(ast)
 
-        scopes = self._get_scopes_from_str(sb.getvalue())
+        scopes = self._get_scopes_from_str(sbs.scope.getvalue())
 
         self.assertEqual(len(scopes), 4)
         self.assertEqual(
@@ -1208,11 +1236,11 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
     def test_part14_var_ref(self):
         ast = make_prog_ast_from_file("part14_var_ref.pas")
 
-        with LoggingToStrBuf() as sb:
+        with StringBufferLoggers() as sbs:
             with SemanticAnalyzer() as lyz:
                 lyz.analyze(ast)
 
-        actual = to_list_of_lines(sb.getvalue())
+        actual = to_list_of_lines(sbs.scope.getvalue())
 
         expect = [
             "ENTER scope builtins",
@@ -1566,12 +1594,11 @@ class Foo(unittest.TestCase):
 
         print()
 
-        with LoggingToStrBuf() as sb:
+        with StringBufferLoggers() as sbs:
             with SemanticAnalyzer() as lyz:
                 lyz.analyze(ast)
-        print(sb.getvalue())
+        print(sbs.scope.getvalue())
 
 
-LoggingToStrBuf.basic_config()
 if __name__ == '__main__':
     unittest.main()

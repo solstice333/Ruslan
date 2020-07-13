@@ -21,10 +21,12 @@ from abc import ABC, abstractmethod
 from anytree import NodeMixin  # type:ignore
 from decimal import Decimal
 from io import StringIO
+from logging import getLogger, Logger
 
 import re
 import argparse
 import logging
+import logging.config
 import typing
 
 T = TypeVar('T')
@@ -150,12 +152,36 @@ def flattened_str(s: str):
     return s
 
 
-def setup_logging(verbose: bool) -> None:
-    logging.disable(logging.NOTSET)
-    logging.basicConfig(format="{message}", style="{")
-    if verbose:
-        root_logger = logging.getLogger()
-        root_logger.setLevel(logging.INFO)
+def setup_logging(stack_verbose: bool, scope_verbose: bool) -> None:
+    def log_or_drop(verbose_flag: bool) -> int:
+        return logging.DEBUG if verbose_flag else logging.CRITICAL + 1
+
+    if stack_verbose or scope_verbose:
+        logging.disable(logging.NOTSET)
+        logging.config.dictConfig({
+            "version": 1,
+            "formatters": {
+                "brief": {}
+            },
+            "handlers": {
+                "console": {
+                    "class": "logging.StreamHandler",
+                    "formatter": "brief"
+                }
+            },
+            "loggers": {
+                "stack": {
+                    "level": log_or_drop(stack_verbose)
+                },
+                "scope": {
+                    "level": log_or_drop(scope_verbose)
+                }
+            },
+            "root": {
+                "level": logging.DEBUG,
+                "handlers": ["console"]
+            }
+        })
 
 
 class TokenTypeValue(NamedTuple):
@@ -1795,6 +1821,7 @@ class ScopedSymbolTable:
         self.name: str = name
         self.level: int = level
         self.encl_scope: Optional[ScopedSymbolTable] = encl_scope
+        self.logger: Logger = getLogger("scope")
 
     def __str__(self) -> str:
         encl_scope_name = self.encl_scope.name \
@@ -1836,7 +1863,7 @@ class ScopedSymbolTable:
         return len(self._symbols)
 
     def lookup_this_scope(self, name: str) -> Optional[Symbol]:
-        logging.info(f"Lookup: {name}. (Scope name: {self.name})")
+        self.logger.info(f"Lookup: {name}. (Scope name: {self.name})")
         return self._symbols.get(name.lower())
 
     def lookup(self, name: str) -> Optional[Symbol]:
@@ -1854,7 +1881,7 @@ class ScopedSymbolTable:
             return None
 
     def insert(self, sym: Symbol) -> None:
-        logging.info(f"Insert: {sym.name}")
+        self.logger.info(f"Insert: {sym.name}")
         self._symbols[sym.name.lower()] = sym
 
 
@@ -2485,12 +2512,13 @@ class DecoSrcBuilder(IDecoSrcBuilder):
 class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
     def __init__(self, s2s: bool = False):
         self.s2s: bool = s2s
+        self.logger = getLogger("scope")
         self._dsb: DecoSrcBuilder = DecoSrcBuilder()
         self._closed: bool = False
 
         self.current_scope: Optional[ScopedSymbolTable] = \
             ScopedSymbolTable("builtins", 0, None)
-        logging.info(f"ENTER scope {self.current_scope.name}")
+        self.logger.info(f"ENTER scope {self.current_scope.name}")
         self.current_scope.insert(BuiltinTypeSymbol("INTEGER"))
         self.current_scope.insert(BuiltinTypeSymbol("REAL"))
         self.current_scope.insert(BuiltinTypeSymbol("BOOLEAN"))
@@ -2648,7 +2676,7 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
         self.current_scope.insert(ProcSymbol(node.name))
 
         scope_name = "global"
-        logging.info(f"ENTER scope {scope_name}")
+        self.logger.info(f"ENTER scope {scope_name}")
         lv = self.current_scope.level + 1 if self.current_scope else 1
         global_scope = ScopedSymbolTable(scope_name, lv, self.current_scope)
         self.current_scope = global_scope
@@ -2656,9 +2684,9 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
         self._build_in_visit(node)
         self.visit(node.block)
 
-        logging.info(global_scope)
+        self.logger.info(global_scope)
         self.current_scope = self.current_scope.encl_scope
-        logging.info(f"LEAVE scope {global_scope.name}")
+        self.logger.info(f"LEAVE scope {global_scope.name}")
 
     def _visit_block(self, node: Block) -> None:
         for n in node.kids:
@@ -2692,7 +2720,7 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
         self.safe_current_scope.insert(proc_symbol)
 
         scope_name = proc_name
-        logging.info(f"ENTER scope {scope_name}")
+        self.logger.info(f"ENTER scope {scope_name}")
         proc_scope = ScopedSymbolTable(
             scope_name, self.safe_current_scope.level + 1, self.current_scope)
         self.current_scope = proc_scope
@@ -2718,9 +2746,9 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
 
         self.visit(node.block_node)
 
-        logging.info(proc_scope)
+        self.logger.info(proc_scope)
         self.current_scope = self.current_scope.encl_scope
-        logging.info(f"LEAVE scope {proc_scope.name}")
+        self.logger.info(f"LEAVE scope {proc_scope.name}")
 
     def _visit_proc_call(self, node: ProcCall) -> None:
         if node.proc_name.lower() != 'writeln':
@@ -2768,10 +2796,10 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
         return self._dsb.value
 
     def close(self):
-        logging.info(self.current_scope)
+        self.logger.info(self.current_scope)
         scope = self.current_scope
         self.current_scope = self.current_scope.encl_scope
-        logging.info(f"LEAVE scope {scope.name}")
+        self.logger.info(f"LEAVE scope {scope.name}")
         self._closed = True
 
 
@@ -2901,6 +2929,7 @@ class RuntimeStack:
 class Interpreter(INodeVisitor):
     def __init__(self, free_frames=False):
         self.rts: RuntimeStack = RuntimeStack(free_frames=free_frames)
+        self.logger = getLogger("stack")
 
     def _visit_pos(self, node: Pos) -> Union[int, float]:
         return +cast(
@@ -3357,12 +3386,12 @@ class Interpreter(INodeVisitor):
         return val
 
     def _visit_program(self, node: Program) -> None:
-        logging.info(f"ENTER: PROGRAM {node.name}")
+        self.logger.info(f"ENTER: PROGRAM {node.name}")
         self.rts.emplace_frame(name=node.name)
-        logging.info(self.rts)
+        self.logger.info(self.rts)
         self.visit(node.block)
-        logging.info(f"LEAVE: PROGRAM {node.name}")
-        logging.info(self.rts)
+        self.logger.info(f"LEAVE: PROGRAM {node.name}")
+        self.logger.info(self.rts)
         self.rts.pop()
 
     def _visit_block(self, node: Block) -> None:
@@ -3402,9 +3431,19 @@ class Interpreter(INodeVisitor):
 def main() -> None:
     argparser = argparse.ArgumentParser(description="simple pascal interpreter")
     argparser.add_argument(
+        "--stack-verbose",
+        action="store_true",
+        help="verbose output related to runtime stack events"
+    )
+    argparser.add_argument(
+        "--scope-verbose",
+        action="store_true",
+        help="verbose output related to semantic analysis"
+    )
+    argparser.add_argument(
         "-v", "--verbose",
         action="store_true",
-        help="verbose debugging output"
+        help="enables all verbose flags (--stack-verbose, --scope-verbose)"
     )
     argparser.add_argument(
         "-s", "--src-to-src",
@@ -3414,7 +3453,14 @@ def main() -> None:
     argparser.add_argument("FILE", help="pascal source file")
     args = argparser.parse_args()
 
-    setup_logging(args.verbose)
+    if args.verbose:
+        args.stack_verbose = True
+        args.scope_verbose = True
+
+    setup_logging(
+        stack_verbose=args.stack_verbose,
+        scope_verbose=args.scope_verbose
+    )
 
     with open(args.FILE) as pascal_file:
         text = pascal_file.read()
