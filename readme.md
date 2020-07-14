@@ -33,7 +33,8 @@ $ python3 -m mypy spi.py
 From the top-level:
 
 ```
-usage: spi.py [-h] [-v] [-s] FILE
+ python3 spi.py -h
+usage: spi.py [-h] [--verbose-stack] [--verbose-scope] [-v] [-s] FILE
 
 simple pascal interpreter
 
@@ -42,8 +43,12 @@ positional arguments:
 
 optional arguments:
   -h, --help        show this help message and exit
-  -v, --verbose     verbose debugging output
+  --verbose-stack   verbose output related to runtime stack events
+  --verbose-scope   verbose output related to semantic analysis
+  -v, --verbose     enables all verbose flags (--stack-verbose, --scope-
+                    verbose)
   -s, --src-to-src  translate source in FILE to decorated source and print
+
 ```
 
 For example:
