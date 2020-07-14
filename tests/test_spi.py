@@ -1565,6 +1565,49 @@ class RuntimeStackTest(unittest.TestCase):
         with self.assertRaises(AssertionError):
             stack.push(f)
 
+    def test_part17_pas(self):
+        proc = subprocess.run(
+            [
+                sys.executable,
+                os.path.join("..", "spi.py"),
+                "--verbose-stack",
+                "part17.pas"
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT
+        )
+        exp = [
+            'ENTER: PROGRAM Main',
+            'RuntimeStack(',
+            '  frames: [',
+            '    Frame(',
+            '      name: Main,',
+            '      ty: FrameType.PROGRAM,',
+            '      nesting_lv: 1,',
+            '      members: {',
+            '      }',
+            '    )',
+            '  ]',
+            ')',
+            'LEAVE: PROGRAM Main',
+            'RuntimeStack(',
+            '  frames: [',
+            '    Frame(',
+            '      name: Main,',
+            '      ty: FrameType.PROGRAM,',
+            '      nesting_lv: 1,',
+            '      members: {',
+            '        y: 7,',
+            '        x: 30',
+            '      }',
+            '    )',
+            '  ]',
+            ')'
+        ]
+        act = proc.stdout.splitlines()
+        self.assertEqual(exp, act)
+
 
 class MypyTest(unittest.TestCase):
     def test_typing(self):
