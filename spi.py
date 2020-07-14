@@ -152,11 +152,11 @@ def flattened_str(s: str):
     return s
 
 
-def setup_logging(stack_verbose: bool, scope_verbose: bool) -> None:
+def setup_logging(verbose_stack: bool, verbose_scope: bool) -> None:
     def log_or_drop(verbose_flag: bool) -> int:
         return logging.DEBUG if verbose_flag else logging.CRITICAL + 1
 
-    if stack_verbose or scope_verbose:
+    if verbose_stack or verbose_scope:
         logging.disable(logging.NOTSET)
         logging.config.dictConfig({
             "version": 1,
@@ -171,10 +171,10 @@ def setup_logging(stack_verbose: bool, scope_verbose: bool) -> None:
             },
             "loggers": {
                 "stack": {
-                    "level": log_or_drop(stack_verbose)
+                    "level": log_or_drop(verbose_stack)
                 },
                 "scope": {
-                    "level": log_or_drop(scope_verbose)
+                    "level": log_or_drop(verbose_scope)
                 }
             },
             "root": {
@@ -3431,12 +3431,12 @@ class Interpreter(INodeVisitor):
 def main() -> None:
     argparser = argparse.ArgumentParser(description="simple pascal interpreter")
     argparser.add_argument(
-        "--stack-verbose",
+        "--verbose-stack",
         action="store_true",
         help="verbose output related to runtime stack events"
     )
     argparser.add_argument(
-        "--scope-verbose",
+        "--verbose-scope",
         action="store_true",
         help="verbose output related to semantic analysis"
     )
@@ -3454,12 +3454,12 @@ def main() -> None:
     args = argparser.parse_args()
 
     if args.verbose:
-        args.stack_verbose = True
-        args.scope_verbose = True
+        args.verbose_stack = True
+        args.verbose_scope = True
 
     setup_logging(
-        stack_verbose=args.stack_verbose,
-        scope_verbose=args.scope_verbose
+        verbose_stack=args.verbose_stack,
+        verbose_scope=args.verbose_scope
     )
 
     with open(args.FILE) as pascal_file:
