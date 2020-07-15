@@ -969,6 +969,17 @@ class InterpreterTestCase(unittest.TestCase):
         mem = self.interpreter.rts._free_frames[-1]
         self.assertEqual({'res': -8}, mem)
 
+    def test_proc_call(self):
+        ast = make_prog_ast_from_file("part18.pas")
+        with SemanticAnalyzer() as lyz:
+            lyz.analyze(ast)
+        self.interpreter.interpret(ast)
+        alpha_mem = self.interpreter.rts._free_frames[-2]
+        self.assertEqual({'a': 8, 'b': 7, 'x': 30}, alpha_mem._members)
+        self.assertEqual("Alpha", alpha_mem.name)
+        self.assertEqual(FrameType.PROCEDURE, alpha_mem.ty)
+        self.assertEqual(2, alpha_mem.nesting_lv)
+
 
 class SemanticAnalyzerTestCase(unittest.TestCase):
     def _get_scopes_from_str(self, s):

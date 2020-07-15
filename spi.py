@@ -872,8 +872,8 @@ class ProcDecl(IAST):
     def __init__(self, proc_name: str, params: List[Param], block_node: Block):
         self.name: str = proc_name
         self.params: List[Param] = params
-        self.block_node: Block = block_node
-        super().__init__(self.params + [self.block_node])
+        self.block: Block = block_node
+        super().__init__(self.params + [self.block])
 
     def __str__(self) -> str:
         return f"{type(self).__name__}(name={self.name})"
@@ -1171,6 +1171,7 @@ class ProcCall(IAST):
         self.token: IToken = token
         self.proc_name: str = cast(str, self.token.value)
         self.actual_params: List[IAST] = actual_params
+        self.proc_sym: Optional[ProcSymbol] = None
         super().__init__(self.actual_params)
 
     def __str__(self) -> str:
@@ -1802,9 +1803,15 @@ class VarSymbol(Symbol):
 
 
 class ProcSymbol(Symbol):
-    def __init__(self, name: str, params: List[VarSymbol] = None) -> None:
+    def __init__(
+            self,
+            name: str,
+            block: Block,
+            params: List[VarSymbol] = None
+    ) -> None:
         super().__init__(name)
         self.params: List[VarSymbol] = params if params is not None else []
+        self.block: Block = block
 
     def __str__(self) -> str:
         return f"{type(self).__name__}(name={self.name}, params={self.params})"
@@ -2673,7 +2680,7 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
 
     def _visit_program(self, node: Program) -> None:
         assert isinstance(self.current_scope, ScopedSymbolTable)
-        self.current_scope.insert(ProcSymbol(node.name))
+        self.current_scope.insert(ProcSymbol(node.name, node.block))
 
         scope_name = "global"
         self.logger.info(f"ENTER scope {scope_name}")
@@ -2716,7 +2723,7 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
 
     def _visit_proc_decl(self, node: ProcDecl) -> None:
         proc_name = node.name
-        proc_symbol = ProcSymbol(proc_name)
+        proc_symbol = ProcSymbol(proc_name, node.block)
         self.safe_current_scope.insert(proc_symbol)
 
         scope_name = proc_name
@@ -2744,7 +2751,7 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
             proc_symbol.params.append(var_sym)
             self.current_scope.insert(var_sym)
 
-        self.visit(node.block_node)
+        self.visit(node.block)
 
         self.logger.info(proc_scope)
         self.current_scope = self.current_scope.encl_scope
@@ -2769,13 +2776,15 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
 
             proc_sym2 = cast(ProcSymbol, proc_sym)
             exp_num_args = len(proc_sym2.params)
-            act_num_args = len(node.kids)
+            act_num_args = len(node.actual_params)
             self._assert(
                 cond=act_num_args == exp_num_args,
                 errcode=ErrorCode.BAD_PARAMS,
                 token=node.token,
                 msg=f"Expected {exp_num_args} args, got {act_num_args} args"
             )
+
+            node.proc_sym = proc_sym2
 
         for child in node.kids:
             self.visit(child)
@@ -2866,6 +2875,7 @@ class RuntimeStack:
     ) -> None:
         self._frames: List[Frame] = [] if frames is None else list(frames)
         self._free_frames: Optional[List[Frame]] = [] if free_frames else None
+        self.logger = getLogger("stack")
 
     def _assert_new_frame(self, frame) -> None:
         assert frame.nesting_lv == self.next_level()
@@ -2898,9 +2908,14 @@ class RuntimeStack:
 
     def push(self, frame: Frame) -> None:
         self._assert_new_frame(frame)
+        self.logger.info(f"ENTER: {frame.ty.value} {frame.name}")
         self._frames.append(frame)
+        self.logger.info(self)
 
     def pop(self) -> Frame:
+        freed_soon = self.peek()
+        self.logger.info(f"LEAVE: {freed_soon.ty.value} {freed_soon.name}")
+        self.logger.info(self)
         freed = self._frames.pop()
         if self._free_frames is not None:
             self._free_frames.append(freed)
@@ -3379,6 +3394,7 @@ class Interpreter(INodeVisitor):
                 )
             )
 
+    # TODO: lookup in other frames
     def _visit_var(self, node: Var) -> Union[int, float, bool]:
         name = node.value
         val = self.rts.peek().get(name.lower())
@@ -3386,12 +3402,8 @@ class Interpreter(INodeVisitor):
         return val
 
     def _visit_program(self, node: Program) -> None:
-        self.logger.info(f"ENTER: PROGRAM {node.name}")
         self.rts.emplace_frame(name=node.name)
-        self.logger.info(self.rts)
         self.visit(node.block)
-        self.logger.info(f"LEAVE: PROGRAM {node.name}")
-        self.logger.info(self.rts)
         self.rts.pop()
 
     def _visit_block(self, node: Block) -> None:
@@ -3409,6 +3421,14 @@ class Interpreter(INodeVisitor):
             data = "".join(
                 [str(self.visit(param)) for param in node.actual_params])
             print(data)
+        else:
+            proc_sym = cast(ProcSymbol, node.proc_sym)
+            self.rts.emplace_frame(node.proc_name, members={
+                param.name: cast([int, float, bool], self.visit(arg))
+                for param, arg in zip(proc_sym.params, node.actual_params)
+            })
+            self.visit(proc_sym.block)
+            self.rts.pop()
 
     def _visit_type(self, node: Type) -> None:
         pass
