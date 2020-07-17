@@ -833,6 +833,7 @@ class Program(IAST):
     def __init__(self, name: str, block: 'Block') -> None:
         self.name: str = name
         self.block: 'Block' = block
+        self.proc_sym: Optional[ProcSymbol] = None
         super().__init__([self.block])
 
     def __str__(self) -> str:
@@ -1807,11 +1808,13 @@ class ProcSymbol(Symbol):
             self,
             name: str,
             block: Block,
+            nesting_lv: int,
             params: List[VarSymbol] = None
     ) -> None:
         super().__init__(name)
-        self.params: List[VarSymbol] = params if params is not None else []
         self.block: Block = block
+        self.nesting_lv: int = nesting_lv
+        self.params: List[VarSymbol] = params if params is not None else []
 
     def __str__(self) -> str:
         return f"{type(self).__name__}(name={self.name}, params={self.params})"
@@ -2680,12 +2683,18 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
 
     def _visit_program(self, node: Program) -> None:
         assert isinstance(self.current_scope, ScopedSymbolTable)
-        self.current_scope.insert(ProcSymbol(node.name, node.block))
 
-        scope_name = "global"
-        self.logger.info(f"ENTER scope {scope_name}")
-        lv = self.current_scope.level + 1 if self.current_scope else 1
-        global_scope = ScopedSymbolTable(scope_name, lv, self.current_scope)
+        proc_sym = ProcSymbol(
+            node.name,
+            node.block,
+            self.current_scope.level + 1 if self.current_scope else 1
+        )
+        self.current_scope.insert(proc_sym)
+        node.proc_sym = proc_sym
+
+        self.logger.info(f"ENTER scope {node.name}")
+        global_scope = ScopedSymbolTable(
+            node.name, proc_sym.nesting_lv, self.current_scope)
         self.current_scope = global_scope
 
         self._build_in_visit(node)
@@ -2723,13 +2732,14 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
 
     def _visit_proc_decl(self, node: ProcDecl) -> None:
         proc_name = node.name
-        proc_symbol = ProcSymbol(proc_name, node.block)
+        proc_symbol = ProcSymbol(
+            proc_name, node.block, self.safe_current_scope.level + 1)
         self.safe_current_scope.insert(proc_symbol)
 
         scope_name = proc_name
         self.logger.info(f"ENTER scope {scope_name}")
         proc_scope = ScopedSymbolTable(
-            scope_name, self.safe_current_scope.level + 1, self.current_scope)
+            scope_name, proc_symbol.nesting_lv, self.current_scope)
         self.current_scope = proc_scope
 
         for param in node.params:
@@ -2894,14 +2904,14 @@ class RuntimeStack:
 
     def emplace_frame(
             self,
-            name: str,
+            proc_sym: ProcSymbol,
             members: Optional[Mapping[str, Union[int, float, bool]]] = None
     ) -> None:
         self.push(
             Frame(
-                name=name,
+                name=proc_sym.name,
                 ty=self.next_frame_type(),
-                nesting_lv=self.next_level(),
+                nesting_lv=proc_sym.nesting_lv,
                 members=members
             )
         )
@@ -3402,8 +3412,9 @@ class Interpreter(INodeVisitor):
         return val
 
     def _visit_program(self, node: Program) -> None:
-        self.rts.emplace_frame(name=node.name)
-        self.visit(node.block)
+        prog_sym = cast(ProcSymbol, node.proc_sym)
+        self.rts.emplace_frame(prog_sym)
+        self.visit(prog_sym.block)
         self.rts.pop()
 
     def _visit_block(self, node: Block) -> None:
@@ -3423,7 +3434,7 @@ class Interpreter(INodeVisitor):
             print(data)
         else:
             proc_sym = cast(ProcSymbol, node.proc_sym)
-            self.rts.emplace_frame(node.proc_name, members={
+            self.rts.emplace_frame(proc_sym, members={
                 param.name: cast([int, float, bool], self.visit(arg))
                 for param, arg in zip(proc_sym.params, node.actual_params)
             })
@@ -3440,8 +3451,9 @@ class Interpreter(INodeVisitor):
             self.visit(node.else_blk)
 
     def interpret_compound(self, ast: Compound) -> None:
-        self.rts.emplace_frame("compound")
-        self.visit(ast)
+        proc_sym = ProcSymbol("global", Block([], ast), 1)
+        self.rts.emplace_frame(proc_sym)
+        self.visit(proc_sym.block)
         self.rts.pop()
 
     def interpret(self, ast: IAST) -> Union[int, float, None]:

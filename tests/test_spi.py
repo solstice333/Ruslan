@@ -831,6 +831,8 @@ class InterpreterTestCase(unittest.TestCase):
             txt = pas.read()
 
         ast = make_prog_ast(txt)
+        with SemanticAnalyzer() as lyz:
+            lyz.analyze(ast)
         self.interpreter.interpret(ast)
         self.assertEqual(len(self.interpreter.rts._free_frames[-1]), 3)
         self.assertEqual(self.interpreter.rts._free_frames[-1]['a'], 2)
@@ -843,12 +845,16 @@ class InterpreterTestCase(unittest.TestCase):
 
     def test_part12_program(self):
         ast = make_prog_ast_from_file("part12.pas")
+        with SemanticAnalyzer() as lyz:
+            lyz.analyze(ast)
         self.interpreter.interpret(ast)
         self.assertEqual(len(self.interpreter.rts._free_frames[-1]), 1)
         self.assertEqual(self.interpreter.rts._free_frames[-1]['a'], 10)
 
     def test_bool_expr(self):
         ast = make_prog_ast_from_file("bool_test2.pas")
+        with SemanticAnalyzer() as lyz:
+            lyz.analyze(ast)
         self.interpreter.interpret(ast)
         self.assertEqual(len(self.interpreter.rts._free_frames[-1]), 5)
         self.assertEqual(self.interpreter.rts._free_frames[-1]['foo'], True)
@@ -859,6 +865,8 @@ class InterpreterTestCase(unittest.TestCase):
 
     def test_cond(self):
         ast = make_prog_ast_from_file("cond_test.pas")
+        with SemanticAnalyzer() as lyz:
+            lyz.analyze(ast)
         self.interpreter.interpret(ast)
         self.assertEqual(5, len(self.interpreter.rts._free_frames[-1]))
         self.assertEqual(7, self.interpreter.rts._free_frames[-1]['foo_res'])
@@ -867,6 +875,8 @@ class InterpreterTestCase(unittest.TestCase):
 
     def test_bitwise_or(self):
         ast = make_prog_ast_from_file("bitwise_or.pas")
+        with SemanticAnalyzer() as lyz:
+            lyz.analyze(ast)
         self.interpreter.interpret(ast)
         mem = self.interpreter.rts._free_frames[-1]
         self.assertEqual({'bar': 1,
@@ -876,18 +886,24 @@ class InterpreterTestCase(unittest.TestCase):
 
     def test_bitwise_xor(self):
         ast = make_prog_ast_from_file("bitwise_xor.pas")
+        with SemanticAnalyzer() as lyz:
+            lyz.analyze(ast)
         self.interpreter.interpret(ast)
         mem = self.interpreter.rts._free_frames[-1]
         self.assertEqual({'res': 11}, mem)
 
     def test_bitwise_and(self):
         ast = make_prog_ast_from_file("bitwise_and.pas")
+        with SemanticAnalyzer() as lyz:
+            lyz.analyze(ast)
         self.interpreter.interpret(ast)
         mem = self.interpreter.rts._free_frames[-1]
         self.assertEqual({'res': 5}, mem)
 
     def test_equal_not_equal(self):
         ast = make_prog_ast_from_file("equal_not_equal.pas")
+        with SemanticAnalyzer() as lyz:
+            lyz.analyze(ast)
         self.interpreter.interpret(ast)
         mem = self.interpreter.rts._free_frames[-1]
         self.assertEqual({'res': 2, 'res2': 2}, mem)
@@ -895,6 +911,8 @@ class InterpreterTestCase(unittest.TestCase):
     def test_greater_greater_equal_less_less_equal(self):
         ast = make_prog_ast_from_file(
             "greater_greater_equal_less_less_equal.pas")
+        with SemanticAnalyzer() as lyz:
+            lyz.analyze(ast)
         self.interpreter.interpret(ast)
         mem = self.interpreter.rts._free_frames[-1]
         self.assertEqual({'res': False,
@@ -916,6 +934,8 @@ class InterpreterTestCase(unittest.TestCase):
 
     def test_left_right_shift(self):
         ast = make_prog_ast_from_file("left_right_shift.pas")
+        with SemanticAnalyzer() as lyz:
+            lyz.analyze(ast)
         self.interpreter.interpret(ast)
         mem = self.interpreter.rts._free_frames[-1]
         self.assertEqual({'res': 16,
@@ -925,6 +945,8 @@ class InterpreterTestCase(unittest.TestCase):
 
     def test_modulus(self):
         ast = make_prog_ast_from_file("modulus.pas")
+        with SemanticAnalyzer() as lyz:
+            lyz.analyze(ast)
         self.interpreter.interpret(ast)
         mem = self.interpreter.rts._free_frames[-1]
         self.assertEqual({'res': 4,
@@ -932,6 +954,8 @@ class InterpreterTestCase(unittest.TestCase):
 
     def test_logical_not(self):
         ast = make_prog_ast_from_file("logical_not.pas")
+        with SemanticAnalyzer() as lyz:
+            lyz.analyze(ast)
         self.interpreter.interpret(ast)
         mem = self.interpreter.rts._free_frames[-1]
         self.assertEqual({'res': 4,
@@ -941,6 +965,8 @@ class InterpreterTestCase(unittest.TestCase):
 
     def test_bitwise_not(self):
         ast = make_prog_ast_from_file("bitwise_not.pas")
+        with SemanticAnalyzer() as lyz:
+            lyz.analyze(ast)
         self.interpreter.interpret(ast)
         mem = self.interpreter.rts._free_frames[-1]
         self.assertEqual({'res': 6,
@@ -952,6 +978,8 @@ class InterpreterTestCase(unittest.TestCase):
 
     def test_bad_operand(self):
         ast = make_prog_ast_from_file("bad_operand.pas")
+        with SemanticAnalyzer() as lyz:
+            lyz.analyze(ast)
         with self.assertRaises(InterpreterError) as e:
             self.interpreter.interpret(ast)
         exc = e.exception
@@ -965,6 +993,8 @@ class InterpreterTestCase(unittest.TestCase):
 
     def test_expr_stress(self):
         ast = make_prog_ast_from_file("expr_stress.pas")
+        with SemanticAnalyzer() as lyz:
+            lyz.analyze(ast)
         self.interpreter.interpret(ast)
         mem = self.interpreter.rts._free_frames[-1]
         self.assertEqual({'res': -8}, mem)
@@ -997,7 +1027,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         self.assertEqual(len(scopes), 2)
         self.assertEqual(
             "(" + \
-            "name: global, " + \
+            "name: Part11, " + \
             "level: 1, " + \
             "encl_scope: builtins, " + \
             "symbols: ['<x:INTEGER>', '<y:REAL>']" + \
@@ -1070,7 +1100,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "(" + \
             "name: P1, " + \
             "level: 2, " + \
-            "encl_scope: global, " + \
+            "encl_scope: Part12, " + \
             "symbols: [" + \
             "'<a:REAL>', " + \
             "'<k:INTEGER>', " + \
@@ -1081,7 +1111,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
         )
         self.assertEqual(
             "(" + \
-            "name: global, " + \
+            "name: Part12, " + \
             "level: 1, " + \
             "encl_scope: builtins, " + \
             "symbols: [" + \
@@ -1132,35 +1162,35 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "Insert: REAL",
             "Insert: BOOLEAN",
             "Insert: Main",
-            "ENTER scope global",
-            "Lookup: real. (Scope name: global)",
+            "ENTER scope Main",
+            "Lookup: real. (Scope name: Main)",
             "Lookup: real. (Scope name: builtins)",
-            "Lookup: x. (Scope name: global)",
+            "Lookup: x. (Scope name: Main)",
             "Insert: x",
-            "Lookup: real. (Scope name: global)",
+            "Lookup: real. (Scope name: Main)",
             "Lookup: real. (Scope name: builtins)",
-            "Lookup: y. (Scope name: global)",
+            "Lookup: y. (Scope name: Main)",
             "Insert: y",
             "Insert: Alpha",
             "ENTER scope Alpha",
             "Lookup: integer. (Scope name: Alpha)",
-            "Lookup: integer. (Scope name: global)",
+            "Lookup: integer. (Scope name: Main)",
             "Lookup: integer. (Scope name: builtins)",
             "Lookup: a. (Scope name: Alpha)",
             "Insert: a",
             "Lookup: integer. (Scope name: Alpha)",
-            "Lookup: integer. (Scope name: global)",
+            "Lookup: integer. (Scope name: Main)",
             "Lookup: integer. (Scope name: builtins)",
             "Lookup: y. (Scope name: Alpha)",
             "Insert: y",
             "(name: Alpha, level: 2, " + \
-            "encl_scope: global, symbols: ['<a:INTEGER>', '<y:INTEGER>'])",
+            "encl_scope: Main, symbols: ['<a:INTEGER>', '<y:INTEGER>'])",
             "LEAVE scope Alpha",
-            "(name: global, level: 1, encl_scope: builtins, " + \
+            "(name: Main, level: 1, encl_scope: builtins, " + \
             "symbols: ['<x:REAL>', '<y:REAL>', " + \
             "\"ProcSymbol(name=Alpha, " + \
             "params=[VarSymbol(name='a', type='INTEGER')])\"])",
-            "LEAVE scope global",
+            "LEAVE scope Main",
             "(name: builtins, level: 0, encl_scope: None, " + \
             "symbols: ['INTEGER', 'REAL', 'BOOLEAN', " + \
             "'ProcSymbol(name=Main, params=[])'])",
@@ -1200,7 +1230,7 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "(" + \
             "name: AlphaA, " + \
             "level: 2, " + \
-            "encl_scope: global, " + \
+            "encl_scope: Main, " + \
             "symbols: ['<a:INTEGER>', '<y:INTEGER>']" + \
             ")"
         )
@@ -1209,14 +1239,14 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "(" + \
             "name: AlphaB, " + \
             "level: 2, " + \
-            "encl_scope: global, " + \
+            "encl_scope: Main, " + \
             "symbols: ['<a:INTEGER>', '<b:INTEGER>']" + \
             ")"
         )
         self.assertEqual(
             scopes[2],
             "(" + \
-            "name: global, " + \
+            "name: Main, " + \
             "level: 1, " + \
             "encl_scope: builtins, " + \
             "symbols: [" + \
@@ -1259,41 +1289,41 @@ class SemanticAnalyzerTestCase(unittest.TestCase):
             "Insert: REAL",
             "Insert: BOOLEAN",
             "Insert: Main",
-            "ENTER scope global",
-            "Lookup: real. (Scope name: global)",
+            "ENTER scope Main",
+            "Lookup: real. (Scope name: Main)",
             "Lookup: real. (Scope name: builtins)",
-            "Lookup: x. (Scope name: global)",
+            "Lookup: x. (Scope name: Main)",
             "Insert: x",
-            "Lookup: real. (Scope name: global)",
+            "Lookup: real. (Scope name: Main)",
             "Lookup: real. (Scope name: builtins)",
-            "Lookup: y. (Scope name: global)",
+            "Lookup: y. (Scope name: Main)",
             "Insert: y",
             "Insert: Alpha",
             "ENTER scope Alpha",
             "Lookup: integer. (Scope name: Alpha)",
-            "Lookup: integer. (Scope name: global)",
+            "Lookup: integer. (Scope name: Main)",
             "Lookup: integer. (Scope name: builtins)",
             "Lookup: a. (Scope name: Alpha)",
             "Insert: a",
             "Lookup: integer. (Scope name: Alpha)",
-            "Lookup: integer. (Scope name: global)",
+            "Lookup: integer. (Scope name: Main)",
             "Lookup: integer. (Scope name: builtins)",
             "Lookup: y. (Scope name: Alpha)",
             "Insert: y",
             "Lookup: a. (Scope name: Alpha)",
             "Lookup: x. (Scope name: Alpha)",
-            "Lookup: x. (Scope name: global)",
+            "Lookup: x. (Scope name: Main)",
             "Lookup: y. (Scope name: Alpha)",
             "Lookup: x. (Scope name: Alpha)",
-            "Lookup: x. (Scope name: global)",
-            "(name: Alpha, level: 2, encl_scope: global, " + \
+            "Lookup: x. (Scope name: Main)",
+            "(name: Alpha, level: 2, encl_scope: Main, " + \
             "symbols: ['<a:INTEGER>', '<y:INTEGER>'])",
             "LEAVE scope Alpha",
-            "(name: global, level: 1, encl_scope: builtins, " + \
+            "(name: Main, level: 1, encl_scope: builtins, " + \
             "symbols: ['<x:REAL>', '<y:REAL>', " + \
             "\"ProcSymbol(name=Alpha, " + \
             "params=[VarSymbol(name='a', type='INTEGER')])\"])",
-            "LEAVE scope global",
+            "LEAVE scope Main",
             "(name: builtins, level: 0, encl_scope: None, " + \
             "symbols: ['INTEGER', 'REAL', 'BOOLEAN', " + \
             "'ProcSymbol(name=Main, params=[])'])",
@@ -1542,8 +1572,18 @@ class RuntimeStackTest(unittest.TestCase):
 
     def test_callstack_emplace(self):
         stack = RuntimeStack()
-        stack.emplace_frame(name="main", members={"foo": 1})
-        stack.emplace_frame("foo", {"foo": 2})
+
+        empty_blk = Block([], Compound())
+
+        stack.emplace_frame(
+            ProcSymbol("main", empty_blk, 1),
+            members={"foo": 1}
+        )
+        stack.emplace_frame(
+            ProcSymbol("foo", empty_blk, 2),
+            members={"foo": 2}
+        )
+
         self.assertEqual(
             'RuntimeStack(frames: [Frame(name: foo, '
             'ty: FrameType.PROCEDURE, nesting_lv: 2, '
