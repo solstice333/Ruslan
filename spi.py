@@ -840,13 +840,17 @@ class Program(IAST):
         return f"{type(self).__name__}(name={self.name})"
 
 
+class IDecl(IAST):
+    pass
+
+
 class Block(IAST):
     def __init__(
             self,
-            declarations: List['VarDecl'],
+            declarations: List['IDecl'],
             compound_statement: 'Compound'
     ) -> None:
-        self.declarations: List['VarDecl'] = declarations
+        self.declarations: List['IDecl'] = declarations
         self.compound_statement: 'Compound' = compound_statement
         super().__init__(self.declarations + [self.compound_statement])
 
@@ -854,7 +858,7 @@ class Block(IAST):
         return f"{type(self).__name__}()"
 
 
-class VarDecl(IAST):
+class VarDecl(IDecl):
     def __init__(self, var: 'Var', ty: 'Type') -> None:
         self.var: 'Var' = var
         self.type: 'Type' = ty
@@ -869,7 +873,7 @@ class Param(VarDecl):
         super().__init__(var, ty)
 
 
-class ProcDecl(IAST):
+class ProcDecl(IDecl):
     def __init__(self, proc_name: str, params: List[Param], block_node: Block):
         self.name: str = proc_name
         self.params: List[Param] = params
@@ -1728,13 +1732,13 @@ class Parser:
 
         return ProcDecl(proc_name, params, block_n)
 
-    def declarations(self) -> List[IAST]:
+    def declarations(self) -> List[IDecl]:
         """
         declarations:
             (VAR (variable_declaration SEMI)+)*
             procedure_declaration*
         """
-        declarations: List[IAST] = []
+        declarations: List[IDecl] = []
 
         while self.current_token.type == TokenType.VAR:
             self.eat(TokenType.VAR)
@@ -1763,7 +1767,7 @@ class Parser:
         self.eat(TokenType.DOT)
         return Program(prog_name, block_node)
 
-    def parse_expr(self) -> Union[BinOp, NoOp]:
+    def parse_expr(self) -> IAST:
         return self.root_expr()
 
     def parse_compound(self) -> Compound:
@@ -1776,14 +1780,14 @@ class Parser:
 
 
 class Symbol:
-    def __init__(self, name: str, level: int) -> None:
+    def __init__(self, name: str) -> None:
         self.name: str = name
-        self.level: int = level
+        self.level: int = 0
 
 
 class BuiltinTypeSymbol(Symbol):
     def __init__(self, name: str) -> None:
-        super().__init__(name, 0)
+        super().__init__(name)
 
     def __str__(self) -> str:
         return self.name
@@ -1793,8 +1797,8 @@ class BuiltinTypeSymbol(Symbol):
 
 
 class VarSymbol(Symbol):
-    def __init__(self, name: str, level: int, ty: BuiltinTypeSymbol) -> None:
-        super().__init__(name, level)
+    def __init__(self, name: str, ty: BuiltinTypeSymbol) -> None:
+        super().__init__(name)
         self.type: BuiltinTypeSymbol = ty
 
     def __str__(self) -> str:
@@ -1808,11 +1812,10 @@ class ProcSymbol(Symbol):
     def __init__(
             self,
             name: str,
-            level: int,
             block: Block,
             params: List[VarSymbol] = None
     ) -> None:
-        super().__init__(name, level)
+        super().__init__(name)
         self.block: Block = block
         self.params: List[VarSymbol] = params if params is not None else []
 
@@ -1891,6 +1894,7 @@ class ScopedSymbolTable:
             return None
 
     def insert(self, sym: Symbol) -> None:
+        sym.level = self.level
         self.logger.info(f"Insert: {sym.name}")
         self._symbols[sym.name.lower()] = sym
 
@@ -2701,7 +2705,6 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
 
         proc_sym = ProcSymbol(
             name=node.name,
-            level=self.current_scope.level,
             block=node.block
         )
         self.current_scope.insert(proc_sym)
@@ -2740,7 +2743,6 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
         var_name = var.value
         var_sym = VarSymbol(
             name=var_name,
-            level=self.safe_current_scope.level,
             ty=cast(BuiltinTypeSymbol, type_sym)
         )
         self._assert(
@@ -2756,7 +2758,6 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
         proc_name = node.name
         proc_symbol = ProcSymbol(
             name=proc_name,
-            level=self.safe_current_scope.level,
             block=node.block
         )
         self.safe_current_scope.insert(proc_symbol)
@@ -2787,7 +2788,6 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
 
             var_sym = VarSymbol(
                 name=param_name,
-                level=self.safe_current_scope.level,
                 ty=cast(BuiltinTypeSymbol, param_ty)
             )
             proc_symbol.params.append(var_sym)
@@ -2921,7 +2921,8 @@ class RuntimeStack:
         self.logger = getLogger("stack")
 
     def _assert_new_frame(self, frame) -> None:
-        assert frame.nesting_lv == self.next_level()
+        assert frame.nesting_lv == self.next_level(), \
+            f"got {frame.nesting_lv}, expected {self.next_level()}"
         if len(self._frames) > 0:
             assert frame.ty == FrameType.PROCEDURE
         else:
@@ -3484,7 +3485,7 @@ class Interpreter(INodeVisitor):
             self.visit(node.else_blk)
 
     def interpret_compound(self, ast: Compound) -> None:
-        proc_sym = ProcSymbol("global", 0, Block([], ast))
+        proc_sym = ProcSymbol("global", Block([], ast))
         self.rts.emplace_frame(proc_sym)
         self.visit(proc_sym.block)
         self.rts.pop()

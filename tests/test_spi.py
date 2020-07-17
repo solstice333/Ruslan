@@ -1574,12 +1574,18 @@ class RuntimeStackTest(unittest.TestCase):
         stack = RuntimeStack()
         empty_blk = Block([], Compound())
 
+        main_proc_sym = ProcSymbol("main", empty_blk)
+        main_proc_sym.level = 0
+
+        foo_proc_sym = ProcSymbol("foo", empty_blk)
+        foo_proc_sym.level = 1
+
         stack.emplace_frame(
-            ProcSymbol("main", 0, empty_blk),
+            main_proc_sym,
             members={"foo": 1}
         )
         stack.emplace_frame(
-            ProcSymbol("foo", 1, empty_blk),
+            foo_proc_sym,
             members={"foo": 2}
         )
 
