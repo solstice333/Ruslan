@@ -1776,13 +1776,14 @@ class Parser:
 
 
 class Symbol:
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, level: int) -> None:
         self.name: str = name
+        self.level: int = level
 
 
 class BuiltinTypeSymbol(Symbol):
     def __init__(self, name: str) -> None:
-        super().__init__(name)
+        super().__init__(name, 0)
 
     def __str__(self) -> str:
         return self.name
@@ -1792,8 +1793,8 @@ class BuiltinTypeSymbol(Symbol):
 
 
 class VarSymbol(Symbol):
-    def __init__(self, name: str, ty: BuiltinTypeSymbol) -> None:
-        super().__init__(name)
+    def __init__(self, name: str, level: int, ty: BuiltinTypeSymbol) -> None:
+        super().__init__(name, level)
         self.type: BuiltinTypeSymbol = ty
 
     def __str__(self) -> str:
@@ -1807,13 +1808,12 @@ class ProcSymbol(Symbol):
     def __init__(
             self,
             name: str,
+            level: int,
             block: Block,
-            nesting_lv: int,
             params: List[VarSymbol] = None
     ) -> None:
-        super().__init__(name)
+        super().__init__(name, level)
         self.block: Block = block
-        self.nesting_lv: int = nesting_lv
         self.params: List[VarSymbol] = params if params is not None else []
 
     def __str__(self) -> str:
@@ -2685,16 +2685,19 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
         assert isinstance(self.current_scope, ScopedSymbolTable)
 
         proc_sym = ProcSymbol(
-            node.name,
-            node.block,
-            self.current_scope.level + 1 if self.current_scope else 1
+            name=node.name,
+            level=self.current_scope.level,
+            block=node.block
         )
         self.current_scope.insert(proc_sym)
         node.proc_sym = proc_sym
 
         self.logger.info(f"ENTER scope {node.name}")
         global_scope = ScopedSymbolTable(
-            node.name, proc_sym.nesting_lv, self.current_scope)
+            name=node.name,
+            level=proc_sym.level + 1,
+            encl_scope=self.current_scope
+        )
         self.current_scope = global_scope
 
         self._build_in_visit(node)
@@ -2720,7 +2723,11 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
 
         var = node.var
         var_name = var.value
-        var_sym = VarSymbol(var_name, cast(BuiltinTypeSymbol, type_sym))
+        var_sym = VarSymbol(
+            name=var_name,
+            level=self.safe_current_scope.level,
+            ty=cast(BuiltinTypeSymbol, type_sym)
+        )
         self._assert(
             cond=self.safe_current_scope.lookup_this_scope(
                 var_sym.name) is None,
@@ -2733,13 +2740,19 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
     def _visit_proc_decl(self, node: ProcDecl) -> None:
         proc_name = node.name
         proc_symbol = ProcSymbol(
-            proc_name, node.block, self.safe_current_scope.level + 1)
+            name=proc_name,
+            level=self.safe_current_scope.level,
+            block=node.block
+        )
         self.safe_current_scope.insert(proc_symbol)
 
         scope_name = proc_name
         self.logger.info(f"ENTER scope {scope_name}")
         proc_scope = ScopedSymbolTable(
-            scope_name, proc_symbol.nesting_lv, self.current_scope)
+            name=scope_name,
+            level=proc_symbol.level + 1,
+            encl_scope=self.current_scope
+        )
         self.current_scope = proc_scope
 
         for param in node.params:
@@ -2757,7 +2770,11 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
                 token=param.var.token
             )
 
-            var_sym = VarSymbol(param_name, cast(BuiltinTypeSymbol, param_ty))
+            var_sym = VarSymbol(
+                name=param_name,
+                level=self.safe_current_scope.level,
+                ty=cast(BuiltinTypeSymbol, param_ty)
+            )
             proc_symbol.params.append(var_sym)
             self.current_scope.insert(var_sym)
 
@@ -2911,7 +2928,7 @@ class RuntimeStack:
             Frame(
                 name=proc_sym.name,
                 ty=self.next_frame_type(),
-                nesting_lv=proc_sym.nesting_lv,
+                nesting_lv=proc_sym.level + 1,
                 members=members
             )
         )
@@ -3451,7 +3468,7 @@ class Interpreter(INodeVisitor):
             self.visit(node.else_blk)
 
     def interpret_compound(self, ast: Compound) -> None:
-        proc_sym = ProcSymbol("global", Block([], ast), 1)
+        proc_sym = ProcSymbol("global", 0, Block([], ast))
         self.rts.emplace_frame(proc_sym)
         self.visit(proc_sym.block)
         self.rts.pop()

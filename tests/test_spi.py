@@ -1572,15 +1572,14 @@ class RuntimeStackTest(unittest.TestCase):
 
     def test_callstack_emplace(self):
         stack = RuntimeStack()
-
         empty_blk = Block([], Compound())
 
         stack.emplace_frame(
-            ProcSymbol("main", empty_blk, 1),
+            ProcSymbol("main", 0, empty_blk),
             members={"foo": 1}
         )
         stack.emplace_frame(
-            ProcSymbol("foo", empty_blk, 2),
+            ProcSymbol("foo", 1, empty_blk),
             members={"foo": 2}
         )
 
