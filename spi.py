@@ -2276,6 +2276,11 @@ class IDecoSrcBuilder(ABC):
         pass
 
     @abstractmethod
+    def _build_in_visit_procdecl(
+            self, scope: Optional[ScopedSymbolTable], node: ProcDecl) -> None:
+        pass
+
+    @abstractmethod
     def _build_post_visit_procdecl(
             self, scope: Optional[ScopedSymbolTable], node: ProcDecl) -> None:
         pass
@@ -2297,7 +2302,6 @@ class DecoSrcBuilder(IDecoSrcBuilder):
         self._expr: List[str] = []
         self._lvalue: List[str] = []
         self._statement: List[str] = []
-        self._global_name: str = ""
 
     @property
     def value(self) -> str:
@@ -2438,18 +2442,17 @@ class DecoSrcBuilder(IDecoSrcBuilder):
 
     def _build_pre_visit_var(
             self, scope: Optional[ScopedSymbolTable], node: Var) -> None:
-        var_name = node.value
-        assert scope is not None
-        sym = scope.lookup(var_name)
+        scope2 = cast(ScopedSymbolTable, scope)
+        sym = scope2.lookup(node.value)
+        var_sym = cast(VarSymbol, sym)
+        ty_sym = var_sym.type
 
-        type_name = ""
-        if isinstance(sym, VarSymbol):
-            tyname = sym.type.name
-            tylv = scope.lookup_level(tyname)
-            type_name = f":{tyname}{tylv}"
+        var_name = var_sym.name
+        var_lv = var_sym.level
+        ty_name = ty_sym.name
+        ty_lv = ty_sym.level
 
-        lv = scope.lookup_level(var_name) or ""
-        self._statement.append(f"<{var_name}{lv}{type_name}>")
+        self._statement.append(f"<{var_name}{var_lv}:{ty_name}{ty_lv}>")
 
     def _build_post_visit_var(
             self, scope: Optional[ScopedSymbolTable], node: Var) -> None:
@@ -2457,17 +2460,21 @@ class DecoSrcBuilder(IDecoSrcBuilder):
 
     def _build_pre_visit_program(
             self, scope: Optional[ScopedSymbolTable], node: Program) -> None:
-        lv = scope.level if scope else 0
-        self._global_name = node.name
-        self._writeln(scope, f"program {node.name}{lv};")
+        pass
 
     def _build_in_visit_program(
             self, scope: Optional[ScopedSymbolTable], node: Program) -> None:
-        pass
+        scope2 = cast(ScopedSymbolTable, scope)
+        sym = scope2.lookup(node.name)
+        prog_sym = cast(ProcSymbol, sym)
+        self._writeln(
+            scope2.encl_scope,
+            f"program {prog_sym.name}{prog_sym.level};"
+        )
 
     def _build_post_visit_program(
             self, scope: Optional[ScopedSymbolTable], node: Program) -> None:
-        self._writeinl(f".    {{END OF {self._global_name}}}")
+        self._writeinl(f".    {{END OF {node.name}}}")
 
     def _build_pre_visit_block(
             self, scope: Optional[ScopedSymbolTable], node: Block) -> None:
@@ -2479,32 +2486,40 @@ class DecoSrcBuilder(IDecoSrcBuilder):
 
     def _build_pre_visit_vardecl(
             self, scope: Optional[ScopedSymbolTable], node: VarDecl) -> None:
-        assert scope is not None
-        varname = node.var.value
-        typename = node.type.value
-        lv = cast(ScopedSymbolTable, scope).level
-        tylv = scope.lookup_level(typename)
-        self._writeln(scope, f"var {varname}{lv} : {typename}{tylv};")
+        pass
 
     def _build_post_visit_vardecl(
             self, scope: Optional[ScopedSymbolTable], node: VarDecl) -> None:
-        pass
+        scope2 = cast(ScopedSymbolTable, scope)
+        sym = scope2.lookup(node.var.value)
+        var_sym = cast(VarSymbol, sym)
+        self._writeln(
+            scope,
+            f"var {var_sym.name}{var_sym.level} : "
+            f"{var_sym.type.name}{var_sym.type.level};"
+        )
 
     def _build_pre_visit_procdecl(
             self, scope: Optional[ScopedSymbolTable], node: ProcDecl) -> None:
-        assert scope is not None
-        s = f"procedure {node.name}{scope.level}"
-        lv = cast(ScopedSymbolTable, scope).level + 1
+        pass
+
+    def _build_in_visit_procdecl(
+            self, scope: Optional[ScopedSymbolTable], node: ProcDecl) -> None:
+        scope2 = cast(ScopedSymbolTable, scope)
+        sym = scope2.lookup(node.name)
+        proc_sym = cast(ProcSymbol, sym)
         args = ""
-        if node.params:
+        if proc_sym.params:
             args += "("
-            for param in node.params:
-                varname = param.var.value
-                vartype = param.type.value
-                vartype_lv = scope.lookup_level(vartype)
-                args += f"{varname}{lv} : {vartype}{vartype_lv}"
+            for param in proc_sym.params:
+                args += \
+                    f"{param.name}{param.level} : " \
+                    f"{param.type.name}{param.type.level}"
             args += ")"
-        self._writeln(scope, f"{s}{args};")
+        self._writeln(
+            scope2.encl_scope,
+            f"procedure {proc_sym.name}{proc_sym.level}{args};"
+        )
 
     def _build_post_visit_procdecl(
             self, scope: Optional[ScopedSymbolTable], node: ProcDecl) -> None:
@@ -2778,6 +2793,7 @@ class SemanticAnalyzer(INodeVisitor, ContextManager['SemanticAnalyzer']):
             proc_symbol.params.append(var_sym)
             self.current_scope.insert(var_sym)
 
+        self._build_in_visit(node)
         self.visit(node.block)
 
         self.logger.info(proc_scope)
